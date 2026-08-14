@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#e8e8e6">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>MEMORIAL LOG — 메모리얼 로그</title>
+  <meta name="description" content="마음에 남은 장면과 문장을 실물 기록물처럼 간직하는 독립 편집기">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..900&amp;family=Cinzel:wght@400;500;600;700&amp;family=Gothic+A1:wght@300;400;500;600;700&amp;family=Gowun+Batang:wght@400;700&amp;family=Gowun+Dodum&amp;family=Italianno&amp;family=M+PLUS+Rounded+1c:wght@300;400;500;700&amp;family=Nanum+Brush+Script&amp;family=Nanum+Pen+Script&amp;family=Noto+Serif+JP:wght@300;400;600;700&amp;family=Noto+Serif+KR:wght@300;400;600;700&amp;family=Song+Myung&amp;family=Zen+Kurenaido&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="ticket-editor.css?v=131">
+  <link rel="stylesheet" href="ticket-editor-v14.css?v=131">
+  <link rel="stylesheet" href="ticket-templates-v1.css?v=131">
+</head>
+<body>
+  <section class="template-entry" id="templateEntry" aria-label="템플릿 선택">
+    <div class="entry-shell">
+      <header class="entry-masthead">
+        <div class="entry-brand"><strong>MEMORIAL LOG</strong><span>PERSONAL PHRASE ARCHIVE /<br>2026</span></div>
+        <h1><span>CHOOSE</span><i>YOUR</i><span>PASSAGE.</span></h1>
+        <p>마음에 오래 머문 한 문장을,<br>다시 꺼내 볼 수 있는<br>한 장으로 남겨보세요.</p>
+      </header>
+      <main class="entry-main">
+        <aside class="entry-meta" aria-label="서비스 정보">
+          <span class="entry-count" id="templateCount">04 TEMPLATES</span>
+          <span class="entry-version" id="entryVersion">VERSION 0.1.0</span>
+          <footer class="entry-credit"><span>© 2026 @gim. All rights reserved.</span></footer>
+        </aside>
+        <section class="entry-catalog" aria-label="템플릿 목록">
+          <div class="entry-list-label"><span>FORMAT INDEX</span><b>SELECT TO EDIT</b></div>
+          <div class="entry-options">
+            <button class="entry-card" data-start-template="train">
+              <span class="entry-index">01</span>
+              <span class="entry-card-copy"><small>ARCHIVE FORMAT 01</small><strong>TRAIN TICKET</strong><span>한 문장을 오래 이어지는 여정의 기록으로</span><em>편집 열기 →</em></span>
+              <span class="entry-spec" aria-hidden="true"><b>LANDSCAPE</b><small>3200 × 1600</small><i>FRONT / BACK</i></span>
+            </button>
+            <button class="entry-card" data-start-template="cinema">
+              <span class="entry-index">02</span>
+              <span class="entry-card-copy"><small>ARCHIVE FORMAT 02</small><strong>CINEMA TICKET</strong><span>한 장면의 온도와 한마디를 간직하는 입장권</span><em>편집 열기 →</em></span>
+              <span class="entry-spec" aria-hidden="true"><b>PORTRAIT STUB</b><small>2080 × 3600</small><i>FRONT / BACK</i></span>
+            </button>
+            <button class="entry-card" data-start-template="postcard">
+              <span class="entry-index">03</span>
+              <span class="entry-card-copy"><small>ARCHIVE FORMAT 03</small><strong>STAMP &amp; POSTCARD</strong><span>우표 속 이미지와 오래 남길 문장을 담은 한 장의 엽서</span><em>편집 열기 →</em></span>
+              <span class="entry-spec" aria-hidden="true"><b>COMPOSITE SET</b><small>3000 × 2000</small><i>FRONT + REVERSE</i></span>
+            </button>
+            <button class="entry-card" data-start-template="polaroid">
+              <span class="entry-index">04</span>
+              <span class="entry-card-copy"><small>ARCHIVE FORMAT 04</small><strong>POLAROID MEMORY</strong><span>사진과 대표 대사, 짧은 기억을 함께 품은 한 장의 폴라로이드</span><em>편집 열기 →</em></span>
+              <span class="entry-spec" aria-hidden="true"><b>PORTRAIT PHOTO</b><small>2460 × 3000</small><i>FRONT / BACK</i></span>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><h1>MEMORIAL LOG</h1><p>EDITOR</p></div>
+      <div class="panel-toggles" aria-label="편집 패널 표시">
+        <button class="icon-btn panel-toggle" id="toggleLayersBtn" title="레이어 패널 접기" aria-label="레이어 패널 접기" aria-pressed="false">☷</button>
+        <button class="icon-btn panel-toggle" id="toggleInspectorBtn" title="속성 패널 접기" aria-label="속성 패널 접기" aria-pressed="false">◫</button>
+      </div>
+      <div class="document-state"><strong id="documentName">TRAIN TICKET</strong><span id="saveState">브라우저에 자동 저장</span></div>
+      <div class="top-actions">
+        <button class="btn text" id="openTemplateBtn">티켓 선택</button>
+        <button class="btn text ui-theme-toggle" id="uiThemeBtn" aria-label="편집 UI 테마 전환">다크 모드</button>
+        <button class="btn import-json-action" id="importJsonBtn" type="button" title="저장한 편집 데이터 JSON 불러오기">JSON 불러오기</button>
+        <input id="importJsonInput" type="file" accept="application/json,.json" aria-label="편집 데이터 JSON 파일 선택" hidden>
+        <details class="export-menu">
+          <summary>내보내기</summary>
+          <div class="export-menu-popover">
+            <button class="btn secondary" id="jsonBtn" type="button"><strong>JSON</strong><span>편집 데이터 저장</span></button>
+            <button class="btn secondary" id="pngBtn" type="button"><strong>현재 면</strong><span>현재 보기 이미지</span></button>
+            <button class="btn primary" id="allPngBtn" type="button"><strong>전체 이미지</strong><span>FRONT · BACK · BOTH</span></button>
+            <button class="btn secondary" id="zipBtn" type="button"><strong>게시용 ZIP</strong><span>JSON과 이미지 부품</span></button>
+            <button class="export-help-button" id="exportHelpBtn" aria-expanded="false" aria-controls="exportHelp" title="내보내기 도움말">?</button>
+            <div class="export-help" id="exportHelp" hidden><b>EXPORT</b><p><strong>JSON</strong> 나중에 다시 불러올 수 있는 편집 데이터</p><p><strong>현재 면</strong> 현재 FRONT, BACK 또는 BOTH 보기 한 장</p><p><strong>전체 이미지</strong> FRONT · BACK · BOTH를 ZIP 한 개로 저장</p><p><strong>게시용 ZIP</strong> 글에서 조립할 JSON과 용량 최적화 이미지 부품</p></div>
+          </div>
+        </details>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="layers-panel">
+        <div class="layers-title">
+          <span>LAYERS</span>
+          <h2 id="layerFaceTitle">FRONT LAYERS</h2>
+        </div>
+        <div class="layer-create-controls" aria-label="사용자 레이어 추가">
+          <button id="addTextLayerBtn" type="button"><b>＋T</b><span>텍스트</span></button>
+          <label for="addImageLayerInput"><b>＋▧</b><span>이미지</span><input id="addImageLayerInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+          <div class="shape-add-control">
+            <button id="addShapeLayerBtn" type="button" aria-expanded="false" aria-controls="shapeAddMenu"><b>＋◇</b><span>도형</span></button>
+            <div class="shape-add-menu" id="shapeAddMenu" hidden>
+              <button type="button" data-add-shape="rectangle">사각형</button>
+              <button type="button" data-add-shape="ellipse">원 · 타원</button>
+              <button type="button" data-add-shape="triangle">삼각형</button>
+              <button type="button" data-add-shape="star">별</button>
+            </div>
+          </div>
+        </div>
+        <div class="layout-preset-controls" id="layoutPresetControls" aria-label="Layout Example" hidden>
+          <div class="layout-preset-heading"><span>Layout Example</span><small id="layoutPresetCount"></small></div>
+          <div class="layout-preset-action">
+            <select id="layoutPresetSelect" aria-label="불러올 Layout Example"></select>
+            <button id="applyLayoutPresetBtn" type="button">적용</button>
+          </div>
+        </div>
+        <div class="layer-list" id="layerList" aria-live="polite"></div>
+        <div class="layer-order-controls" aria-label="레이어 순서">
+          <button id="layerBottom" title="맨 뒤로" aria-label="레이어를 맨 뒤로">⇊</button>
+          <button id="layerBackward" title="한 단계 뒤로" aria-label="레이어를 한 단계 뒤로">↓</button>
+          <button id="layerForward" title="한 단계 앞으로" aria-label="레이어를 한 단계 앞으로">↑</button>
+          <button id="layerTop" title="맨 앞으로" aria-label="레이어를 맨 앞으로">⇈</button>
+        </div>
+        <div class="layer-document-controls" aria-label="레이어와 템플릿 작업">
+          <button id="duplicateLayerBtn" type="button" title="선택 레이어 복제 · Ctrl+D">복제</button>
+          <button id="deleteLayerBtn" type="button" title="선택 레이어 삭제 또는 숨기기 · Delete">삭제</button>
+          <button id="resetTemplateBtn" type="button" title="현재 템플릿을 처음 상태로 초기화">템플릿 초기화</button>
+        </div>
+      </aside>
+
+      <section class="canvas-area">
+        <div class="canvas-toolbar">
+          <div class="side-switch"><button class="active" data-side="front">FRONT</button><button data-side="back">BACK</button><button class="postcard-both-button" data-side="both" hidden>BOTH</button></div>
+          <div class="postcard-top-switch" id="postcardTopSwitch" aria-label="Face on top" hidden><span>TOP</span><button class="active" data-postcard-top="front">FRONT</button><button data-postcard-top="back">BACK</button></div>
+          <span id="canvasSize">1600 × 800</span>
+          <div class="history-control" aria-label="편집 기록">
+            <button class="toolbar-tool history-tool" id="undoBtn" title="실행 취소 · Ctrl+Z" aria-label="실행 취소">↩</button>
+            <button class="toolbar-tool history-tool" id="redoBtn" title="다시 실행 · Ctrl+Shift+Z" aria-label="다시 실행">↪</button>
+          </div>
+          <div class="layout-control" aria-label="자유 배치 도구">
+            <button class="toolbar-tool tool-mode" id="freeformBtn" type="button" aria-pressed="false" title="자유 배치 켜기" aria-label="자유 배치 켜기">⌖</button>
+            <button class="toolbar-tool tool-mode snap-toggle" id="snapToggle" type="button" aria-pressed="true" title="0.5% 격자 스냅 끄기" aria-label="격자 스냅 끄기">GRID</button>
+            <button class="toolbar-tool tool-mode smart-snap-toggle" id="objectSnapBtn" type="button" aria-pressed="false" title="근처 레이어와 오브젝트에 맞춰 이동" aria-label="오브젝트 스냅 켜기">OBJ</button>
+            <button class="toolbar-tool tool-mode smart-snap-toggle" id="centerSnapBtn" type="button" aria-pressed="false" title="템플릿 가로·세로 중앙에 맞춰 이동" aria-label="템플릿 중앙 스냅 켜기">CNTR</button>
+            <button class="toolbar-tool" id="resetPlacementBtn" type="button" title="현재 면의 템플릿 레이어 위치만 복원" aria-label="현재 면의 템플릿 레이어 위치만 복원">위치</button>
+          </div>
+          <div class="zoom-control" aria-label="미리보기 확대 축소">
+            <button id="zoomMinus" title="미리보기 축소" aria-label="미리보기 축소">−</button>
+            <input id="viewZoomRange" type="range" min="35" max="300" value="100" step="5" aria-label="미리보기 배율">
+            <button id="zoomPlus" title="미리보기 확대" aria-label="미리보기 확대">＋</button>
+            <label class="view-number"><input id="viewZoomInput" type="number" min="10" max="800" value="100" step="1" aria-label="미리보기 배율 직접 입력"><span>%</span></label>
+            <output id="viewZoomOut" class="sr-only">100%</output>
+            <div class="zoom-presets">
+              <button class="zoom-preset" id="zoomFit">화면 맞춤</button>
+              <button class="zoom-preset" id="zoomActual">100%</button>
+            </div>
+          </div>
+          <div class="rotation-control" aria-label="미리보기 회전">
+            <button id="rotateLeft" title="왼쪽으로 90도 회전" aria-label="왼쪽으로 90도 회전">↶</button>
+            <input id="viewRotationRange" type="range" min="0" max="359" value="0" step="1" aria-label="미리보기 회전 각도">
+            <button id="rotateRight" title="오른쪽으로 90도 회전" aria-label="오른쪽으로 90도 회전">↷</button>
+            <label class="view-number rotation-number"><input id="viewRotationInput" type="number" value="0" step="1" aria-label="미리보기 회전 각도 직접 입력"><span>°</span></label>
+            <button id="rotateReset" type="button" title="회전을 0도로 복원">0°</button>
+            <output id="viewRotationOut" class="sr-only">0°</output>
+          </div>
+          <button class="toolbar-help" type="button" title="Space + 드래그: 캔버스 이동 · 자유 배치 중 Alt + 드래그: 현재 선택 레이어 우선 이동 · Ctrl+C/V/X: 레이어 복사/붙여넣기/잘라내기" aria-label="캔버스 단축키 도움말">?</button>
+          <span id="faceStatus" class="sr-only">FRONT</span>
+        </div>
+        <div class="stage" id="stage">
+          <div class="ticket-viewport" id="ticketViewport">
+            <div class="ticket-zoom" id="ticketZoom">
+              <div class="ticket-scale" id="ticketScale">
+                <div class="ticket-view-transform" id="ticketViewTransform">
+                  <div class="ticket train light texture-on" id="ticket">
+              <div class="ticket-face ticket-front" id="frontFace">
+                <div class="block-layer">
+                  <div class="ticket-block block-main" id="frontMainBlock" data-canvas-layer="block-main"></div>
+                  <div class="ticket-block block-stub" id="frontStubBlock" data-canvas-layer="block-stub"></div>
+                </div>
+                <div class="image-layer">
+                  <div class="image-slot image-main" id="frontMainImageSlot" data-canvas-layer="image-main"><div class="block-image-frame"><img id="frontMainImage" alt="앞면 메인 이미지"><span></span><b class="image-placeholder">ADD IMAGE</b></div></div>
+                  <div class="image-slot image-stub" id="frontStubImageSlot" data-canvas-layer="image-stub"><div class="block-image-frame"><img id="frontStubImage" alt="교체 가능한 철도 여행 로고"><span></span></div></div>
+                </div>
+                <div class="paper-texture" id="frontTexture" data-canvas-layer="texture"></div>
+                <div class="effect-layer" id="frontEffects" data-canvas-layer="effects"></div>
+                <div class="ticket-frame-layer" id="frontFrameLayer">
+                  <span class="ticket-inner-frame" data-canvas-layer="frame"></span>
+                  <span class="train-main-frame" data-canvas-layer="main-frame">
+                    <img class="train-frame-decoration train-frame-decoration-main" data-frame-asset="main" src="assets/train-main-frame-ornament-v7.png" alt="" draggable="false" decoding="async">
+                    <svg class="frame-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" pathLength="100"></rect></svg>
+                  </span>
+                  <span class="train-stub-frame" data-canvas-layer="stub-frame">
+                    <img class="train-frame-decoration train-frame-decoration-stub" data-frame-asset="stub" src="assets/train-stub-frame-ornament-v6.png" alt="" draggable="false" decoding="async">
+                    <svg class="frame-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" pathLength="100"></rect></svg>
+                  </span>
+                  <span class="train-stub-divider" data-canvas-layer="stub-divider">
+                    <img class="train-frame-decoration train-frame-decoration-divider" data-frame-asset="stub-divider" src="assets/train-coupon-divider-ornament-v2.png" alt="" draggable="false" decoding="async">
+                    <svg class="divider-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="50" x2="100" y2="50"></line></svg>
+                  </span>
+                </div>
+                <div class="heading-layer" id="frontHeadingLayer">
+                  <span class="kicker" id="templateKicker" data-canvas-layer="kicker">THE GRAND NIGHT RAILWAY<br>PASSENGER DEPT.</span>
+                  <strong class="ticket-title" id="ticketTitlePreview" data-canvas-layer="title"><span id="ticketTitleText">MIDNIGHT PASSAGE</span></strong>
+                  <small class="ticket-subtitle" id="ticketSubtitlePreview" data-canvas-layer="subtitle">FIRST CLASS · RESERVED PASSAGE</small>
+                </div>
+                <div class="metadata-layer" id="frontMetadataLayer">
+                  <span class="metadata-field metadata-bot-field"><small id="botLabelPreview" data-canvas-layer="meta-bot-label">DEPARTURE</small><b id="botNamePreview" data-canvas-layer="meta-bot">HAEON</b></span>
+                  <span class="metadata-field metadata-persona-field"><small id="personaLabelPreview" data-canvas-layer="meta-persona-label">ARRIVAL</small><b id="personaNamePreview" data-canvas-layer="meta-persona">MIRA</b></span>
+                  <span class="metadata-field metadata-date-field"><small id="dateLabelPreview" data-canvas-layer="meta-date-label">DATE ISSUED</small><b id="datePreview" data-canvas-layer="meta-date">2026.07.30</b></span>
+                  <span class="train-coupon-meta-rules" data-canvas-layer="coupon-meta-rules" aria-label="Coupon Table Rules">
+                    <i class="train-coupon-meta-rule train-coupon-meta-rule-v train-coupon-meta-rule-v1" aria-hidden="true"></i>
+                    <i class="train-coupon-meta-rule train-coupon-meta-rule-v train-coupon-meta-rule-v2" aria-hidden="true"></i>
+                    <i class="train-coupon-meta-rule train-coupon-meta-rule-h" aria-hidden="true"></i>
+                  </span>
+                </div>
+                <div class="route-layer" id="frontRouteLayer">
+                  <span class="route-art-layer"><span class="perforation-hit" data-canvas-layer="route-art"><canvas class="perforation" aria-hidden="true"></canvas></span></span>
+                  <span class="ticket-seal" id="sealTextPreview" data-canvas-layer="seal">LT</span>
+                </div>
+                <div class="stub-print-layer" id="frontStubPrintLayer">
+                  <span class="rail-code" data-canvas-layer="coach"><small id="coachLabelPreview">CAR / SEAT</small><b id="coachNumberPreview">07 · 18</b></span>
+                  <span class="stub-copy"><small id="stubToplinePreview" data-canvas-layer="stub-topline">CONDUCTOR'S COUPON</small><em id="admitTextPreview" data-canvas-layer="admit-copy">ADMIT\nONE</em><b id="stubTitlePreview" data-canvas-layer="stub-title">NIGHT EXPRESS</b><small id="platformTextPreview" data-canvas-layer="platform">SINGLE · CLASS A</small></span>
+                  <span class="validation-ring" id="validationTextPreview" data-canvas-layer="validation">07\nVALID</span>
+                  <b class="stub-serial-copy" id="serialCopyPreview" data-canvas-layer="serial-copy"><span class="coupon-label" id="serialCopyLabelPreview">STUB SERIAL</span><span id="serialCopyValue">LT 0719 · 23:48</span></b>
+                </div>
+                <div class="quote-layer" id="frontQuoteLayer" data-canvas-layer="quote"><blockquote id="quotePreview"></blockquote><i class="resize-handle" title="드래그하여 크기 조절"></i></div>
+                <strong class="speaker-layer" id="speakerPreview" data-canvas-layer="speaker"></strong>
+                <p class="train-handwritten-note" id="trainHandwrittenNotePreview" data-canvas-layer="handwritten-note">Every quiet mile leaves a little light.
+What fades from view still travels with us.
+Some journeys remain long after arrival.</p>
+                <div class="details-layer" id="frontDetailsLayer"><span id="sourcePreview" data-canvas-layer="source"><span class="coupon-label">FARE / ROUTE</span><span id="sourcePreviewValue"></span></span><span class="train-main-serial-row"><span class="main-serial-label" id="frontSerialLabelPreview" data-canvas-layer="serial-label">SERIAL / MAIN TICKET</span><b id="serialPreview" data-canvas-layer="serial"></b></span></div>
+                <small class="memorial-attribution" data-canvas-layer="attribution" data-protected-layer="true">Memorial Log @gim. All rights reserved.</small>
+              </div>
+
+              <div class="ticket-face ticket-back" id="backFace">
+                <div class="block-layer">
+                  <div class="ticket-block block-main" id="backMainBlock" data-canvas-layer="block-main"></div>
+                  <div class="ticket-block block-stub" id="backStubBlock" data-canvas-layer="block-stub"></div>
+                </div>
+                <div class="image-layer">
+                  <div class="image-slot image-main" id="backMainImageSlot" data-canvas-layer="image-main"><div class="block-image-frame"><img id="backMainImage" alt="뒷면 메인 이미지"><span></span><b class="image-placeholder">ADD IMAGE</b></div></div>
+                  <div class="image-slot image-stub train-back-coupon-logo" id="backStubImageSlot" data-canvas-layer="image-stub"><div class="block-image-frame"><img id="backStubImage" alt="뒷면 우표 일러스트"><span></span><b class="image-placeholder">ADD IMAGE</b></div></div>
+                </div>
+                <div class="paper-texture" id="backTexture" data-canvas-layer="texture"></div>
+                <div class="effect-layer" id="backEffects" data-canvas-layer="effects"></div>
+                <div class="ticket-frame-layer" id="backFrameLayer">
+                  <span class="ticket-inner-frame" data-canvas-layer="frame">
+                    <span class="cinema-table-lines" aria-hidden="true">
+                      <i class="cinema-table-line cinema-table-edge cinema-table-edge-left"></i>
+                      <i class="cinema-table-line cinema-table-edge cinema-table-edge-right"></i>
+                      <i class="cinema-table-line cinema-table-rule cinema-table-rule-top"></i>
+                      <i class="cinema-table-line cinema-table-rule" style="--cinema-line-y:9.467455621%"></i>
+                      <i class="cinema-table-line cinema-table-rule" style="--cinema-line-y:27.218934911%"></i>
+                      <i class="cinema-table-line cinema-table-rule" style="--cinema-line-y:35.266272189%"></i>
+                      <i class="cinema-table-line cinema-table-rule" style="--cinema-line-y:79.526627219%"></i>
+                      <i class="cinema-table-line cinema-table-rule" style="--cinema-line-y:87.810650888%"></i>
+                      <i class="cinema-table-line cinema-table-rule cinema-table-rule-bottom"></i>
+                      <i class="cinema-table-line cinema-table-bottom-divider" style="--cinema-line-x:33.333333%"></i>
+                      <i class="cinema-table-line cinema-table-bottom-divider" style="--cinema-line-x:66.666667%"></i>
+                    </span>
+                  </span>
+                  <span class="train-back-image-frame" data-canvas-layer="back-image-frame">
+                    <img data-frame-asset="back-image-frame" src="assets/train-back-image-frame-ornament-v6.png" alt="" draggable="false" decoding="async">
+                    <svg class="frame-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="10.8" y="7.15" width="78.4" height="85.7" pathLength="100"></rect></svg>
+                  </span>
+                  <span class="back-record-rules train-back-record-rules" aria-label="뒷면 승객 보관부 구분선">
+                    <span class="back-record-rule back-record-rule-top" data-canvas-layer="record-divider-top"><img class="train-frame-decoration back-record-rule-art" data-frame-asset="record-divider-top" src="assets/train-record-divider-ornament-v2.png" alt="" draggable="false" decoding="async"><svg class="back-rule-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="50" x2="100" y2="50"></line></svg></span>
+                  </span>
+                  <span class="train-stub-frame train-back-coupon-frame" data-canvas-layer="stub-frame">
+                    <img class="train-frame-decoration train-frame-decoration-stub" data-frame-asset="stub" src="assets/train-stub-frame-ornament-v6.png" alt="" draggable="false" decoding="async">
+                    <svg class="frame-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="98" height="98" pathLength="100"></rect></svg>
+                  </span>
+                  <span class="train-stub-divider train-back-coupon-divider" data-canvas-layer="stub-divider">
+                    <img class="train-frame-decoration train-frame-decoration-divider" data-frame-asset="stub-divider" src="assets/train-coupon-divider-ornament-v2.png" alt="" draggable="false" decoding="async">
+                    <svg class="divider-hit-area" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="50" x2="100" y2="50"></line></svg>
+                  </span>
+                  <span class="postcard-rule postcard-center-rule" data-canvas-layer="postcard-center-rule"></span>
+                  <span class="postcard-rule postcard-writing-rule postcard-writing-rule-1" data-canvas-layer="postcard-writing-rule-1"></span>
+                  <span class="postcard-rule postcard-writing-rule postcard-writing-rule-2" data-canvas-layer="postcard-writing-rule-2"></span>
+                  <span class="postcard-rule postcard-writing-rule postcard-writing-rule-3" data-canvas-layer="postcard-writing-rule-3"></span>
+                  <span class="postcard-rule postcard-writing-rule postcard-writing-rule-4" data-canvas-layer="postcard-writing-rule-4"></span>
+                </div>
+                <div class="heading-layer back-heading train-back-coupon-heading" id="backHeadingLayer"><span class="kicker" id="backKickerPreview" data-canvas-layer="kicker">THE GRAND NIGHT RAILWAY<br>PASSENGER DEPT.</span><strong class="ticket-title" id="backHeadingPreview" data-canvas-layer="title"><span id="backHeadingText">MIDNIGHT PASSAGE</span></strong><small class="ticket-subtitle" id="backSubtitlePreview" data-canvas-layer="subtitle">FIRST CLASS · RESERVED PASSAGE</small></div>
+                <div class="metadata-layer back-metadata train-back-coupon-metadata" id="backMetadataLayer"><span class="metadata-field metadata-bot-field"><small id="backBotLabelPreview" data-canvas-layer="meta-bot-label">DEPARTURE</small><b id="backBotPreview" data-canvas-layer="meta-bot">HAEON</b></span><span class="metadata-field metadata-persona-field"><small id="backPersonaLabelPreview" data-canvas-layer="meta-persona-label">ARRIVAL</small><b id="backPersonaPreview" data-canvas-layer="meta-persona">MIRA</b></span><span class="metadata-field metadata-date-field"><small id="backDateLabelPreview" data-canvas-layer="meta-date-label">DATE ISSUED</small><b id="backDatePreview" data-canvas-layer="meta-date">2026.07.30</b></span><span class="train-coupon-meta-rules" data-canvas-layer="coupon-meta-rules" aria-label="Coupon Table Rules"><i class="train-coupon-meta-rule train-coupon-meta-rule-v train-coupon-meta-rule-v1" aria-hidden="true"></i><i class="train-coupon-meta-rule train-coupon-meta-rule-v train-coupon-meta-rule-v2" aria-hidden="true"></i><i class="train-coupon-meta-rule train-coupon-meta-rule-h" aria-hidden="true"></i></span><span class="postcard-model-field" data-canvas-layer="postcard-model"><small id="postcardModelLabelPreview">MODEL</small><b id="postcardModelPreview">ai</b></span><span class="postcard-prompt-field" data-canvas-layer="postcard-prompt"><small id="postcardPromptLabelPreview">PROMPT</small><b id="postcardPromptPreview">pr</b></span></div>
+                <div class="postcard-copy-layers" id="postcardCopyLayers">
+                  <span class="postcard-card-title" id="postcardCardTitlePreview" data-canvas-layer="postcard-card-title">POST CARD</span>
+                  <span class="postcard-card-subtitle" id="postcardCardSubtitlePreview" data-canvas-layer="postcard-card-subtitle">MEMORIAL LOG</span>
+                  <span class="postcard-field-label postcard-from-label" id="postcardFromLabelPreview" data-canvas-layer="postcard-from-label">FROM</span>
+                  <span class="postcard-field-value postcard-from-value" id="postcardFromValuePreview" data-canvas-layer="postcard-from-value">Bot</span>
+                  <span class="postcard-field-label postcard-to-label" id="postcardToLabelPreview" data-canvas-layer="postcard-to-label">TO</span>
+                  <span class="postcard-field-value postcard-to-value" id="postcardToValuePreview" data-canvas-layer="postcard-to-value">Persona</span>
+                  <span class="postcard-field-label postcard-date-label" id="postcardDateLabelPreview" data-canvas-layer="postcard-date-label">DATE</span>
+                  <span class="postcard-field-value postcard-date-value" id="postcardDateValuePreview" data-canvas-layer="postcard-date-value">2026-08-12</span>
+                  <span class="postcard-field-label postcard-model-label" id="postcardModelLabelLayerPreview" data-canvas-layer="postcard-model-label">MODEL</span>
+                  <span class="postcard-field-value postcard-model-value" id="postcardModelValueLayerPreview" data-canvas-layer="postcard-model-value">ai</span>
+                  <span class="postcard-field-label postcard-prompt-label" id="postcardPromptLabelLayerPreview" data-canvas-layer="postcard-prompt-label">PROMPT</span>
+                  <span class="postcard-field-value postcard-prompt-value" id="postcardPromptValueLayerPreview" data-canvas-layer="postcard-prompt-value">pr</span>
+                  <span class="postcard-writing-copy postcard-writing-copy-1" id="postcardWriting1Preview" data-canvas-layer="postcard-writing-1">오늘의 온도를 오래 기억해.</span>
+                  <span class="postcard-writing-copy postcard-writing-copy-2" id="postcardWriting2Preview" data-canvas-layer="postcard-writing-2">멀리 있어도 마음은 가까이.</span>
+                  <span class="postcard-writing-copy postcard-writing-copy-3" id="postcardWriting3Preview" data-canvas-layer="postcard-writing-3">다시 만날 날을 기다리며.</span>
+                  <span class="postcard-writing-copy postcard-writing-copy-4" id="postcardWriting4Preview" data-canvas-layer="postcard-writing-4">언제나 네 편인 내가.</span>
+                </div>
+                <div class="route-layer back-route" id="backRouteLayer"><span class="route-art-layer"><span class="perforation-hit" data-canvas-layer="route-art"><canvas class="perforation" aria-hidden="true"></canvas></span></span></div>
+                <div class="stub-print-layer back-stub-print train-back-coupon-print" id="backStubPrintLayer">
+                  <span class="rail-code" data-canvas-layer="coach"><small id="backCoachLabelPreview">CAR / SEAT</small><b id="backCoachNumberPreview">07 · 18</b></span>
+                  <span class="stub-copy"><small id="backStubToplinePreview" data-canvas-layer="stub-topline">CONDUCTOR'S COUPON</small><em id="backAdmitTextPreview" data-canvas-layer="admit-copy">ADMIT\nONE</em><b id="backStubTitlePreview" data-canvas-layer="stub-title">NIGHT EXPRESS</b><small id="backPlatformTextPreview" data-canvas-layer="platform">SINGLE · CLASS A</small></span>
+                  <span class="validation-ring" id="backValidationTextPreview" data-canvas-layer="validation">07\nVALID</span>
+                  <b class="stub-serial-copy" id="backSerialCopyPreview" data-canvas-layer="serial-copy"><span class="coupon-label" id="backSerialCopyLabelPreview">STUB SERIAL</span><span id="backSerialCopyValue">LT 0719 · 23:48</span></b>
+                </div>
+                <span class="back-copy-label" id="backCopyLabelPreview" data-canvas-layer="copy-label">JOURNEY NOTES / REVERSE</span>
+                <div class="back-copy quote-layer" id="backQuoteLayer" data-canvas-layer="quote"><h2 id="backTitlePreview"></h2><i class="resize-handle" title="드래그하여 크기 조절"></i></div>
+                <p class="back-body-layer" id="backBodyPreview" data-canvas-layer="body"></p>
+                <div class="train-back-record-metadata" aria-label="승객 보관부 운행 정보">
+                  <span class="record-metadata-field record-metadata-bot-field"><small id="backRecordBotLabelPreview" data-canvas-layer="record-meta-bot-label">DEPARTURE</small><b id="backRecordBotPreview" data-canvas-layer="record-meta-bot">HAEON</b></span>
+                  <span class="record-metadata-field record-metadata-persona-field"><small id="backRecordPersonaLabelPreview" data-canvas-layer="record-meta-persona-label">ARRIVAL</small><b id="backRecordPersonaPreview" data-canvas-layer="record-meta-persona">MIRA</b></span>
+                  <span class="record-metadata-field record-metadata-date-field"><small id="backRecordDateLabelPreview" data-canvas-layer="record-meta-date-label">DATE ISSUED</small><b id="backRecordDatePreview" data-canvas-layer="record-meta-date">2026.07.30</b></span>
+                </div>
+                <div class="cinema-rating-layer" id="cinemaRatingLayer">
+                  <small id="ratingLabelPreview" data-canvas-layer="rating-label">RATING</small>
+                  <span id="ratingMarksPreview" class="cinema-rating-marks-group" aria-label="별점 5칸"><span class="cinema-rating-glyphs" id="ratingGlyphsPreview" data-canvas-layer="rating-marks">☆☆☆☆☆</span><span class="cinema-rating-score" id="ratingScorePreview" data-canvas-layer="rating-score" aria-hidden="true">(   / 5 )</span></span>
+                </div>
+                <div class="cinema-etc-layer" aria-label="영화 기록 기타 정보"><small id="cinemaEtcLabelPreview" data-canvas-layer="cinema-etc-label">ETC.</small><b id="cinemaEtcPreview" data-canvas-layer="cinema-etc">model</b></div>
+                <div class="back-details details-layer train-back-record-details" id="backDetailsLayer"><span id="backNotePreview" data-canvas-layer="back-note"></span><b id="backSerial" data-canvas-layer="serial"></b><span id="backSourcePreview" data-canvas-layer="source"><span class="coupon-label">FARE / ROUTE</span><span id="backSourcePreviewValue"></span></span><small class="cinema-detail-label cinema-theater-label" id="backNoteLabelPreview" data-canvas-layer="back-note-label">THEATER</small><small class="cinema-detail-label cinema-screen-label" id="backSerialLabelPreview" data-canvas-layer="serial-label">SCREEN</small><small class="cinema-detail-label cinema-seat-label" id="backSourceLabelPreview" data-canvas-layer="source-label">SEAT</small></div>
+                <small class="memorial-attribution" data-canvas-layer="attribution" data-protected-layer="true">Memorial Log @gim. All rights reserved.</small>
+              </div>
+              <small class="ticket-attribution-preview" id="ticketAttributionPreview">Memorial Log @gim. All rights reserved.</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="editor-panel">
+        <nav class="tabs" aria-label="속성 패널">
+          <button class="active" data-tab="properties">PROPERTIES</button>
+          <button data-tab="motion">MOTION</button>
+        </nav>
+        <div class="panel-scroll">
+          <section class="tab-panel active" data-panel="properties">
+            <div class="empty-inspector" id="emptyInspector" hidden>
+              <span>NO SELECTION</span>
+              <p>미리보기의 빈 공간을 누른 상태입니다. 편집할 레이어를 선택하세요.</p>
+            </div>
+
+            <div class="inspector-group layer-text-inspector" data-inspector="layer-text">
+              <div class="inspector-subheading"><span>SELECTED TEXT</span><strong id="layerTextInspectorName">텍스트</strong></div>
+              <label id="layerTextFieldA"><span class="field-label">내용</span><textarea id="layerTextValueA" rows="3"></textarea></label>
+              <label id="layerTextFieldB"><span class="field-label">내용</span><textarea id="layerTextValueB" rows="2"></textarea></label>
+              <div class="partial-text-tools" id="layerPartialTextTools">
+                <span id="layerPartialTextStatus">텍스트에서 서식을 다르게 할 부분을 선택하세요.</span>
+                <button class="text-btn" id="clearLayerPartialStyle" type="button" disabled>선택 부분 서식 지우기</button>
+              </div>
+            </div>
+
+            <div class="inspector-group layer-style-inspector" data-inspector="layer-style">
+              <div class="inspector-subheading"><span>LAYER STYLE</span></div>
+              <div class="quote-style-controls text-color-mode-fields" id="layerTextColorModeFields">
+                <span class="control-label">글자 색상 방식</span>
+                <div class="quote-effect-options" role="radiogroup" aria-label="선택한 글자 레이어의 색상 방식">
+                  <label><input type="radio" name="layerTextColorMode" value="difference"><span>자동 반전</span></label>
+                  <label><input type="radio" name="layerTextColorMode" value="solid" checked><span>지정 색상</span></label>
+                </div>
+                <small id="layerTextColorModeHint">선택한 글자색을 그대로 사용합니다.</small>
+              </div>
+              <label class="layer-color-mode" id="layerColorModeRow"><input type="checkbox" id="layerColorMode"><span>개별 색상 사용</span></label>
+              <label class="color-control"><span id="layerColorLabel">지정 색상</span><span class="color-reset-row"><input type="color" id="layerColorInput" value="#272a29"><code id="layerColorCode">#272A29</code><button type="button" id="layerColorReset">원래대로</button></span></label>
+              <div id="layerTypographyFields">
+                <label class="field-label" for="layerFontFamily">FONT</label>
+                <div class="font-source-tabs" role="tablist" aria-label="글꼴 출처" data-font-tabs="layer">
+                  <button type="button" class="selected" role="tab" aria-selected="true" data-font-tab="app" data-font-target="layer">지원 글꼴</button>
+                  <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="layer">시스템 글꼴</button>
+                </div>
+                <div class="font-source-panel" data-font-panel="app" data-font-target="layer">
+                  <select id="layerFontFamily" class="font-preview-select"><option value="">Template default</option><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
+                </div>
+                <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="layer" hidden>
+                  <button type="button" class="system-font-browse" data-system-font-browse="layer">내 컴퓨터 글꼴 보기</button>
+                  <select class="system-font-select" data-system-font-select="layer" aria-label="시스템 글꼴 선택" hidden><option value="">시스템 글꼴 선택…</option></select>
+                  <small data-system-font-status="layer">권한을 허용하면 컴퓨터에 설치된 글꼴을 파일 저장 없이 바로 사용합니다.</small>
+                </div>
+                <span class="control-label">글자 스타일</span>
+                <div class="quote-effect-options text-emphasis-options" role="group" aria-label="선택한 글자 레이어의 굵기와 기울기">
+                  <label><input id="layerBoldToggle" type="checkbox"><span>굵게</span></label>
+                  <label><input id="layerItalicToggle" type="checkbox"><span>기울임</span></label>
+                </div>
+                <label class="field-label" for="layerTextAlign">텍스트 정렬</label>
+                <select id="layerTextAlign"><option value="">템플릿 기본</option><option value="left">좌측</option><option value="center">중앙</option><option value="right">우측</option></select>
+                <label class="field-label" for="layerWritingMode">글자 방향</label>
+                <select id="layerWritingMode"><option value="horizontal-tb">가로쓰기</option><option value="vertical-rl">세로쓰기</option></select>
+                <div class="spacing-field"><label for="layerFontSize">글자 크기</label><span><input id="layerFontSize" type="number" min="1.5" max="200" value="7.5" step="0.5"><em>pt</em></span></div>
+                <div class="spacing-field"><label for="layerLetterSpacing">글자 간격</label><span><input id="layerLetterSpacing" type="number" min="-300" max="300" value="0" step="0.1"><em>px</em></span><output id="layerLetterSpacingOut" hidden>0px</output></div>
+                <div class="spacing-field"><label for="layerLineHeight">줄 간격</label><span><input id="layerLineHeight" type="number" min="0.6" max="3" value="1.2" step="0.05"><em>배</em></span><output id="layerLineHeightOut" hidden>1.2</output></div>
+              </div>
+              <div id="commonFrameColorFields">
+                <label class="color-control"><span>프레임·장식·로고 공통 색상</span><span class="color-reset-row"><input type="color" id="commonAccentColor" value="#355a58"><code id="commonAccentCode">#355A58</code><button type="button" id="commonAccentReset">원래대로</button></span></label>
+                <p class="field-note">공통 색상은 전체 장식을 바꾸고, 개별 색상을 켜면 현재 프레임·장식·로고에만 적용됩니다.</p>
+              </div>
+              <button class="text-btn" id="layerStyleReset" type="button">레이어 스타일 모두 원래대로</button>
+            </div>
+
+            <div class="inspector-group" data-inspector="quote-options">
+              <div class="quote-bound-fields" hidden aria-hidden="true">
+                <label class="field-label" id="quoteFieldLabel" for="quoteInput">문장</label>
+                <textarea id="quoteInput" rows="5">우리가 지나온 모든 밤은
+사라진 게 아니라 길이 되었다.</textarea>
+                <div id="speakerFields">
+                  <label class="field-label" for="speakerInput">화자</label>
+                  <input id="speakerInput" value="해온">
+                </div>
+              </div>
+              <div class="quote-bound-fields" hidden aria-hidden="true">
+                <label class="field-label" for="backCopyLabelInput">뒷면 카피 라벨</label>
+                <input id="backCopyLabelInput" value="JOURNEY NOTES / REVERSE">
+                <label class="field-label" for="backTitleInput">뒷면 제목</label>
+                <textarea id="backTitleInput" rows="3">기억은 도착지가 아니라,
+계속 이어지는 노선이다.</textarea>
+                <label class="field-label" for="backBodyInput">뒷면 본문</label>
+                <textarea id="backBodyInput" rows="9">밤이 깊어질수록 창밖의 풍경은 이름을 잃고, 오래 남은 문장만이 작은 불빛처럼 또렷해집니다. 이 기록면에는 그날의 대화와 표정, 다시 꺼내 보고 싶은 한순간을 천천히 적어 두세요. 어디에서 출발했는지보다 무엇을 마음에 남겼는지, 누구와 같은 장면을 바라보았는지가 더 오래 기억될지도 모릅니다.
+
+열차가 다음 역으로 사라진 뒤에도 이 표는 한동안 당신의 문장을 품고 있습니다. 시간이 흐른 뒤 다시 펼쳤을 때 그날의 온도와 목소리가 조용히 돌아올 수 있도록, 빈칸을 서두르지 말고 당신만의 기록으로 채워 주세요.</textarea>
+              </div>
+              <span class="control-label">글꼴</span>
+              <div class="font-source-tabs" role="tablist" aria-label="글꼴 출처" data-font-tabs="global">
+                <button type="button" class="selected" role="tab" aria-selected="true" data-font-tab="app" data-font-target="global">지원 글꼴</button>
+                <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="global">시스템 글꼴</button>
+              </div>
+              <div class="font-source-panel" data-font-panel="app" data-font-target="global">
+              <div class="font-list">
+                <button class="selected font-noto" data-font="noto-serif">Noto Serif KR</button>
+                <button class="font-pretendard" data-font="pretendard">Pretendard</button>
+                <button class="font-gowun-batang" data-font="gowun-batang">Gowun Batang</button>
+                <button class="font-song-myung" data-font="song-myung">Song Myung</button>
+                <button class="font-gowun-dodum" data-font="gowun-dodum">Gowun Dodum</button>
+                <button class="font-gothic-a1" data-font="gothic-a1">Gothic A1</button>
+                <button class="font-noto-serif-jp" data-font="noto-serif-jp">Noto Serif JP · 明朝</button>
+                <button class="font-m-plus-rounded-1c" data-font="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</button>
+                <button class="font-zen-kurenaido" data-font="zen-kurenaido">Zen Kurenaido · 手書き</button>
+                <button class="font-cinzel" data-font="cinzel">Cinzel</button>
+                <button class="font-nanum-brush" data-font="nanum-brush">Nanum Brush Script</button>
+                <button class="font-nanum-pen" data-font="nanum-pen">Nanum Pen Script</button>
+                <button class="font-italianno" data-font="italianno">Italianno · Handwriting</button>
+              </div>
+              </div>
+              <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="global" hidden>
+                <button type="button" class="system-font-browse" data-system-font-browse="global">내 컴퓨터 글꼴 보기</button>
+                <select class="system-font-select" data-system-font-select="global" aria-label="시스템 글꼴 선택" hidden><option value="">시스템 글꼴 선택…</option></select>
+                <small data-system-font-status="global">시스템 글꼴은 이 컴퓨터에서만 표시되며 글꼴 파일은 저장하지 않습니다.</small>
+              </div>
+              <div class="compact-grid quote-value-grid">
+                <label><span>글자 크기 (pt)</span><input type="number" id="fontSizeInput" min="15" max="200" value="40.5" step="0.5"></label>
+                <label class="quote-color-control" for="quoteColor" hidden><span>글자색</span><span class="quote-color-input"><input type="color" id="quoteColor" value="#272a29"><output id="quoteColorValue">#272A29</output></span></label>
+              </div>
+            </div>
+
+            <div class="inspector-group" data-inspector="heading">
+              <div data-face-fields="front">
+                <label class="field-label" for="kickerInput">상단 운행 문구</label>
+                <input id="kickerInput" value="THE GRAND NIGHT RAILWAY · PASSENGER DEPT.">
+                <label class="field-label" for="titleInput">제목</label>
+                <input id="titleInput" value="MIDNIGHT PASSAGE">
+                <label class="field-label" for="subtitleInput">부제목</label>
+                <input id="subtitleInput" value="SINGLE JOURNEY · FIRST CLASS">
+              </div>
+              <div data-face-fields="back">
+                <label class="field-label" for="backKickerInput">뒷면 상단 문구</label>
+                <input id="backKickerInput" value="JOURNEY RECORD / SIDE B">
+                <label class="field-label" for="backHeadingInput">뒷면 헤딩</label>
+                <input id="backHeadingInput" value="MIDNIGHT PASSAGE">
+              </div>
+              <p class="field-note">영화 앞면 제목을 비워 두면 BOT 이름과 Persona 이름을 자동으로 조합합니다. 템플릿별 제목은 독립 저장됩니다.</p>
+            </div>
+
+            <div class="inspector-group" data-inspector="metadata">
+              <span class="control-label">라벨</span>
+              <div class="compact-grid three-up">
+                <label><span>이름 1</span><input id="botLabelInput" value="DEPARTURE"></label>
+                <label><span>이름 2</span><input id="personaLabelInput" value="ARRIVAL"></label>
+                <label><span>날짜</span><input id="dateLabelInput" value="DATE ISSUED"></label>
+              </div>
+              <label class="field-label" for="botNameInput">Bot 이름</label>
+              <input id="botNameInput" value="HAEON">
+              <label class="field-label" for="personaNameInput">Persona 이름</label>
+              <input id="personaNameInput" value="MIRA">
+              <label class="field-label" for="dateInput">날짜</label>
+              <input id="dateInput" type="date" value="2026-07-30">
+            </div>
+
+            <div class="inspector-group" data-inspector="source">
+              <div data-face-fields="front">
+                <label class="field-label" for="sourceInput">출처</label>
+                <input id="sourceInput" value="FARE 32.50 · ROUTE NL-07">
+              </div>
+              <div data-face-fields="back">
+                <label class="field-label" for="backNoteInput">뒷면 메모</label>
+                <input id="backNoteInput" value="">
+              </div>
+              <label><span>정보 색상</span><input type="color" id="mutedColor" value="#5f615c"></label>
+            </div>
+
+            <div class="inspector-group" data-inspector="serial">
+              <label class="field-label" for="serialInput">일련번호</label>
+              <input id="serialInput" value="LT 0719 · 23:48">
+              <p class="field-note">본표와 오른쪽 스텁의 번호가 함께 바뀝니다. 두 표기는 자유 배치에서 각각 이동할 수 있습니다.</p>
+              <label><span>강조·장식 색상</span><input type="color" id="accentColorDetails" value="#355a58"></label>
+            </div>
+
+            <div class="inspector-group" data-inspector="route">
+              <div data-face-fields="front">
+                <label class="field-label" for="sealTextInput">철도 운영사 인장</label><input id="sealTextInput" value="LT">
+              </div>
+              <label class="color-control"><span>장식·구분선 색상</span><input type="color" id="accentColor" value="#355a58"><code id="accentCode">#355A58</code></label>
+            </div>
+
+            <div class="inspector-group" data-inspector="stub-print">
+              <div data-face-fields="front">
+                <div class="compact-grid"><label><span>차량 라벨</span><input id="coachLabelInput" value="CAR / SEAT"></label><label><span>차량 번호</span><input id="coachNumberInput" value="07 · 18"></label></div>
+                <label class="field-label" for="stubToplineInput">스텁 구분</label><input id="stubToplineInput" value="CONDUCTOR'S COUPON">
+                <div class="compact-grid"><label><span>입장 표기</span><input id="admitTextInput" value="ADMIT ONE"></label><label><span>운행명</span><input id="stubTitleInput" value="NIGHT EXPRESS"></label></div>
+                <label class="field-label" for="platformTextInput">탑승 정보</label><input id="platformTextInput" value="SINGLE · CLASS A">
+                <label class="field-label" for="validationTextInput">검표 문구</label><input id="validationTextInput" value="PUNCH HERE">
+                <p class="field-note">ADMIT ONE은 한 명의 승객에게 유효한 입장권이라는 뜻이며, 오른쪽 영역은 검표 정보를 모은 승객용 스텁입니다.</p>
+              </div>
+              <div data-face-fields="back">
+                <label class="field-label" for="backIndexInput">뒷면 보관 표기</label><textarea id="backIndexInput" rows="2">PASSENGER\nCOPY</textarea>
+                <label class="field-label" for="backStampInput">검표 도장</label><textarea id="backStampInput" rows="2">PASSAGE\nVALIDATED</textarea>
+              </div>
+              <label class="color-control"><span>장식·구분선 색상</span><input type="color" id="accentColorStub" value="#355a58"></label>
+            </div>
+
+            <div class="inspector-group" data-inspector="frame">
+              <label class="color-control"><span>프레임·장식 공통 색상</span><input type="color" id="accentColorFrame" value="#355a58"><code id="accentCodeFrame">#355A58</code></label>
+            </div>
+
+            <div class="inspector-group" data-inspector="block-main block-stub">
+              <span class="control-label" id="blockHelp">CURRENT BLOCK</span>
+              <label class="color-control"><span>블록 색상</span><input type="color" id="blockColor" value="#171713"><code id="blockColorCode">#171713</code></label>
+              <button class="text-btn" id="blockColorReset" type="button">블록 색상 원래대로</button>
+            </div>
+
+            <div class="inspector-group" data-inspector="image-main image-stub">
+              <span class="control-label" id="imageHelp">CURRENT IMAGE SLOT</span>
+              <label class="upload-zone"><input type="file" id="imageInput" accept="image/*"><strong>이미지 추가</strong><small id="imageName">선택한 파일 없음</small></label>
+              <button class="text-btn" id="removeImageBtn">이미지 제거</button>
+              <label class="switch-row logo-tint-control" id="logoTintControl" hidden><span><strong>장식색 적용</strong><small>로고를 프레임·구분선과 같은 색으로 맞춤</small></span><input type="checkbox" id="logoTintToggle"></label>
+              <label class="color-control logo-accent-control" id="logoAccentControl" hidden><span>로고·프레임·장식 색상</span><input type="color" id="logoAccentColor" value="#355a58"><code id="logoAccentCode">#355A58</code></label>
+              <span class="control-label">맞춤</span>
+              <div class="segmented" id="fitSwitch"><button class="active" data-fit="contain">전체 표시</button><button data-fit="cover">영역 채우기</button></div>
+              <div class="range-field"><span><strong>이미지 확대</strong><output id="blockZoomOut">100%</output></span><input id="blockZoomRange" type="range" min="1" max="3" value="1" step="0.01"></div>
+              <div class="image-position-controls">
+                <div class="range-field"><span><strong>가로 위치</strong><output id="imagePanXOut">0</output></span><input id="imagePanXRange" type="range" min="-100" max="100" value="0" step="1"></div>
+                <div class="range-field"><span><strong>세로 위치</strong><output id="imagePanYOut">0</output></span><input id="imagePanYRange" type="range" min="-100" max="100" value="0" step="1"></div>
+              </div>
+              <p class="field-note">미리보기의 이미지를 직접 드래그해도 가로·세로 위치가 함께 바뀝니다.</p>
+            </div>
+
+            <div class="inspector-group" data-inspector="texture">
+              <label class="switch-row"><span><strong>종이 질감</strong><small>티켓 앞뒤 전체 표면에 적용</small></span><input type="checkbox" id="textureToggle" checked></label>
+              <div class="range-field"><span><strong>질감 강도</strong><output id="textureStrengthOut">80%</output></span><input id="textureStrengthRange" type="range" min="0" max="100" value="80"></div>
+            </div>
+
+            <div class="inspector-group effects-inspector" data-inspector="image-main image-stub custom-image shape-image-effects">
+              <div class="inspector-subheading"><span>IMAGE EFFECTS</span><strong>선택한 이미지에만 적용</strong></div>
+              <div class="range-field"><span><strong>블러</strong><label class="view-number effect-value"><input id="blurOut" type="number" min="0" max="12" value="0" step="0.5" aria-label="블러 수치"><span>px</span></label></span><input id="blurRange" type="range" min="0" max="12" value="0" step="0.5"></div>
+              <div class="range-field"><span><strong>밝기</strong><label class="view-number effect-value"><input id="brightOut" type="number" min="-100" max="100" value="0" step="1" aria-label="밝기 수치"><span>%</span></label></span><input id="brightRange" type="range" min="-100" max="100" value="0"></div>
+              <div class="range-field"><span><strong>채도</strong><label class="view-number effect-value"><input id="satOut" type="number" min="-100" max="100" value="0" step="1" aria-label="채도 수치"><span>%</span></label></span><input id="satRange" type="range" min="-100" max="100" value="0"></div>
+              <div class="range-field"><span><strong>대비</strong><label class="view-number effect-value"><input id="contrastOut" type="number" min="-100" max="100" value="0" step="1" aria-label="대비 수치"><span>%</span></label></span><input id="contrastRange" type="range" min="-100" max="100" value="0"></div>
+              <div class="range-field"><span><strong>색조</strong><label class="view-number effect-value"><input id="hueOut" type="number" min="-180" max="180" value="0" step="1" aria-label="색조 수치"><span>°</span></label></span><input id="hueRange" type="range" min="-180" max="180" value="0"></div>
+              <div class="compact-grid"><label><span>세피아 %</span><input id="sepiaInput" type="number" min="0" max="100" value="0"></label><label><span>흑백 %</span><input id="grayscaleInput" type="number" min="0" max="100" value="0"></label></div>
+              <div class="range-field"><span><strong>비네트</strong><label class="view-number effect-value"><input id="vignetteOut" type="number" min="-100" max="100" value="0" step="1" aria-label="비네트 수치"><span>%</span></label></span><input id="vignetteRange" type="range" min="-100" max="100" value="0" step="1"></div>
+              <div class="range-field"><span><strong>컬러 오버레이</strong><label class="view-number effect-value"><input id="overlayOut" type="number" min="0" max="100" value="0" step="1" aria-label="컬러 오버레이 수치"><span>%</span></label></span><input id="overlayRange" type="range" min="0" max="100" value="0" step="1"></div>
+              <div class="compact-grid"><label><span>오버레이 색</span><input id="overlayColorInput" type="color" value="#6f3f43"></label><label><span>혼합</span><select id="overlayBlendInput"><option value="multiply">Multiply</option><option value="soft-light">Soft light</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="normal">Normal</option></select></label></div>
+              <p class="field-note">효과값은 이미지마다 독립 저장됩니다. 블러는 이미지 전체 픽셀에 적용됩니다.</p>
+              <button class="text-btn" id="resetEffectsBtn" type="button">효과 초기화</button>
+            </div>
+
+            <div class="inspector-group" data-inspector="custom-text custom-image custom-shape">
+              <span id="customLayerIdentityHome" hidden></span>
+              <div class="custom-layer-identity-fields" id="customLayerIdentityFields">
+              <div class="inspector-subheading"><span>USER LAYER</span><strong>템플릿과 독립 저장</strong></div>
+              <label class="field-label" for="customLayerNameInput">레이어 이름</label>
+              <input id="customLayerNameInput" value="사용자 레이어">
+              <div data-custom-fields="text">
+                <label class="field-label" for="customTextInput">텍스트</label>
+                <textarea id="customTextInput" rows="5">새 텍스트</textarea>
+                <div class="partial-text-tools" id="customPartialTextTools">
+                  <span id="customPartialTextStatus">텍스트에서 서식을 다르게 할 부분을 선택하세요.</span>
+                  <button class="text-btn" id="clearCustomPartialStyle" type="button" disabled>선택 부분 서식 지우기</button>
+                </div>
+                <p class="field-note">복제한 복합 블록은 줄마다 원본 글자 크기와 서식을 유지한 채 수정됩니다.</p>
+                <div class="legacy-custom-typography" hidden aria-hidden="true">
+                <div class="quote-style-controls text-color-mode-fields">
+                  <span class="control-label">글자 색상 방식</span>
+                  <div class="quote-effect-options" role="radiogroup" aria-label="사용자 텍스트 색상 방식">
+                    <label><input type="radio" name="customTextColorMode" value="difference"><span>자동 반전</span></label>
+                    <label><input type="radio" name="customTextColorMode" value="solid" checked><span>지정 색상</span></label>
+                  </div>
+                  <small id="customTextColorModeHint">선택한 글자색을 그대로 사용합니다.</small>
+                </div>
+                <div class="compact-grid"><label id="customTextColorControl"><span>지정 색상</span><input id="customTextColor" type="color" value="#684b47"></label><label><span>정렬</span><select id="customTextAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></label></div>
+                <label class="field-label" for="customWritingMode">글자 방향</label>
+                <select id="customWritingMode"><option value="horizontal-tb">가로쓰기</option><option value="vertical-rl">세로쓰기</option></select>
+                <button class="text-btn" id="customTextColorReset" type="button">글자색 원래대로</button>
+                <div class="spacing-field"><label for="customLetterSpacing">글자 간격</label><span><input id="customLetterSpacing" type="number" min="-300" max="300" value="0" step="0.1"><em>px</em></span><output id="customLetterSpacingOut" hidden>0px</output></div>
+                <div class="spacing-field"><label for="customLineHeight">줄 간격</label><span><input id="customLineHeight" type="number" min="0.6" max="3" value="1.35" step="0.05"><em>배</em></span><output id="customLineHeightOut" hidden>1.35</output></div>
+                <div class="spacing-field"><label for="customFontSizePt">글자 크기</label><span><input id="customFontSizePt" type="number" min="6" max="200" value="21" step="0.5"><em>pt</em></span></div>
+                <label class="field-label" for="customTextFont">글꼴</label>
+                <div class="font-source-tabs" role="tablist" aria-label="글꼴 출처" data-font-tabs="custom">
+                  <button type="button" class="selected" role="tab" aria-selected="true" data-font-tab="app" data-font-target="custom">지원 글꼴</button>
+                  <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="custom">시스템 글꼴</button>
+                </div>
+                <div class="font-source-panel" data-font-panel="app" data-font-target="custom">
+                  <select id="customTextFont" class="font-preview-select"><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
+                </div>
+                <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="custom" hidden>
+                  <button type="button" class="system-font-browse" data-system-font-browse="custom">내 컴퓨터 글꼴 보기</button>
+                  <select class="system-font-select" data-system-font-select="custom" aria-label="시스템 글꼴 선택" hidden><option value="">시스템 글꼴 선택…</option></select>
+                  <small data-system-font-status="custom">선택한 시스템 글꼴을 사용자 텍스트에 바로 적용합니다.</small>
+                </div>
+                <span class="control-label">글자 스타일</span>
+                <div class="quote-effect-options text-emphasis-options" role="group" aria-label="사용자 텍스트의 굵기와 기울기">
+                  <label><input id="customBoldToggle" type="checkbox"><span>굵게</span></label>
+                  <label><input id="customItalicToggle" type="checkbox"><span>기울임</span></label>
+                </div>
+                </div>
+              </div>
+              </div>
+              <div data-custom-fields="image">
+                <label class="upload-zone"><input type="file" id="customImageReplaceInput" accept="image/png,image/jpeg,image/webp,image/gif"><strong>이미지 교체</strong><small id="customImageName">선택한 파일 없음</small></label>
+                <label class="field-label" for="customImageFit">맞춤</label>
+                <select id="customImageFit"><option value="contain">비율 유지 · 전체 표시</option><option value="cover">영역 채우기</option></select>
+                <p class="field-note">투명 PNG·WebP의 알파 채널을 그대로 보존하며 흰색이나 검정 배경을 추가하지 않습니다.</p>
+              </div>
+              <div data-custom-fields="shape">
+                <div class="compact-grid"><label><span>도형</span><select id="customShapeType"><option value="rectangle">사각형</option><option value="ellipse">원 · 타원</option><option value="triangle">삼각형</option><option value="star">별</option></select></label><label><span>채우기</span><select id="customShapeFillMode"><option value="color">단색</option><option value="image">이미지</option></select></label></div>
+                <div id="customShapeColorFields"><label class="color-control"><span>채우기 색상</span><input id="customShapeFillColor" type="color" value="#b87977"><code id="customShapeFillColorCode">#B87977</code></label></div>
+                <div id="customShapeImageFields" hidden>
+                  <input class="sr-only" type="file" id="customShapeImageInput" accept="image/png,image/jpeg,image/webp,image/gif">
+                  <div class="shape-image-actions"><label class="text-btn shape-image-file-button" id="chooseCustomShapeImageBtn" for="customShapeImageInput" aria-describedby="customShapeImageName">파일 불러오기</label><button class="text-btn" id="removeCustomShapeImageBtn" type="button">이미지 제거</button></div>
+                  <small class="shape-image-name" id="customShapeImageName">선택한 파일 없음</small>
+                  <label class="field-label" for="customShapeImageFit">맞춤</label>
+                  <select id="customShapeImageFit"><option value="contain">비율 유지 · 전체 표시</option><option value="cover">영역 채우기</option></select>
+                  <div class="range-field"><span><strong>확대</strong><output id="customShapeZoomOut">100%</output></span><input id="customShapeZoomRange" type="range" min="100" max="300" value="100"></div>
+                  <div class="range-field"><span><strong>가로 위치</strong><output id="customShapePanXOut">0</output></span><input id="customShapePanXRange" type="range" min="-100" max="100" value="0"></div>
+                  <div class="range-field"><span><strong>세로 위치</strong><output id="customShapePanYOut">0</output></span><input id="customShapePanYRange" type="range" min="-100" max="100" value="0"></div>
+                </div>
+                <div id="customShapeCornerFields">
+                  <label class="switch-row"><span><strong>모서리별 설정</strong><small>끄면 모든 모서리를 함께 조절</small></span><input id="customShapeCornerMode" type="checkbox"></label>
+                  <div class="range-field" id="customShapeCornerAllRow"><span><strong>모서리 둥글기</strong><label class="view-number shape-corner-value"><input id="customShapeCornerAllNumber" type="number" min="0" max="50" value="0" step="1" aria-label="전체 모서리 둥글기 직접 입력"><span>%</span></label></span><input id="customShapeCornerAll" type="range" min="0" max="50" value="0"></div>
+                  <div class="shape-corner-grid" id="customShapeCornerIndividual" hidden></div>
+                  <p class="field-note">원은 크기 조절로 타원이 됩니다. 삼각형과 별은 각 영역 방향의 꼭짓점 둥글기를 조절합니다.</p>
+                </div>
+              </div>
+              <div class="range-field"><span><strong>불투명도</strong><output id="customOpacityOut">100%</output></span><input id="customOpacityRange" type="range" min="0" max="100" value="100"></div>
+              <div class="custom-layer-actions"><button class="text-btn" id="duplicateLayerInspectorBtn" type="button">레이어 복제</button><button class="text-btn danger" id="deleteLayerInspectorBtn" type="button">레이어 삭제</button></div>
+            </div>
+
+            <div class="position-inspector" id="positionInspector">
+              <div class="inspector-subheading"><span>FREE POSITION</span><strong>이 티켓에서만 적용</strong></div>
+              <div class="metric-grid object-metric-grid"><label id="inspectXLabel">X PX<input id="inspectX" type="number" step="0.1"></label><label id="inspectYLabel">Y PX<input id="inspectY" type="number" step="0.1"></label><label id="inspectRotateLabel">ROTATE<input id="inspectRotate" type="number" min="-360" max="360" step="1"></label><label id="inspectWLabel">W<input id="inspectW" type="number" min="0.01" step="1"></label><label id="inspectHLabel">H<input id="inspectH" type="number" min="0.01" step="1"></label><label id="inspectSizeLabel">FONT PT<input id="inspectSize" type="number" min="1.5" max="200" step="0.5"></label></div>
+              <button class="text-btn" id="resetObjectShapeBtn" type="button">모양 원래대로</button>
+              <p class="field-note">텍스트 모서리는 고정된 영역의 가로·세로 크기를 조절하며, 넘친 글자는 영역 밖에서 가려집니다. Alt+모서리 드래그는 포토샵 변형처럼 글자 형태와 비율까지 함께 확대·축소하고, 텍스트·이미지·도형 모두 Alt+왼쪽 핸들 드래그로 기울일 수 있습니다.</p>
+            </div>
+
+            <div class="inspector-group multi-selection-inspector" data-inspector="multi-selection" id="multiSelectionInspector">
+              <div class="inspector-subheading"><span>MULTI SELECTION</span><strong id="multiSelectionCount">2개 선택</strong></div>
+              <p class="field-note">정렬은 가장 먼저 선택한 유효 레이어를 기준으로 하며, 간격은 좌→우·위→아래 순서로 맞춥니다.</p>
+              <div class="multi-align-axis" aria-label="복수 선택 가로 정렬">
+                <span>가로 맞춤</span>
+                <div class="multi-align-actions multi-align-actions-three">
+                  <button class="selection-operation-btn" id="alignSelectionX" type="button">왼쪽 <small>LEFT</small></button>
+                  <button class="selection-operation-btn" id="alignSelectionCenterX" type="button">가운데 <small>CENTER</small></button>
+                  <button class="selection-operation-btn" id="alignSelectionRight" type="button">오른쪽 <small>RIGHT</small></button>
+                </div>
+              </div>
+              <div class="multi-align-axis" aria-label="복수 선택 세로 정렬">
+                <span>세로 맞춤</span>
+                <div class="multi-center-actions multi-align-actions-three">
+                  <button class="selection-operation-btn" id="alignSelectionY" type="button">위 <small>TOP</small></button>
+                  <button class="selection-operation-btn" id="alignSelectionCenterY" type="button">가운데 <small>MIDDLE</small></button>
+                  <button class="selection-operation-btn" id="alignSelectionBottom" type="button">아래 <small>BOTTOM</small></button>
+                </div>
+              </div>
+              <div class="multi-distribute-actions" aria-label="복수 선택 균등 분배">
+                <button class="selection-operation-btn" id="distributeSelectionX" type="button">가로 균등 분배 <small>SPACE X</small></button>
+                <button class="selection-operation-btn" id="distributeSelectionY" type="button">세로 균등 분배 <small>SPACE Y</small></button>
+              </div>
+              <p class="multi-distribute-note">균등 분배는 3개 이상 선택했을 때 양 끝을 고정합니다.</p>
+              <div class="multi-gap-grid">
+                <label><span>가로 간격 <em>px</em></span><span class="multi-gap-input"><input id="horizontalGapInput" type="number" value="0" step="1"><button id="applyHorizontalGap" type="button">적용</button></span></label>
+                <label><span>세로 간격 <em>px</em></span><span class="multi-gap-input"><input id="verticalGapInput" type="number" value="0" step="1"><button id="applyVerticalGap" type="button">적용</button></span></label>
+              </div>
+            </div>
+
+            <div class="clipping-inspector" id="clippingInspector">
+              <div class="inspector-subheading"><span>CLIPPING</span><strong id="clippingTargetName">아래 레이어 없음</strong></div>
+              <label class="switch-row"><span><strong>아래 레이어에 클리핑</strong><small id="clippingTargetHint">현재 레이어를 바로 아래의 보이는 레이어 모양으로 자릅니다.</small></span><input type="checkbox" id="layerClippingToggle"></label>
+            </div>
+
+            <div class="shadow-inspector" id="shadowInspector">
+              <div class="inspector-subheading"><span>SHADOW</span><strong>그림자</strong></div>
+              <label class="switch-row"><span><strong>그림자 사용</strong><small>현재 선택한 레이어에만 적용</small></span><input type="checkbox" id="shadowEnabled"></label>
+              <label class="color-control"><span>색상</span><input type="color" id="shadowColor" value="#22160f"><code id="shadowColorCode">#22160F</code></label>
+              <button class="text-btn" id="shadowColorReset" type="button">그림자 색 원래대로</button>
+              <div class="range-field"><span><strong>진하기</strong><output id="shadowOpacityOut">35%</output></span><input id="shadowOpacityRange" type="range" min="0" max="100" value="35"></div>
+              <div class="shadow-direction">
+                <button class="shadow-angle-dial" id="shadowAngleDial" type="button" role="slider" aria-label="그림자 각도" aria-valuemin="0" aria-valuemax="359" aria-valuenow="90"><span></span></button>
+                <div class="shadow-direction-fields">
+                  <label><span>각도</span><input id="shadowAngle" type="number" min="0" max="359" value="90" step="1"></label>
+                  <label><span>거리</span><input id="shadowDistance" type="number" min="0" max="120" value="8" step="1"></label>
+                </div>
+              </div>
+              <div class="shadow-grid">
+                <label><span>흐림</span><input id="shadowBlur" type="number" min="0" max="120" value="18" step="1"></label>
+                <label><span>확산</span><input id="shadowSpread" type="number" min="-40" max="80" value="0" step="1"></label>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="motion">
+            <div class="inspector-heading"><span>MOTION</span><h2>전환</h2></div>
+            <div class="motion-list">
+              <button class="selected" data-motion="flip"><span><strong>앞뒤 뒤집기</strong><small>중간 지점에서 실제 반대 면으로 교체</small></span><em>01</em></button>
+              <button data-motion="fade"><span><strong>페이드 인</strong><small>현재 면을 부드럽게 표시</small></span><em>02</em></button>
+              <button data-motion="none"><span><strong>모션 없음</strong><small>정지 상태</small></span><em>03</em></button>
+            </div>
+            <div class="range-field"><span><strong>재생 시간</strong><output id="durationOut">800ms</output></span><input id="durationRange" type="range" min="300" max="2000" value="800" step="50"></div>
+            <button class="btn full" id="playBtn">모션 재생</button>
+          </section>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="train-logo-asset.js?v=131" defer></script>
+  <script src="train-frame-assets.js?v=131" defer></script>
+  <script src="html2canvas.min.js?v=131" defer></script>
+  <script src="layout-presets.js?v=131" defer></script>
+  <script src="ticket-editor.js?v=131" defer></script>
+</body>
+</html>
