@@ -1829,4 +1829,11 @@ body.both-static .ticket-scale::before { content: none !important; }
    cropping, but only the editor's selection overlay is allowed to escape. */
 #ticket.polaroid > .ticket-face {
   overflow: hidden !important;
+  border-radius: 0 !important;
+}
+
+/* The polaroid paper is a full rectangular sheet. Keep both the face and its
+   full-size color fill square so user-selected paper colors reach every corner. */
+#ticket.polaroid > .ticket-front .block-main {
+  border-radius: 0 !important;
 }

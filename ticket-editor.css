@@ -3319,7 +3319,7 @@ body.ui-dark .stage { background: #171715; background-image: linear-gradient(135
   position: absolute;
   inset: 0;
   z-index: 3;
-  background: radial-gradient(ellipse at center, transparent 46%, var(--image-vignette-edge, rgba(20, 13, 10, 0)) 100%);
+  background: radial-gradient(ellipse at center, transparent 0 58%, var(--image-vignette-edge, rgba(20, 13, 10, 0)) 100%);
   pointer-events: none;
 }
 .image-placeholder { z-index: 5; }

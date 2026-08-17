@@ -1332,7 +1332,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
   mix-blend-mode: var(--image-overlay-blend, normal);
 }
 .custom-image-layer::after {
-  background: radial-gradient(circle at center, transparent 42%, var(--image-vignette-edge, rgba(20, 13, 10, 0)) 100%);
+  background: radial-gradient(ellipse at center, transparent 0 58%, var(--image-vignette-edge, rgba(20, 13, 10, 0)) 100%);
 }
 .ticket.freeform-mode .custom-layer-object { cursor: move; touch-action: none; }
 
@@ -1642,7 +1642,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
   mask-repeat: no-repeat;
 }
 .custom-image-layer::after {
-  background: radial-gradient(circle at center, transparent 42%, var(--image-vignette-edge, rgba(20, 13, 10, 0)) 100%);
+  background: radial-gradient(ellipse at center, transparent 0 58%, var(--image-vignette-edge, rgba(20, 13, 10, 0)) 100%);
   backdrop-filter: none;
 }
 .block-image-frame > span,

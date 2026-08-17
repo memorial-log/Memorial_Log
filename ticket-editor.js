@@ -3925,18 +3925,29 @@
       : "rgba(20,13,10," + strength + ")");
   }
 
+  function paintCanvasVignetteLayer(layerContext, width, height, edgeColor) {
+    layerContext.save();
+    layerContext.translate(width / 2, height / 2);
+    /* CSS radial-gradient(ellipse at center) defaults to farthest-corner.
+       Scale the unit circle to the same corner-reaching ellipse so preview
+       and PNG export use identical vignette geometry. */
+    layerContext.scale(width / Math.SQRT2, height / Math.SQRT2);
+    var vignette = layerContext.createRadialGradient(0, 0, 0, 0, 0, 1);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(.58, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, edgeColor);
+    layerContext.fillStyle = vignette;
+    layerContext.fillRect(-1, -1, 2, 2);
+    layerContext.restore();
+  }
+
   function drawImageVignette(canvas, effect) {
     var amount = clamp(finiteNumber(effect && effect.vignette, 0), -100, 100);
     var strength = Math.abs(amount) / 100;
     if (!strength) return;
     var edgeColor = amount > 0 ? "rgba(255,255,255,1)" : "rgba(20,13,10,1)";
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
-      var vignette = layerContext.createRadialGradient(width / 2, height / 2, Math.min(width, height) * .22, width / 2, height / 2, Math.max(width, height) * .66);
-      vignette.addColorStop(0, "rgba(0,0,0,0)");
-      vignette.addColorStop(.58, "rgba(0,0,0,0)");
-      vignette.addColorStop(1, edgeColor);
-      layerContext.fillStyle = vignette;
-      layerContext.fillRect(0, 0, width, height);
+      paintCanvasVignetteLayer(layerContext, width, height, edgeColor);
     }, "source-over", strength);
   }
 
@@ -11165,6 +11176,40 @@
     layerCanvas.height = 1;
   }
 
+  function snapshotCanvasAlphaMask(canvas) {
+    var maskCanvas = document.createElement("canvas");
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    maskCanvas.getContext("2d", { alpha: true }).drawImage(canvas, 0, 0);
+    return maskCanvas;
+  }
+
+  function restoreCanvasAlphaMask(canvas, maskCanvas) {
+    if (!canvas || !maskCanvas) return;
+    var context = canvas.getContext("2d", { alpha: true });
+    try {
+      var maskPixels = maskCanvas.getContext("2d", { alpha: true }).getImageData(0, 0, canvas.width, canvas.height).data;
+      var output = context.getImageData(0, 0, canvas.width, canvas.height);
+      var changed = false;
+      for (var index = 3; index < maskPixels.length; index += 4) {
+        if (output.data[index] !== maskPixels[index]) {
+          output.data[index] = maskPixels[index];
+          changed = true;
+        }
+      }
+      if (changed) context.putImageData(output, 0, 0);
+    } catch {
+      /* Data URLs are origin-safe, but retain a compositing fallback for an
+         externally supplied image whose pixels cannot be inspected. */
+      context.save();
+      context.globalCompositeOperation = "destination-in";
+      context.drawImage(maskCanvas, 0, 0, canvas.width, canvas.height);
+      context.restore();
+    }
+    maskCanvas.width = 1;
+    maskCanvas.height = 1;
+  }
+
   function bakeImageEffects(image, config, frameWidth, frameHeight, requestedScale, shadow, openingMask, openingMaskScaleX, openingMaskScaleY) {
     var cssWidth = Math.max(1, frameWidth);
     var cssHeight = Math.max(1, frameHeight);
@@ -11180,6 +11225,7 @@
     context.filter = ((bakedEffectFilter === "none" ? "" : bakedEffectFilter + " ") + imageShadowFilter(shadow, renderScale)).trim() || "none";
     context.drawImage(image, crop.x, crop.y, crop.width, crop.height);
     context.restore();
+    var alphaMask = snapshotCanvasAlphaMask(canvas);
 
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
       layerContext.fillStyle = effect.overlayColor;
@@ -11187,6 +11233,10 @@
     }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
 
     drawImageVignette(canvas, effect);
+    /* Blend modes can increase even tiny antialias/background alpha values.
+       Restore every alpha byte from the filtered source, rather than only
+       clearing fully transparent pixels, so a transparent PNG stays exact. */
+    restoreCanvasAlphaMask(canvas, alphaMask);
 
     if (openingMask && openingMask.complete && openingMask.naturalWidth) {
       context.save();
@@ -11217,11 +11267,13 @@
     context.filter = ((bakedEffectFilter === "none" ? "" : bakedEffectFilter + " ") + imageShadowFilter(shadow, renderScale)).trim() || "none";
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     context.restore();
+    var alphaMask = snapshotCanvasAlphaMask(canvas);
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
       layerContext.fillStyle = effect.overlayColor;
       layerContext.fillRect(0, 0, width, height);
     }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
     drawImageVignette(canvas, effect);
+    restoreCanvasAlphaMask(canvas, alphaMask);
     var dataUrl = canvas.toDataURL("image/png");
     canvas.width = canvas.height = 1;
     return dataUrl;
@@ -11380,7 +11432,15 @@
         return;
       }
       var effectsHost = image.closest(".image-slot,.custom-image-layer");
-      if (effectsHost) effectsHost.classList.add("image-effects-baked");
+      if (effectsHost) {
+        effectsHost.classList.add("image-effects-baked");
+        /* The effect is already inside record.dataUrl. Zero the live CSS
+           pseudo layers as well as hiding them by class: html2canvas can
+           materialize pseudo-elements before late clone-class changes. */
+        effectsHost.style.setProperty("--image-overlay", "0", "important");
+        effectsHost.style.setProperty("--image-vignette", "0", "important");
+        effectsHost.style.setProperty("--image-vignette-edge", "rgba(0,0,0,0)", "important");
+      }
       image.src = record.dataUrl;
       image.style.setProperty("filter", "none", "important");
       image.style.setProperty("object-fit", "fill", "important");
@@ -11391,6 +11451,49 @@
       image.style.setProperty("right", "auto", "important");
       image.style.setProperty("bottom", "auto", "important");
     });
+  }
+
+  function rememberInlineCustomProperty(node, name) {
+    return { value: node.style.getPropertyValue(name), priority: node.style.getPropertyPriority(name) };
+  }
+
+  function restoreInlineCustomProperty(node, name, saved) {
+    if (saved && saved.value) node.style.setProperty(name, saved.value, saved.priority || "");
+    else node.style.removeProperty(name);
+  }
+
+  function suppressLiveImageEffectPseudos(bakedImages) {
+    var suppression = { ticketHadClass: ticket.classList.contains("effects-baked"), hosts: [] };
+    ticket.classList.add("effects-baked");
+    (bakedImages || []).forEach(function (record) {
+      if (record.backgroundDataUrl) return;
+      var image = ticket.querySelector(record.selector);
+      var host = image && image.closest(".image-slot,.custom-image-layer");
+      if (!host || suppression.hosts.some(function (entry) { return entry.node === host; })) return;
+      suppression.hosts.push({
+        node: host,
+        hadClass: host.classList.contains("image-effects-baked"),
+        overlay: rememberInlineCustomProperty(host, "--image-overlay"),
+        vignette: rememberInlineCustomProperty(host, "--image-vignette"),
+        vignetteEdge: rememberInlineCustomProperty(host, "--image-vignette-edge")
+      });
+      host.classList.add("image-effects-baked");
+      host.style.setProperty("--image-overlay", "0", "important");
+      host.style.setProperty("--image-vignette", "0", "important");
+      host.style.setProperty("--image-vignette-edge", "rgba(0,0,0,0)", "important");
+    });
+    return suppression;
+  }
+
+  function restoreLiveImageEffectPseudos(suppression) {
+    if (!suppression) return;
+    suppression.hosts.forEach(function (entry) {
+      if (!entry.hadClass) entry.node.classList.remove("image-effects-baked");
+      restoreInlineCustomProperty(entry.node, "--image-overlay", entry.overlay);
+      restoreInlineCustomProperty(entry.node, "--image-vignette", entry.vignette);
+      restoreInlineCustomProperty(entry.node, "--image-vignette-edge", entry.vignetteEdge);
+    });
+    if (!suppression.ticketHadClass) ticket.classList.remove("effects-baked");
   }
 
   function addExportBlendNeutralizer(clonedDocument, clonedTicket, preserveLayerKey) {
@@ -11908,6 +12011,7 @@
     var previousTransform = ticketViewTransform.style.transform;
     var previousZoom = ticket.style.zoom;
     var previousFilter = ticket.style.filter;
+    var liveEffectSuppression = null;
     document.body.classList.add("exporting-ticket");
     ticketViewTransform.style.transform = "none";
     ticket.style.zoom = "1";
@@ -11921,6 +12025,7 @@
       renderCustomLayers(scale);
       await new Promise(function (resolve) { requestAnimationFrame(resolve); });
       var bakedImages = await prepareExportImageBakes(scale);
+      liveEffectSuppression = suppressLiveImageEffectPseudos(bakedImages);
       await refreshLayerClippingPreviews(scale, bakedImages);
       var exportLayerPlan = buildExportLayerPlan();
       var rendered = null;
@@ -11955,6 +12060,7 @@
       ticketViewTransform.style.transform = previousTransform;
       ticket.style.zoom = previousZoom;
       ticket.style.filter = previousFilter;
+      restoreLiveImageEffectPseudos(liveEffectSuppression);
       document.body.classList.remove("exporting-ticket");
       renderCustomLayers();
       renderBlockImages();
