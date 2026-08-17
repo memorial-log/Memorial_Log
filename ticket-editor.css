@@ -1837,6 +1837,7 @@ input[type="range"] { height: 4px; padding: 0; accent-color: #333; }
 .clipping-inspector.active { display: block; }
 .layer-row.layer-clipped .layer-select { box-shadow: inset 3px 0 0 var(--ui-accent); }
 .layer-clipping-source-hidden { opacity: 0 !important; }
+.layer-clipping-target-paint-hidden { opacity: 0 !important; }
 .ticket-face > .layer-clipping-preview {
   position: absolute;
   inset: 0;

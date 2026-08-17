@@ -291,7 +291,7 @@
     { key: "attribution", icon: "©", group: "CREDIT", front: ["Memorial Log Credit", "PROTECTED · COLOR + POSITION"], back: ["Memorial Log Credit", "PROTECTED · COLOR + POSITION"], protectedLayer: true }
   ];
   var ATTRIBUTION_LAYER_KEY = "attribution";
-  var ATTRIBUTION_TEXT = "Memorial Log @gim. All rights reserved.";
+  var ATTRIBUTION_TEXT = "Memorial Log · by gim";
   var LAYER_ORDER = LAYER_DEFS.map(function (item) { return item.key; });
   var TEMPLATE_LAYER_SIDES = {
     postcard: {
@@ -3288,10 +3288,20 @@
   }
   function syncFontSourceTab(target, key) {
     selectFontSourceTab(target, isSystemFontKey(key) ? "system" : "app");
-    if (!isSystemFontKey(key)) return;
+    var select = $('[data-system-font-select="' + target + '"]');
+    if (!isSystemFontKey(key)) {
+      /* A native select does not emit change when its already-selected option
+         is chosen again. Clear a system-font value inherited from the
+         previously inspected layer so the same font remains directly
+         selectable on this app-font/default-font layer. */
+      if (select) {
+        select.value = "";
+        select.style.removeProperty("font-family");
+      }
+      return;
+    }
     registerSystemFontKey(key);
     rebuildSystemFontFaceStyles();
-    var select = $('[data-system-font-select="' + target + '"]');
     if (!select) return;
     if (!Array.prototype.some.call(select.options, function (option) { return option.value === key; })) {
       var meta = systemFontRecords[key];
@@ -4556,12 +4566,28 @@
     $$(".layer-clipping-source-hidden").forEach(function (node) {
       node.classList.remove("layer-clipping-source-hidden");
     });
+    $$(".layer-clipping-target-paint-hidden").forEach(function (node) {
+      node.classList.remove("layer-clipping-target-paint-hidden");
+    });
     installedLayerClippingSignatures = Object.create(null);
     interactiveLayerClippingSignatures = Object.create(null);
   }
 
   function layerClippingSignature(side, source, target) {
     return String(side) + "::" + String(source) + "::" + String(target);
+  }
+
+  function clippingTargetPaintShouldBeHidden(key, documentState) {
+    var custom = customLayerById(key, documentState || state);
+    return TEXT_LAYER_KEYS.indexOf(key) >= 0 || Boolean(custom && custom.type === "text");
+  }
+
+  function setClippingTargetPaintHidden(spec, hidden, documentState) {
+    if (!spec || !clippingTargetPaintShouldBeHidden(spec.target, documentState)) return;
+    var face = spec.side === "back" ? backFace : frontFace;
+    face.querySelectorAll('[data-canvas-layer="' + spec.target + '"]').forEach(function (node) {
+      node.classList.toggle("layer-clipping-target-paint-hidden", Boolean(hidden));
+    });
   }
 
   function syncInstalledLayerClippingSources(documentState) {
@@ -4601,6 +4627,9 @@
     $$(".layer-clipping-source-hidden").forEach(function (node) {
       node.classList.remove("layer-clipping-source-hidden");
     });
+    $$(".layer-clipping-target-paint-hidden").forEach(function (node) {
+      node.classList.remove("layer-clipping-target-paint-hidden");
+    });
     specs.forEach(function (spec) {
       var signature = layerClippingSignature(spec.side, spec.source, spec.target);
       if (!installedLayerClippingSignatures[signature]) return;
@@ -4609,6 +4638,7 @@
       face.querySelectorAll('[data-canvas-layer="' + spec.source + '"]').forEach(function (node) {
         node.classList.add("layer-clipping-source-hidden");
       });
+      setClippingTargetPaintHidden(spec, true, source);
     });
   }
 
@@ -4622,9 +4652,9 @@
     }
   }
 
-  function suspendLayerClippingForDrag(activeDrag) {
-    if (!activeDrag || activeDrag.clippingPreviewSuspended) return;
-    activeDrag.clippingPreviewSuspended = true;
+  function retainLayerClippingForDrag(activeDrag) {
+    if (!activeDrag || activeDrag.clippingPreviewRetained) return;
+    activeDrag.clippingPreviewRetained = true;
     var movingKeys = activeDrag.mode === "move-group" && Array.isArray(activeDrag.entries)
       ? activeDrag.entries.map(function (entry) { return entry.key; })
       : [activeDrag.layer];
@@ -4636,16 +4666,90 @@
     });
     if (!affected.length) return;
     cancelQueuedLayerClippingPreview();
+    activeDrag.clippingSide = activeDrag.side || state.side;
+    activeDrag.clippingMovingKeys = movingKeys;
+    activeDrag.clippingPreviewEntries = [];
     affected.forEach(function (spec) {
       var signature = layerClippingSignature(spec.side, spec.source, spec.target);
-      interactiveLayerClippingSignatures[signature] = true;
       var face = spec.side === "back" ? backFace : frontFace;
+      var previews = face.querySelectorAll('.layer-clipping-preview[data-clipping-side="' + spec.side + '"][data-clipping-source="' + spec.source + '"][data-clipping-target="' + spec.target + '"]');
+      if (!installedLayerClippingSignatures[signature] && !previews.length) return;
+      /* Never reveal the unclipped source while its mask is being edited.
+         Retain the last known-good bitmap until the exact idle capture can
+         replace it after pointer-up. */
       face.querySelectorAll('[data-canvas-layer="' + spec.source + '"]').forEach(function (node) {
-        node.classList.remove("layer-clipping-source-hidden");
+        node.classList.add("layer-clipping-source-hidden");
       });
-      face.querySelectorAll('.layer-clipping-preview[data-clipping-side="' + spec.side + '"][data-clipping-source="' + spec.source + '"][data-clipping-target="' + spec.target + '"]').forEach(function (canvas) {
-        canvas.style.setProperty("display", "none", "important");
+      setClippingTargetPaintHidden(spec, true, state);
+      previews.forEach(function (canvas) {
+        canvas.style.removeProperty("display");
+        activeDrag.clippingPreviewEntries.push({
+          canvas: canvas,
+          spec: spec,
+          baseTransform: canvas.style.transform || ""
+        });
       });
+    });
+  }
+
+  function layerClippingDragTranslation(activeDrag, key) {
+    if (!activeDrag || !key) return null;
+    var side = activeDrag.clippingSide || activeDrag.side || state.side;
+    var layout = state.layouts && state.layouts[side];
+    var deltaX = 0;
+    var deltaY = 0;
+    if (activeDrag.mode === "move-custom" && key === activeDrag.layer) {
+      var custom = customLayerById(key);
+      if (!custom) return null;
+      deltaX = finiteNumber(custom.x, 0) - finiteNumber(activeDrag.customX, 0);
+      deltaY = finiteNumber(custom.y, 0) - finiteNumber(activeDrag.customY, 0);
+    } else if (activeDrag.mode === "move-quote" && key === "quote" && layout) {
+      deltaX = finiteNumber(layout.quoteX, 0) - finiteNumber(activeDrag.quoteX, 0);
+      deltaY = finiteNumber(layout.quoteY, 0) - finiteNumber(activeDrag.quoteY, 0);
+    } else if (activeDrag.mode === "move-details" && key === "details" && layout) {
+      deltaX = finiteNumber(layout.detailsX, 0) - finiteNumber(activeDrag.detailsX, 0);
+      deltaY = finiteNumber(layout.detailsY, 0) - finiteNumber(activeDrag.detailsY, 0);
+    } else if (activeDrag.mode === "move-layer" && key === activeDrag.layer) {
+      var placement = placementFor(side, key);
+      deltaX = finiteNumber(placement.x, 0) - finiteNumber(activeDrag.placementX, 0);
+      deltaY = finiteNumber(placement.y, 0) - finiteNumber(activeDrag.placementY, 0);
+    } else if (activeDrag.mode === "move-group" && Array.isArray(activeDrag.entries)) {
+      var entry = activeDrag.entries.find(function (candidate) { return candidate.key === key; });
+      if (!entry) return null;
+      if (entry.kind === "custom") {
+        var groupCustom = customLayerById(key);
+        if (!groupCustom) return null;
+        deltaX = finiteNumber(groupCustom.x, 0) - entry.startX;
+        deltaY = finiteNumber(groupCustom.y, 0) - entry.startY;
+      } else if (entry.kind === "quote" && layout) {
+        deltaX = finiteNumber(layout.quoteX, 0) - entry.startX;
+        deltaY = finiteNumber(layout.quoteY, 0) - entry.startY;
+      } else if (entry.kind === "details" && layout) {
+        deltaX = finiteNumber(layout.detailsX, 0) - entry.startX;
+        deltaY = finiteNumber(layout.detailsY, 0) - entry.startY;
+      } else {
+        var groupPlacement = placementFor(side, key);
+        deltaX = finiteNumber(groupPlacement.x, 0) - entry.startX;
+        deltaY = finiteNumber(groupPlacement.y, 0) - entry.startY;
+      }
+    } else {
+      return null;
+    }
+    return {
+      x: deltaX / 100 * Math.max(1, activeDrag.ticketW),
+      y: deltaY / 100 * Math.max(1, activeDrag.ticketH)
+    };
+  }
+
+  function updateRetainedLayerClippingForDrag(activeDrag) {
+    if (!activeDrag || !Array.isArray(activeDrag.clippingPreviewEntries)) return;
+    var movingKeys = activeDrag.clippingMovingKeys || [];
+    activeDrag.clippingPreviewEntries.forEach(function (entry) {
+      if (movingKeys.indexOf(entry.spec.target) < 0) return;
+      var offset = layerClippingDragTranslation(activeDrag, entry.spec.target);
+      if (!offset) return;
+      var base = entry.baseTransform && entry.baseTransform !== "none" ? entry.baseTransform + " " : "";
+      entry.canvas.style.transform = base + "translate(" + offset.x.toFixed(3) + "px," + offset.y.toFixed(3) + "px)";
     });
   }
 
@@ -4701,6 +4805,51 @@
     });
   }
 
+  function cssColorPaints(value) {
+    var color = String(value || "").trim().toLowerCase();
+    if (!color || color === "transparent") return false;
+    var rgba = color.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/);
+    return !rgba || finiteNumber(parseFloat(rgba[1]), 1) > 0;
+  }
+
+  function customTextCaptureHasPaintedBox(node) {
+    if (!node) return false;
+    var computed = getComputedStyle(node);
+    return cssColorPaints(computed.backgroundColor)
+      || computed.backgroundImage && computed.backgroundImage !== "none"
+      || computed.boxShadow && computed.boxShadow !== "none"
+      || computed.clipPath && computed.clipPath !== "none"
+      || [computed.borderTopWidth, computed.borderRightWidth, computed.borderBottomWidth, computed.borderLeftWidth]
+        .some(function (width) { return finiteNumber(parseFloat(width), 0) > 0; });
+  }
+
+  function prepareCustomTextClippingCapture(node, scratchFace) {
+    if (!node || customTextCaptureHasPaintedBox(node)) return;
+    var candidates = [node].concat(Array.prototype.slice.call(node.querySelectorAll("*")));
+    var largestFontSize = candidates.reduce(function (largest, candidate) {
+      var computed = getComputedStyle(candidate);
+      if (computed.display === "none" || computed.visibility === "hidden") return largest;
+      return Math.max(largest, finiteNumber(parseFloat(computed.fontSize), 0));
+    }, 0);
+    var bleed = clamp(largestFontSize || 16, 8, 512);
+    /* Point text can use a line-height below 1. Its glyph ink then extends
+       outside the CSS line box even though it is visibly painted in the live
+       editor. html2canvas clips that ink to the element box while isolating a
+       clipping mask. Expand only the transparent capture box: content width,
+       baseline, transform center, and live document geometry stay unchanged. */
+    node.style.setProperty("box-sizing", "content-box", "important");
+    node.style.setProperty("padding", bleed + "px", "important");
+    node.style.setProperty("margin", -bleed + "px", "important");
+    node.style.setProperty("overflow", "hidden", "important");
+    node.style.setProperty("max-width", "none", "important");
+    node.style.setProperty("max-height", "none", "important");
+    var ancestor = node.parentElement;
+    while (ancestor && ancestor !== scratchFace) {
+      ancestor.style.setProperty("overflow", "visible", "important");
+      ancestor = ancestor.parentElement;
+    }
+  }
+
   async function captureLayerForClipping(side, key, scale, bakedImages) {
     var liveFace = side === "back" ? backFace : frontFace;
     var width = Math.max(1, liveFace.offsetWidth);
@@ -4748,7 +4897,7 @@
       node.style.setProperty("display", "none", "important");
     });
     scratchFace.querySelectorAll("[data-canvas-layer]").forEach(function (node) {
-      node.classList.remove("canvas-selected", "selection-proxied", "object-transform-active", "layer-clipping-source-hidden");
+      node.classList.remove("canvas-selected", "selection-proxied", "object-transform-active", "layer-clipping-source-hidden", "layer-clipping-target-paint-hidden");
       if (node.dataset.canvasLayer !== key) {
         node.style.setProperty("display", "none", "important");
         node.style.setProperty("visibility", "hidden", "important");
@@ -4762,6 +4911,12 @@
     });
     document.body.appendChild(scratchTicket);
     try {
+      var clippingCustom = customLayerById(key);
+      if (clippingCustom && clippingCustom.type === "text") {
+        Array.prototype.forEach.call(scratchLayerNodes, function (node) {
+          prepareCustomTextClippingCapture(node, scratchFace);
+        });
+      }
       return await window.html2canvas(scratchFace, {
         backgroundColor: null,
         scale: Math.max(1, finiteNumber(scale, 1)),
@@ -4959,6 +5114,7 @@
         sourceNodes.forEach(function (sourceNode) {
           sourceNode.classList.add("layer-clipping-source-hidden");
         });
+        setClippingTargetPaintHidden(result.spec, true, state);
       });
       installed = true;
     } finally {
@@ -9210,7 +9366,7 @@
       };
       if (key === "quote" && layout) return {
         key: key, kind: "quote", startX: finiteNumber(layout.quoteX, 0), startY: finiteNumber(layout.quoteY, 0),
-        minX: -20, maxX: 100, minY: -20, maxY: 100
+        minX: -100, maxX: 100, minY: -20, maxY: 100
       };
       if (key === "details" && layout) return {
         key: key, kind: "details", startX: finiteNumber(layout.detailsX, 0), startY: finiteNumber(layout.detailsY, 0),
@@ -9514,7 +9670,7 @@
 
   function pointerLayerMove(event) {
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suspendLayerClippingForDrag(drag);
+    retainLayerClippingForDrag(drag);
     var screenDx = event.clientX - drag.startX;
     var screenDy = event.clientY - drag.startY;
     if (drag.mode === "move-group" && !drag.groupMoved) {
@@ -9694,7 +9850,7 @@
       if (Math.abs(groupDeltaY - desiredGroupY) > .0001) activeSnapGuides.y = null;
       applyGroupMove(drag.entries, drag.side, groupDeltaX, groupDeltaY);
     } else if (drag.mode === "move-quote") {
-      layout.quoteX = clamp(constrainedMoveMetric(drag.quoteX, constrainedDx, drag.ticketW, event, drag.axisLock, "x", smartMove), -20, 100);
+      layout.quoteX = clamp(constrainedMoveMetric(drag.quoteX, constrainedDx, drag.ticketW, event, drag.axisLock, "x", smartMove), -100, 100);
       layout.quoteY = clamp(constrainedMoveMetric(drag.quoteY, constrainedDy, drag.ticketH, event, drag.axisLock, "y", smartMove), -20, 100);
     } else if (drag.mode === "resize-quote") {
       layout.quoteW = clamp(snapMetric(drag.quoteW + dx / drag.ticketW * 100, event), 12, MAX_OBJECT_SIZE_PERCENT);
@@ -9724,6 +9880,7 @@
       return;
     }
     render();
+    updateRetainedLayerClippingForDrag(drag);
     if (smartMove) renderSnapGuides(drag);
   }
 

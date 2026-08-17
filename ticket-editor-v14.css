@@ -8898,6 +8898,15 @@ body.postcard-static .ticket-scale::before {
   border-color: var(--layer-custom-color) !important;
   -webkit-text-stroke-color: var(--layer-custom-color) !important;
 }
+
+/* v132: stock text keeps its natural glyph overhang. Template leaves often
+   use compact one-line boxes; clipping their ink at the CSS line box trims
+   tall ascenders and font-specific top serifs. Explicitly resized area text
+   still owns a hard crop through the existing text-box-resized rule. */
+#ticket.ticket.ticket .ticket-face [data-canvas-layer].text-box-layer:not(.custom-text-layer):not(.text-box-resized) {
+  overflow: visible !important;
+  overflow-clip-margin: 1em;
+}
 #ticket.ticket.ticket.ticket [data-canvas-layer].layer-font-size-override,
 #ticket.ticket.ticket.ticket [data-canvas-layer].layer-font-size-override * {
   font-size: var(--layer-font-size) !important;
