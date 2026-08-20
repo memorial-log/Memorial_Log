@@ -3092,6 +3092,28 @@ body.ui-dark {
 .top-actions .icon-btn:hover { background: var(--ui-text); color: var(--ui-surface); }
 .document-state strong { font-family: var(--mono); font-size: 10px; letter-spacing: .03em; }
 .document-state span { color: var(--ui-muted); font-size: 10px; }
+.train-theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  color: var(--ui-muted);
+  font: 700 8px/1 var(--mono);
+  letter-spacing: .09em;
+}
+.train-theme-control[hidden] { display: none !important; }
+.train-theme-control select {
+  width: auto;
+  min-width: 112px;
+  height: 26px;
+  padding: 2px 24px 2px 7px;
+  border: 1px solid var(--ui-line);
+  border-radius: 3px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font: 700 9px/1 var(--mono);
+  letter-spacing: .02em;
+}
 .export-menu summary { padding: 7px 10px; border-radius: 3px; background: var(--ui-text); color: var(--ui-surface); }
 .export-menu summary::after { color: inherit; }
 .export-menu-popover { top: 38px; border-radius: 4px; box-shadow: 0 16px 38px rgba(0, 0, 0, .18); }

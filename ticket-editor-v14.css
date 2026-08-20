@@ -4350,9 +4350,6 @@ body.ui-dark .app-shell {
 .train .ticket-front .train-stub-divider {
   inset: -.915% -.221% .723% 72.423%;
 }
-.train .ticket-front .train-frame-decoration-divider {
-  inset: 0 -.96% 0 .96%;
-}
 .train .ticket-front .ticket-title {
   left: var(--stub-content-left);
   right: var(--stub-content-right);
@@ -8011,6 +8008,21 @@ body.exporting-ticket #ticket .image-placeholder {
   isolation: auto !important;
   mix-blend-mode: difference !important;
 }
+/* Transparent fill: the glyphs are hollowed out so only the layer outline
+   remains. -webkit-text-fill-color is set too, otherwise the stroke inherits
+   the fill colour and the letters stay solid. */
+#ticket [data-canvas-layer].layer-text-transparent,
+#ticket [data-canvas-layer].layer-text-transparent *,
+#ticket [data-canvas-layer].layer-text-transparent::before,
+#ticket [data-canvas-layer].layer-text-transparent::after,
+#ticket [data-canvas-layer].layer-text-transparent *::before,
+#ticket [data-canvas-layer].layer-text-transparent *::after {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+
 #ticket [data-canvas-layer].layer-text-difference,
 #ticket [data-canvas-layer].layer-text-difference *,
 #ticket [data-canvas-layer].layer-text-difference::before,
@@ -9007,6 +9019,14 @@ body.postcard-static .ticket-scale::before {
   font-size: .76em;
   font-style: italic;
   font-weight: 400;
+  /* Optically centre YOUR between CHOOSE and PASSAGE. The serif face carries
+     much deeper vertical metrics than Pretendard, so with line-height .8 its
+     glyphs sat 13.6px low - measured ink gaps 14.29px above against 0.68px
+     below. Lifting it half that difference evens both gaps out, and the
+     matching bottom margin keeps PASSAGE and the hero height untouched. The
+     offset is in em, so it holds at every clamped headline size. */
+  margin-top: -.075em;
+  margin-bottom: .075em;
   letter-spacing: -.085em;
 }
 #templateEntry .entry-masthead h1 > span:last-child {
@@ -9261,6 +9281,67 @@ body.postcard-static .ticket-scale::before {
   #templateEntry .entry-credit { margin-left: 0; text-align: left; }
 }
 
+/* v139: browsing formats no longer scrolls the whole landing page. The hero
+   masthead and the index sidebar stay put while only the format list scrolls
+   inside its own column. Narrow or short viewports, where the stacked layout
+   needs the page scroll to stay reachable, keep the original behavior.
+   The hero itself keeps its original v125 proportions - the v140 experiment
+   that shortened it was rolled back on request, so nothing in this block
+   touches the masthead. */
+@media (min-width: 821px) and (min-height: 620px) {
+  #templateEntry { overflow: hidden; }
+  #templateEntry .entry-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  #templateEntry .entry-masthead { flex: 0 0 auto; }
+  #templateEntry .entry-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 28px;
+  }
+  #templateEntry .entry-catalog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  /* A small chevron pointing down, drawn in the catalog's own muted ink. It
+     simply retires once the list is scrolled to the end - no motion. */
+  #templateEntry .entry-catalog::after {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    margin-left: -5px;
+    border-right: 1.5px solid #716b65;
+    border-bottom: 1.5px solid #716b65;
+    content: "";
+    pointer-events: none;
+    opacity: .7;
+    transform: rotate(45deg);
+    transition: opacity .18s ease;
+  }
+  #templateEntry .entry-catalog.is-scroll-end::after { opacity: 0; }
+  #templateEntry .entry-list-label { flex: 0 0 auto; }
+  #templateEntry .entry-options {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* Run-out so the last card never sits flush against the fold. */
+    padding-bottom: 40px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* The list scrolls, but the bar itself stays out of the composition. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  #templateEntry .entry-options::-webkit-scrollbar { width: 0; height: 0; }
+}
+
+
 /* v129: the conductor-coupon table owns one real layer containing both
    vertical rules and the shared horizontal rule. The visible strokes are
    full CSS pixels so preview and PNG rasterization cannot drop a subpixel
@@ -9511,3 +9592,400 @@ body.postcard-static .ticket-scale::before {
 .rotation-control .view-number { width: 62px; min-width: 62px; }
 .zoom-control .view-number input,
 .rotation-control .view-number input { width: 44px; }
+
+/* v136: true glyph outlines, crisp raster outlines and one shared train rule. */
+.stroke-inspector { display: none; }
+.stroke-inspector.active { display: grid; gap: 10px; padding-top: 4px !important; }
+.stroke-width-field { margin-bottom: 2px !important; }
+#ticket [data-canvas-layer].layer-stroke-on:not(.image-slot):not(.custom-image-layer):not(.custom-shape-layer),
+#ticket [data-canvas-layer].layer-stroke-on:not(.image-slot):not(.custom-image-layer):not(.custom-shape-layer) * {
+  -webkit-text-stroke-width: 0 !important;
+  -webkit-text-stroke-color: transparent !important;
+}
+/* Text uses the same one-pass SVG alpha expansion as transparent text and
+   raster images. Besides producing a smoother edge than the browser's native
+   centred text stroke, this makes the stored round/miter join choice visible
+   in the editor instead of silently forcing one browser-specific join. */
+#ticket [data-canvas-layer].layer-stroke-on:not(.layer-text-transparent) .text-outline-ink {
+  filter: var(--layer-text-outline-filter, none) !important;
+}
+/* v158: a centred text stroke exposes its inner half when the fill is
+   transparent, which produces seams where Hangul strokes meet. The glyph-only
+   wrapper is painted as an opaque alpha mask, while its SVG filter returns
+   only dilatedAlpha - SourceAlpha. The original interior therefore stays
+   transparent and the chosen colour can never be altered by a template's
+   difference blend mode. */
+#ticket [data-canvas-layer].layer-stroke-on.layer-text-transparent:not(.image-slot):not(.custom-image-layer):not(.custom-shape-layer),
+#ticket [data-canvas-layer].layer-stroke-on.layer-text-transparent:not(.image-slot):not(.custom-image-layer):not(.custom-shape-layer) * {
+  -webkit-text-stroke-width: 0 !important;
+  -webkit-text-stroke-color: transparent !important;
+}
+#ticket [data-canvas-layer].layer-text-transparent.layer-stroke-on .text-outline-ink,
+#ticket [data-canvas-layer].layer-text-transparent.layer-stroke-on .text-outline-ink * {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  -webkit-text-stroke-width: 0 !important;
+  -webkit-text-stroke-color: transparent !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+#ticket [data-canvas-layer].layer-text-transparent.layer-stroke-on .text-outline-ink {
+  filter: var(--layer-text-outline-filter, none) !important;
+}
+#ticket .rich-text-outline-ink { display: none !important; }
+#ticket [data-canvas-layer].layer-stroke-on .rich-text-outline-ink {
+  display: block !important;
+  pointer-events: none !important;
+  filter: var(--layer-rich-text-outline-filter, none) !important;
+}
+#ticket .custom-image-layer.layer-stroke-on { overflow: visible !important; }
+
+.effects-inspector .overlay-color-control,
+.effects-inspector .overlay-color-control.color-enhanced {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) !important;
+  grid-template-areas:
+    "label label"
+    "swatch code" !important;
+  align-items: center;
+  gap: 7px 8px;
+  min-width: 0;
+}
+.effects-inspector .overlay-color-control > span:first-child {
+  grid-area: label;
+  margin: 0;
+  white-space: nowrap;
+}
+.effects-inspector .overlay-color-control > input[type="color"] { grid-area: swatch; }
+.effects-inspector .overlay-color-control > .color-code-input {
+  grid-area: code;
+  width: 100%;
+  min-width: 0;
+}
+.effects-inspector .overlay-color-control > code {
+  grid-area: code;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#ticket.train {
+  --train-coupon-divider-left: 77.622%;
+  --train-coupon-divider-right: 4.978%;
+  --train-coupon-divider-top: 46.6%;
+  --train-coupon-divider-height: 2.3%;
+}
+#ticket.train .ticket-front .train-stub-divider,
+#ticket.train .ticket-back .train-back-coupon-divider {
+  top: var(--train-coupon-divider-top) !important;
+  right: var(--train-coupon-divider-right) !important;
+  bottom: auto !important;
+  left: var(--train-coupon-divider-left) !important;
+  width: auto !important;
+  height: var(--train-coupon-divider-height) !important;
+}
+#ticket.train .ticket-front .train-stub-divider > .train-frame-decoration-divider,
+#ticket.train .ticket-back .train-back-coupon-divider > .train-frame-decoration-divider {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  object-fit: fill !important;
+  /* Older front-only artwork used full opacity while the reverse inherited
+     .76, so identical geometry still looked like two different line weights. */
+  opacity: 1 !important;
+}
+
+/* The colour-mode picker uses the same label + select chrome as the shape
+   controls, just on its own row. */
+.compact-grid.one-up { grid-template-columns: minmax(0, 1fr); }
+.text-color-mode-fields .compact-grid { margin-top: 0; }
+.text-color-mode-fields select { width: 100%; }
+
+/* OTT MEMORY ------------------------------------------------------------
+   One isolated 16:9 template with two semantic faces: playback and info. */
+/* The playback and info faces are screens, not paper. The shared preview
+   face shadow is a solid warm plate blurred behind the card, which showed as
+   a brown line under this template's dark screen while the exported PNG had
+   nothing there. Drop it so the editor matches the export. */
+#ticket.ticket.ott > .ticket-face-shadow { display: none !important; }
+.ott-player-chrome,
+.ott-info-scrim { display: none; }
+#ticket.ticket.ott {
+  --ott-surface: #07090d;
+  --ott-copy: #fff;
+  --ott-muted: rgba(255,255,255,.72);
+  --ott-subtitle-background: #000;
+  overflow: visible;
+  border-radius: 0;
+  background: var(--ott-surface);
+  box-shadow: 0 24px 70px rgba(0,0,0,.3);
+}
+#ticket.ticket.ott .ticket-front,
+#ticket.ticket.ott .ticket-back {
+  overflow: hidden;
+  border-radius: 0;
+  /* The shared face carries a paper edge: a warm inset hairline plus a 3px
+     bar of card thickness underneath. On this near black screen that bar read
+     as a brown line along the bottom, and html2canvas never draws it, so the
+     preview disagreed with the export. A screen has no paper edge. */
+  box-shadow: none;
+  background: var(--ott-surface);
+  color: var(--ott-copy);
+}
+#ticket.ticket.ott .block-layer,
+#ticket.ticket.ott .image-layer,
+#ticket.ticket.ott .block-main,
+#ticket.ticket.ott .image-main,
+#ticket.ticket.ott .image-main .block-image-frame {
+  position: absolute;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+#ticket.ticket.ott .image-main { overflow: hidden; }
+#ticket.ticket.ott .image-main .block-image-frame {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#ticket.ticket.ott .image-main img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+#ticket.ticket.ott .ticket-frame-layer,
+#ticket.ticket.ott .block-stub,
+#ticket.ticket.ott .image-stub,
+#ticket.ticket.ott .route-layer,
+#ticket.ticket.ott .stub-print-layer,
+#ticket.ticket.ott .speaker-layer,
+#ticket.ticket.ott .train-handwritten-note,
+#ticket.ticket.ott .train-back-record-metadata,
+#ticket.ticket.ott .cinema-rating-layer,
+#ticket.ticket.ott .cinema-etc-layer,
+#ticket.ticket.ott .postcard-copy-layers { display: none !important; }
+
+/* Playback face: true full-screen still with a lower subtitle and controls.
+   The bar, play mark, running time and quality tag are real canvas layers, so
+   the chrome itself must stay out of the stacking order: it keeps z-index
+   auto and spans the face, letting each layer take its own z from the LAYERS
+   panel exactly like every other template layer. */
+#ticket.ticket.ott .ott-player-chrome {
+  display: block;
+  position: absolute;
+  z-index: auto;
+  inset: 0;
+  pointer-events: none;
+  color: rgba(255,255,255,.92);
+  font: 600 8px/1.2 Pretendard, sans-serif;
+  letter-spacing: .04em;
+}
+#ticket.ticket.ott .ott-player-progress {
+  position: absolute;
+  left: 4.2%;
+  right: 4.2%;
+  bottom: calc(1.7% + 22px);
+  height: 2px;
+  background: rgba(255,255,255,.38);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.32);
+}
+#ticket.ticket.ott .ott-player-progress > i {
+  display: block;
+  width: var(--ott-progress, 38%);
+  max-width: 100%;
+  height: 100%;
+  background: var(--layer-custom-color, #ef3340);
+}
+#ticket.ticket.ott .ott-player-status {
+  position: absolute;
+  z-index: auto;
+  left: 4.2%;
+  right: 4.2%;
+  bottom: 1.7%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#ticket.ticket.ott .ott-player-status b { font-size: 9px; }
+#ticket.ticket.ott .ott-player-status em { font-style: normal; }
+#ticket.ticket.ott .ott-player-status small { margin-left: auto; font: inherit; }
+#ticket.ticket.ott .ott-player-time-split { margin: 0 .32em; }
+#ticket.ticket.ott .ticket-front .quote-layer {
+  z-index: 8;
+  box-sizing: border-box;
+  /* The box hugs its own caption. applyLayouts parks its left edge on the
+     face centre and applyLayerPresentation folds a -50% self offset into the
+     layer transform, so the default position is centred while every drag is
+     the ordinary placement translate - same 1:1 feel as a user text layer. */
+  right: auto;
+  width: max-content;
+  max-width: 84%;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-family: Gulim, "굴림", sans-serif !important;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,.9);
+}
+/* The legacy quote resize grip is replaced by the shared object handles. */
+#ticket.ticket.ott .ticket-front .quote-layer > .resize-handle { display: none !important; }
+#ticket.ticket.ott .ticket-front .quote-layer blockquote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 0;
+  /* The legacy quote-size inline style is overridden so the LAYER STYLE font
+     size, weight and line height are the single source of truth for the
+     caption. Otherwise the two systems disagreed and the rendered weight and
+     size changed depending on which one wrote last. */
+  font-size: inherit !important;
+  font-weight: inherit;
+  line-height: inherit;
+}
+#ticket.ticket.ott .ticket-front .quote-layer .ott-subtitle-line {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 1px 9px 2px;
+}
+#ticket.ticket.ott .ticket-front .quote-layer .ott-subtitle-line-empty {
+  min-height: .6em;
+  padding: 0;
+}
+#ticket.ticket.ott.ott-subtitle-bg .ticket-front .quote-layer { text-shadow: none; }
+#ticket.ticket.ott.ott-subtitle-bg .ticket-front .quote-layer .ott-subtitle-line:not(.ott-subtitle-line-empty) {
+  background: var(--ott-subtitle-background);
+}
+
+/* Info face: paused artwork, dark veil and delayed-service-style metadata. */
+#ticket.ticket.ott .ott-info-scrim {
+  display: block;
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(3,5,9,.9) 0%, rgba(3,5,9,.72) 45%, rgba(3,5,9,.22) 78%, rgba(3,5,9,.48) 100%);
+}
+#ticket.ticket.ott .ott-info-scrim > span {
+  position: absolute;
+  top: 6%; right: 5%;
+  color: rgba(255,255,255,.72);
+  font: 300 22px/1 Pretendard, sans-serif;
+  letter-spacing: .12em;
+}
+/* The info column is anchored to the face centre rather than to the top edge,
+   so the whole stack - service label through episode line - stays vertically
+   balanced at any canvas ratio. Every offset below is measured in design
+   pixels from 50%, and the first and last offsets are deliberately mirrored:
+   kicker top -186px against episode bottom +186px. */
+#ticket.ticket.ott .ticket-back .back-heading {
+  z-index: 6;
+  position: absolute;
+  left: 7%;
+  top: 0;
+  bottom: 0;
+  width: 62%;
+  text-align: left;
+}
+/* Every info-face text starts on the same 7% column. The heading children
+   inherit stock left offsets from the other templates, so pin them to the
+   heading box edge that the metadata, synopsis and episode rows already use. */
+#ticket.ticket.ott .ticket-back .back-heading .kicker,
+#ticket.ticket.ott .ticket-back .back-heading .ticket-title,
+#ticket.ticket.ott .ticket-back .back-heading .ticket-subtitle {
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  text-align: left !important;
+}
+#ticket.ticket.ott .ticket-back .back-heading .kicker {
+  display: block;
+  top: calc(50% - 186px) !important;
+  margin: 0;
+  color: rgba(255,255,255,.7);
+  font: 700 9px/1.2 Pretendard, sans-serif;
+  letter-spacing: .14em;
+}
+#ticket.ticket.ott .ticket-back .back-heading .ticket-title {
+  display: block;
+  top: calc(50% - 168px) !important;
+  margin: 0;
+  color: #fff;
+  font: 800 40px/.98 Pretendard, sans-serif;
+  letter-spacing: -.05em;
+}
+#ticket.ticket.ott .ticket-back .back-heading .ticket-subtitle {
+  display: block;
+  top: calc(50% - 110px) !important;
+  margin: 0;
+  color: rgba(255,255,255,.82);
+  font: 500 14px/1.35 Pretendard, sans-serif;
+}
+#ticket.ticket.ott .ticket-back .back-metadata {
+  z-index: 6;
+  position: absolute;
+  left: 7%;
+  top: calc(50% - 55px);
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  gap: 26px;
+  width: auto;
+}
+#ticket.ticket.ott .ticket-back .back-metadata .metadata-field,
+#ticket.ticket.ott .ticket-back .back-metadata .postcard-model-field {
+  display: grid;
+  align-content: end;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #fff;
+}
+#ticket.ticket.ott .ticket-back .back-metadata small {
+  color: rgba(255,255,255,.58);
+  font: 700 8px/1 Pretendard, sans-serif;
+  letter-spacing: .08em;
+}
+#ticket.ticket.ott .ticket-back .back-metadata b {
+  color: rgba(255,255,255,.92);
+  font: 600 12px/1.2 Pretendard, sans-serif;
+}
+#ticket.ticket.ott .ticket-back .back-body-layer {
+  z-index: 6;
+  position: absolute;
+  left: 7%;
+  top: calc(50% + 3px);
+  width: 53%;
+  margin: 0;
+  color: rgba(255,255,255,.78);
+  font: 400 12px/1.65 Pretendard, sans-serif;
+}
+#ticket.ticket.ott .ticket-front .details-layer { display: none !important; }
+#ticket.ticket.ott .ticket-back .back-details {
+  display: block !important;
+  z-index: 6;
+  position: absolute;
+  left: 7% !important;
+  top: calc(50% + 174px) !important;
+  bottom: auto !important;
+  width: 55% !important;
+  color: rgba(255,255,255,.68);
+  font: 600 9px/1.3 Pretendard, sans-serif;
+  letter-spacing: .08em;
+}
+#ticket.ticket.ott .ticket-back .back-details > * { display: none !important; }
+/* The details wrapper is pinned to z-index auto so its children own the
+   stacking. That only works for a positioned child, and without it the info
+   scrim painted straight over the episode line. */
+#ticket.ticket.ott .ticket-back .back-details #backSourcePreview {
+  display: inline-flex !important;
+  position: relative;
+  gap: 8px;
+}
+#ticket.ticket.ott .ticket-back .back-details .coupon-label { color: rgba(255,255,255,.48); }
+#ticket.ticket.ott .memorial-attribution,
+#ticket.ticket.ott + .ticket-attribution-preview { color: #fff; }
+
+.ott-subtitle-inspector .color-reset-row { grid-template-columns: 36px minmax(0,1fr); }

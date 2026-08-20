@@ -18,11 +18,12 @@
   var FACE_VIEW_VERSION = 1;
   var POSTCARD_WRITING_LINES = ["오늘의 온도를 오래 기억해.", "멀리 있어도 마음은 가까이.", "다시 만날 날을 기다리며.", "언제나 네 편인 내가."];
   var POSTCARD_WRITING_SAMPLE = POSTCARD_WRITING_LINES.join("\n");
-  var TEMPLATE_IDS = ["train", "cinema", "postcard", "polaroid"];
+  var TEMPLATE_IDS = ["train", "cinema", "postcard", "polaroid", "ott"];
   var LAYOUT_PRESETS = Array.isArray(window.LOG_TICKET_LAYOUT_PRESETS) ? window.LOG_TICKET_LAYOUT_PRESETS : [];
   var TEMPLATE_CONFIG = {
     train: {
       documentName: "TRAIN TICKET", resetName: "열차", templateId: "train-ticket-v10", templateVersion: 10,
+      family: "train", themeId: "classic",
       sourceLabel: "FARE / ROUTE",
       sideLabels: { front: "FRONT", back: "BACK", both: "BOTH" },
       preview: { width: 960, height: 480 }, export: { width: 3200, height: 1600 },
@@ -52,8 +53,39 @@
       preview: { width: 600, height: 732 }, export: { width: 2460, height: 3000 },
       silhouette: "rectangle", textureTone: "paper", textureSeed: 8243,
       features: { perforation: false, mainImageOpeningMask: false, differenceQuote: true }, autoPairTitle: true
+    },
+    ott: {
+      documentName: "OTT MEMORY", resetName: "OTT", templateId: "ott-memory-v1", templateVersion: 1,
+      sourceLabel: "EPISODE",
+      sideLabels: { front: "영상 재생", back: "정보칸", both: "" },
+      preview: { width: 960, height: 540 }, export: { width: 3200, height: 1800 },
+      silhouette: "rectangle", textureTone: "screen", textureSeed: 4179,
+      features: { perforation: false, mainImageOpeningMask: false, differenceQuote: true, both: false }, autoPairTitle: false
     }
   };
+  /* The OTT document is the one template whose canvas ratio is a document
+     choice rather than a fixed stock format. Every geometry read goes through
+     templatePreviewSize/templateExportSize so the preview, the layer design
+     coordinates and the PNG all follow the same pair of numbers. */
+  var OTT_ASPECTS = {
+    "16x9": { label: "16 : 9 · 3200 × 1800", preview: { width: 960, height: 540 }, export: { width: 3200, height: 1800 } },
+    "1216x832": { label: "1216 × 832 · 3200 × 2190", preview: { width: 960, height: 657 }, export: { width: 3200, height: 2190 } }
+  };
+  var OTT_ASPECT_IDS = Object.keys(OTT_ASPECTS);
+  function ottAspectId(value) {
+    var id = value && typeof value === "object" ? value.ottAspect : value;
+    return OTT_ASPECTS[id] ? id : "16x9";
+  }
+  function ottAspectSizes(documentState) {
+    return OTT_ASPECTS[ottAspectId(documentState || state)];
+  }
+  function templateSizeSet(template, documentState) {
+    var source = documentState || state;
+    if (safeTemplateId(template) === "ott" && source && source.template === "ott") return ottAspectSizes(source);
+    return templateConfig(template);
+  }
+  function templatePreviewSize(template, documentState) { return templateSizeSet(template, documentState).preview; }
+  function templateExportSize(template, documentState) { return templateSizeSet(template, documentState).export; }
   /* Both always projects the real front/back DOM faces. Each template keeps a
      geometry tuned to its own aspect ratio while sharing the same interaction
      and sequential, memory-bounded export path. */
@@ -73,13 +105,18 @@
     polaroid: {
       front: { x: .047, y: .04, scale: .66, rotation: -3.2 },
       back: { x: .298, y: .304, scale: .66, rotation: 2.5 }
+    },
+    ott: {
+      front: { x: .05, y: .08, scale: .58, rotation: -3.2 },
+      back: { x: .35, y: .32, scale: .58, rotation: 2.5 }
     }
   };
   var TEMPLATE_BOTH_EXPORT_PROJECTION = {
     train: { scale: .81, offsetX: .095, offsetY: .078 },
     cinema: { scale: .89, offsetX: .055, offsetY: .037 },
     postcard: { scale: .94, offsetX: .0404, offsetY: .0056 },
-    polaroid: { scale: .89, offsetX: .055, offsetY: .037 }
+    polaroid: { scale: .89, offsetX: .055, offsetY: .037 },
+    ott: { scale: .94, offsetX: .0404, offsetY: .0056 }
   };
   function trainSilhouetteShape() {
     return [
@@ -144,7 +181,7 @@
   }
   function isBothView(documentState) {
     var source = documentState || state;
-    return source && source.postcardViewMode === "both";
+    return source && templateSupportsBoth(source) && source.postcardViewMode === "both";
   }
   function applyBothGeometryVariables(template) {
     ["front", "back"].forEach(function (side) {
@@ -159,21 +196,34 @@
   function isTemplateId(value) { return TEMPLATE_IDS.indexOf(value) >= 0; }
   function safeTemplateId(value) { return isTemplateId(value) ? value : "train"; }
   function templateConfig(value) { return TEMPLATE_CONFIG[safeTemplateId(value)]; }
+  function templateFamilyId(value) {
+    var template = safeTemplateId(typeof value === "object" && value ? value.template : value);
+    return TEMPLATE_CONFIG[template].family || template;
+  }
+  function isTrainTemplate(value) { return templateFamilyId(value) === "train"; }
+  function templateSupportsBoth(value) {
+    var template = safeTemplateId(typeof value === "object" && value ? value.template : value);
+    var features = TEMPLATE_CONFIG[template].features || {};
+    return features.both !== false;
+  }
+  function exportViewsForTemplate(value) {
+    return templateSupportsBoth(value) ? ["front", "back", "both"] : ["front", "back"];
+  }
   function customShapeSizeToDesignPx(shape, template) {
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     return {
       width: finiteNumber(shape && shape.w, 0) / 100 * preview.width,
       height: finiteNumber(shape && shape.h, 0) / 100 * preview.height
     };
   }
   function customShapeSizeFromDesignPx(axis, value, template) {
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var basis = axis === "width" ? preview.width : preview.height;
     return finiteNumber(value, 0) / Math.max(1, basis) * 100;
   }
   function fitCustomImageFrameToSource(layer, naturalWidth, naturalHeight, template, preserveFootprint) {
     if (!layer) return layer;
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var imageWidth = Math.max(1, finiteNumber(naturalWidth, 1));
     var imageHeight = Math.max(1, finiteNumber(naturalHeight, 1));
     var currentWidth = Math.max(.01, finiteNumber(layer.w, 30)) / 100 * preview.width;
@@ -198,9 +248,9 @@
   function fitNewCustomImageFrame(layer, naturalWidth, naturalHeight, template) {
     return fitCustomImageFrameToSource(layer, naturalWidth, naturalHeight, template, false);
   }
-  function resetImagePlacementToOriginal(config) {
+  function resetImagePlacementToOriginal(config, fit) {
     if (!config) return config;
-    config.fit = "contain";
+    config.fit = fit === "cover" ? "cover" : "contain";
     config.zoom = 1;
     config.panX = 0;
     config.panY = 0;
@@ -272,6 +322,10 @@
     { key: "record-meta-date", icon: "3", group: "META", front: ["Record Date Value", "TEXT"], back: ["Record Date Value", "TEXT"], sides: ["back"], templates: ["train"] },
     { key: "quote", icon: "T", group: "COPY", front: ["Main Quote", "TEXT"], back: ["Archive Title", "TEXT"] },
     { key: "speaker", icon: "—", group: "COPY", front: ["Speaker", "TEXT"], back: ["Speaker", "TEXT"], sides: ["front"], cinemaSides: [] },
+    { key: "ott-progress", icon: "▬", group: "STRUCTURE", front: ["Progress Bar", "PLAYBACK BAR"], back: ["Progress Bar", "PLAYBACK BAR"], sides: ["front"], templates: ["ott"] },
+    { key: "ott-play-mark", icon: "▶", group: "PLAYBACK", front: ["Play Mark", "TEXT"], back: ["Play Mark", "TEXT"], sides: ["front"], templates: ["ott"] },
+    { key: "ott-time", icon: "T", group: "PLAYBACK", front: ["Playback Time", "TEXT"], back: ["Playback Time", "TEXT"], sides: ["front"], templates: ["ott"] },
+    { key: "ott-quality", icon: "T", group: "PLAYBACK", front: ["Playback Tag", "TEXT"], back: ["Playback Tag", "TEXT"], sides: ["front"], templates: ["ott"] },
     { key: "handwritten-note", icon: "T", group: "COPY", front: ["Handwritten Note", "DECORATIVE TEXT"], back: ["Handwritten Note", "DECORATIVE TEXT"], sides: ["front"], templates: ["train"] },
     { key: "copy-label", icon: "L", group: "COPY", front: ["Copy Label", "TEXT"], back: ["Copy Label", "TEXT"], sides: ["back"] },
     { key: "body", icon: "¶", group: "COPY", front: ["Body", "TEXT"], back: ["Archive Body", "TEXT"], sides: ["back"] },
@@ -310,6 +364,18 @@
       "face-shadow": ["front", "back"],
       "block-main": ["front", "back"], "image-main": ["front"], frame: ["front", "back"],
       "meta-bot": ["back"], "meta-persona": ["back"], quote: ["front"], attribution: ["front", "back"]
+    },
+    ott: {
+      "face-shadow": ["front", "back"],
+      "block-main": ["front", "back"], "image-main": ["front", "back"],
+      kicker: ["back"], title: ["back"], subtitle: ["back"],
+      "meta-bot-label": ["back"], "meta-bot": ["back"],
+      "meta-persona-label": ["back"], "meta-persona": ["back"],
+      "meta-date-label": ["back"], "meta-date": ["back"],
+      quote: ["front"], body: ["back"], "source-label": ["back"], source: ["back"],
+      "postcard-model": ["back"],
+      "ott-progress": ["front"], "ott-play-mark": ["front"], "ott-time": ["front"], "ott-quality": ["front"],
+      attribution: ["front", "back"]
     }
   };
   var TEMPLATE_LAYER_LABELS = {
@@ -324,6 +390,21 @@
       frame: { front: ["Photo Frame", "FRAME"], back: ["Film Rails", "TOP + BOTTOM BANDS"] },
       "meta-bot": ["Top Repeat", "BOT NAME"], "meta-persona": ["Bottom Repeat", "PERSONA NAME"],
       quote: ["Handwritten Phrase", "TEXT"]
+    },
+    ott: {
+      "block-main": { front: ["Playback Screen", "BACKGROUND"], back: ["Info Screen", "BACKGROUND"] },
+      "image-main": { front: ["Playback Artwork", "FULL SCREEN IMAGE"], back: ["Info Artwork", "FULL SCREEN IMAGE"] },
+      quote: ["Subtitle", "GULIM · OPTIONAL BACKGROUND"],
+      kicker: ["Service Label", "TEXT"], title: ["Animation Title", "TEXT"], subtitle: ["Episode Information", "TEXT"],
+      "meta-bot-label": ["Genre Label", "TEXT"], "meta-bot": ["Genre", "TEXT"],
+      "meta-persona-label": ["Studio Label", "TEXT"], "meta-persona": ["Studio", "TEXT"],
+      "meta-date-label": ["Year Label", "TEXT"], "meta-date": ["Production Year", "TEXT"],
+      body: ["Synopsis", "TEXT"], source: ["Episode", "TEXT"],
+      "postcard-model": ["Cast", "LABEL + VALUE"],
+      "ott-progress": ["Progress Bar", "COLOR · FILL"],
+      "ott-play-mark": ["Play Mark", "TEXT"],
+      "ott-time": ["Playback Time", "TEXT"],
+      "ott-quality": ["Playback Tag", "TEXT"]
     }
   };
   var TRAIN_BACK_LAYER_LABELS = {
@@ -351,7 +432,7 @@
   ];
   function canonicalTrainCouponSide(side, key, documentState) {
     var source = documentState || state;
-    return source && source.template === "train" && side === "back"
+    return source && isTrainTemplate(source) && side === "back"
       && TRAIN_MIRRORED_COUPON_LAYERS.indexOf(key) >= 0 ? "front" : side;
   }
   var CINEMA_BACK_LAYER_LABELS = {
@@ -376,16 +457,18 @@
     if (!nativeMap) {
       return LAYER_ORDER.filter(function (key) {
         var definition = LAYER_DEFS.find(function (item) { return item.key === key; });
-        if (definition && definition.templates && definition.templates.indexOf(template) < 0) return false;
-        return template === "train" ? key !== "frame" : ["image-stub", "main-frame", "stub-frame", "stub-divider", "serial-copy", "stub-topline", "admit-copy", "stub-title", "platform", "texture"].indexOf(key) < 0;
+        var family = templateFamilyId(template);
+        if (definition && definition.templates && definition.templates.indexOf(template) < 0 && definition.templates.indexOf(family) < 0) return false;
+        return family === "train" ? key !== "frame" : ["image-stub", "main-frame", "stub-frame", "stub-divider", "serial-copy", "stub-topline", "admit-copy", "stub-title", "platform", "texture"].indexOf(key) < 0;
       });
     }
     return LAYER_ORDER.filter(function (key) { return Array.isArray(nativeMap[key]) && nativeMap[key].length > 0; });
   }
   var POSTCARD_TEXT_LAYER_KEYS = ["postcard-card-title", "postcard-card-subtitle", "postcard-from-label", "postcard-from-value", "postcard-to-label", "postcard-to-value", "postcard-date-label", "postcard-date-value", "postcard-model-label", "postcard-model-value", "postcard-prompt-label", "postcard-prompt-value", "postcard-writing-1", "postcard-writing-2", "postcard-writing-3", "postcard-writing-4"];
   var POSTCARD_RULE_LAYER_KEYS = ["postcard-center-rule", "postcard-writing-rule-1", "postcard-writing-rule-2", "postcard-writing-rule-3", "postcard-writing-rule-4"];
-  var TEXT_LAYER_KEYS = ["coach", "stub-topline", "admit-copy", "stub-title", "platform", "validation", "kicker", "title", "subtitle", "meta-bot-label", "meta-bot", "meta-persona-label", "meta-persona", "meta-date-label", "meta-date", "postcard-model", "postcard-prompt", "record-meta-bot-label", "record-meta-bot", "record-meta-persona-label", "record-meta-persona", "record-meta-date-label", "record-meta-date", "quote", "speaker", "handwritten-note", "copy-label", "body", "source-label", "source", "back-note-label", "back-note", "serial-label", "serial", "serial-copy", "rating-label", "rating-marks", "rating-score", "cinema-etc-label", "cinema-etc", "seal"].concat(POSTCARD_TEXT_LAYER_KEYS);
-  var TEXT_COLOR_MODES = ["difference", "solid"];
+  var TEXT_LAYER_KEYS = ["coach", "stub-topline", "admit-copy", "stub-title", "platform", "validation", "kicker", "title", "subtitle", "meta-bot-label", "meta-bot", "meta-persona-label", "meta-persona", "meta-date-label", "meta-date", "postcard-model", "postcard-prompt", "record-meta-bot-label", "record-meta-bot", "record-meta-persona-label", "record-meta-persona", "record-meta-date-label", "record-meta-date", "quote", "speaker", "handwritten-note", "copy-label", "body", "source-label", "source", "back-note-label", "back-note", "serial-label", "serial", "serial-copy", "rating-label", "rating-marks", "rating-score", "cinema-etc-label", "cinema-etc", "seal", "ott-play-mark", "ott-time", "ott-quality"].concat(POSTCARD_TEXT_LAYER_KEYS);
+  /* "none" paints the glyphs transparent, leaving only the layer outline. */
+  var TEXT_COLOR_MODES = ["difference", "solid", "none"];
   var FONT_FAMILY_MAP = {
     "noto-serif": "'Noto Serif KR', serif", pretendard: "Pretendard, sans-serif",
     "gowun-batang": "'Gowun Batang', serif", "song-myung": "'Song Myung', serif",
@@ -394,7 +477,8 @@
     "zen-kurenaido": "'Zen Kurenaido', cursive",
     cinzel: "Cinzel, serif", "nanum-brush": "'Nanum Brush Script', cursive",
     "nanum-pen": "'Nanum Pen Script', cursive",
-    italianno: "Italianno, cursive"
+    italianno: "Italianno, cursive",
+    gulim: "Gulim, '굴림', sans-serif"
   };
   var FONT_FAMILY_KEYS = Object.keys(FONT_FAMILY_MAP);
   var SYSTEM_FONT_KEY_PATTERN = /^system:[A-Za-z0-9_-]{8,2048}$/;
@@ -415,9 +499,11 @@
     var alias = systemFontAlias(key);
     return alias ? '"' + alias + '", sans-serif' : "'Noto Serif KR', serif";
   }
-  var COLOR_LAYER_KEYS = TEXT_LAYER_KEYS.concat(["frame", "main-frame", "back-image-frame", "record-divider-top", "stub-frame", "stub-divider", "coupon-meta-rules", "route-art", "image-stub", ATTRIBUTION_LAYER_KEY]).concat(POSTCARD_RULE_LAYER_KEYS);
-  var FRAME_COLOR_LAYER_KEYS = ["frame", "main-frame", "back-image-frame", "record-divider-top", "stub-frame", "stub-divider", "coupon-meta-rules", "route-art", "image-stub"].concat(POSTCARD_RULE_LAYER_KEYS);
+  var COLOR_LAYER_KEYS = TEXT_LAYER_KEYS.concat(["frame", "main-frame", "back-image-frame", "record-divider-top", "stub-frame", "stub-divider", "coupon-meta-rules", "route-art", "image-stub", "ott-progress", ATTRIBUTION_LAYER_KEY]).concat(POSTCARD_RULE_LAYER_KEYS);
+  var FRAME_COLOR_LAYER_KEYS = ["frame", "main-frame", "back-image-frame", "record-divider-top", "stub-frame", "stub-divider", "coupon-meta-rules", "route-art", "image-stub", "ott-progress"].concat(POSTCARD_RULE_LAYER_KEYS);
   var CINEMA_FRONT_FRAME_DEFAULT_COLOR = "#f7e7c8";
+  var OTT_PROGRESS_DEFAULT_COLOR = "#ef3340";
+  var OTT_SCREEN_FILL_VERSION = 1;
   var POSTCARD_STAMP_BORDER_DEFAULT_COLOR = "#ffffff";
   var LAYER_FOLDER_ORDER = ["SURFACES", "IMAGES", "FRAMES", "TEXT", "CUSTOM"];
   var LAYER_FOLDER_LABELS = { SURFACES: "표면", IMAGES: "이미지", FRAMES: "프레임 · 장식", TEXT: "텍스트", CUSTOM: "사용자 레이어" };
@@ -443,6 +529,7 @@
       overlayColor: "#6f3f43", overlayBlend: "multiply", vignetteSignedVersion: 1
     };
   };
+  var defaultStroke = function () { return { enabled: false, width: 0, color: "#000000", join: "round" }; };
   var defaultBlock = function (color) {
     return { color: color, imageData: "", imageName: "", imageType: "", fit: "contain", zoom: 1, panX: 0, panY: 0, tintMode: "none", effect: defaultEffect() };
   };
@@ -520,6 +607,15 @@
     postcardWriting4: POSTCARD_WRITING_LINES[3],
     quote: "우리가 지나온 모든 밤은\n사라진 게 아니라 길이 되었다.",
     speaker: "해온",
+    ottSubtitleBackgroundEnabled: true,
+    ottSubtitleBackgroundColor: "#000000",
+    ottSubtitleBackgroundOpacity: 100,
+    ottAspect: "16x9",
+    ottPlayMark: "▶",
+    ottTimeCurrent: "23:48",
+    ottTimeTotal: "47:12",
+    ottTag: "CC  HD",
+    ottProgress: 38,
     handwrittenNote: "Every quiet mile leaves a little light.\nWhat fades from view still travels with us.\nSome journeys remain long after arrival.",
     source: "FARE 32.50 · ROUTE NL-07",
     sourceLabel: "FARE / ROUTE",
@@ -594,6 +690,7 @@
     layerOrders: { front: [], back: [] },
     shadows: defaultShadows(),
     sideShadows: { front: {}, back: {} },
+    sideStrokes: { front: {}, back: {} },
     selectedLayer: ""
   };
 
@@ -602,7 +699,64 @@
     var next = clone(defaults);
     next.template = template;
     next.layerOrder = templateLayerOrder(template);
-    if (template === "cinema") {
+    if (template === "ott") {
+      next.theme = "dark";
+      next.side = "front";
+      next.postcardViewMode = "front";
+      next.motion = "fade";
+      next.quoteEffect = "solid";
+      next.font = "gulim";
+      next.quote = "그 장면을 다시 재생하면,\n그날의 마음도 함께 돌아왔다.";
+      next.speaker = "";
+      next.ottSubtitleBackgroundEnabled = true;
+      next.ottSubtitleBackgroundColor = "#000000";
+      next.ottSubtitleBackgroundOpacity = 100;
+      next.ottAspect = "16x9";
+      next.ottPlayMark = "▶";
+      next.ottTimeCurrent = "23:48";
+      next.ottTimeTotal = "47:12";
+      next.ottTag = "CC  HD";
+      next.ottProgress = 38;
+      next.kicker = "MEMORIAL STREAMING · NOW PAUSED";
+      next.backKicker = "MEMORIAL STREAMING · NOW PAUSED";
+      next.title = "";
+      next.backHeading = "별을 건너는 우리";
+      next.subtitle = "시즌 1 · 에피소드 07";
+      next.botLabel = "장르";
+      next.botName = "판타지 · 드라마";
+      next.personaLabel = "제작";
+      next.personaName = "MEMORIAL STUDIO";
+      next.dateLabel = "제작연도";
+      next.date = "2026";
+      next.postcardModelLabel = "출연";
+      next.postcardModel = "미라 · 해온";
+      next.backBody = "재생을 멈춘 순간 화면 위로 작품 정보가 천천히 나타납니다. 이 칸에는 제목, 제작연도, 장르와 함께 그 장면을 오래 기억하고 싶은 이유를 남겨 보세요.";
+      next.sourceLabel = "EPISODE";
+      next.source = "S01 · E07 · 23:48";
+      next.accent = "#f0f2f5";
+      next.quoteColor = "#ffffff";
+      next.muted = "#c7ccd5";
+      next.texture = false;
+      next.textureStrength = 0;
+      next.blocks.frontMain = defaultBlock("#07090d");
+      next.blocks.frontStub = defaultBlock("#07090d");
+      next.blocks.backMain = defaultBlock("#07090d");
+      next.blocks.backStub = defaultBlock("#07090d");
+      next.blocks.frontMain.fit = "cover";
+      next.blocks.backMain.fit = "cover";
+      next.ottScreenFillVersion = OTT_SCREEN_FILL_VERSION;
+      /* 76.15% sits the caption 10px higher than the old 78% on the 540px
+         16:9 face, and being a percentage it keeps that proportion when the
+         canvas switches ratio. */
+      next.layouts.front = { quoteX: 50, quoteY: 76.15, quoteW: 84, quoteSize: 29, detailsX: 8, detailsY: 92, detailsW: 84 };
+      next.layouts.back = { quoteX: 8, quoteY: 55, quoteW: 84, quoteSize: 24, detailsX: 7, detailsY: 86, detailsW: 55 };
+      next.layerStyles.front.quote = { color: "#ffffff", fontFamily: "gulim", fontSize: 29, fontWeight: "400", letterSpacing: 0, lineHeight: 1.35, textAlign: "center" };
+      next.layerStyles.back.kicker = { color: "#e8ebf0", fontFamily: "pretendard", fontSize: 10, fontWeight: "700", letterSpacing: 1.2, lineHeight: 1.2 };
+      next.layerStyles.back.title = { color: "#ffffff", fontFamily: "pretendard", fontSize: 42, fontWeight: "800", letterSpacing: -.8, lineHeight: 1.08 };
+      next.layerStyles.back.subtitle = { color: "#e2e5eb", fontFamily: "pretendard", fontSize: 16, fontWeight: "500", letterSpacing: .2, lineHeight: 1.3 };
+      next.layerStyles.back.body = { color: "#e2e5eb", fontFamily: "pretendard", fontSize: 15, fontWeight: "400", letterSpacing: 0, lineHeight: 1.6 };
+      next.layerStyles.front["ott-progress"] = { color: OTT_PROGRESS_DEFAULT_COLOR };
+    } else if (template === "cinema") {
       next.shadows.title = cinemaTitleShadow();
       next.theme = "light";
       next.quoteEffect = "difference";
@@ -749,6 +903,13 @@
     return next;
   }
 
+  /* These bound every per-layer font size, including the ones the template
+     defaults below declare. They must exist before the first document is
+     built: as plain vars they were still undefined at that point, so every
+     clamp produced NaN, JSON cloning turned that into null, and each
+     template quietly lost its designed type sizes. */
+  var MAX_FONT_SIZE_PT = 200;
+  var MAX_FONT_SIZE_PX = ptToPx(MAX_FONT_SIZE_PT);
   var templateDocuments = {};
   TEMPLATE_IDS.forEach(function (template) { templateDocuments[template] = createTemplateDefaults(template); });
   var migratedLegacyStorageKey = "";
@@ -888,6 +1049,17 @@
     return match;
   }
   function isCustomShapeLayer(item) { return Boolean(item && item.type === "shape"); }
+  /* A layout example names its artwork instead of embedding it, so the
+     preset file stays a few hundred kilobytes of geometry. The file is
+     fetched from this bundle when the example is applied and becomes an
+     ordinary embedded image from that point on. */
+  var PRESET_ASSET_PREFIX = "preset-asset:";
+  function presetAssetDataUrl(value) {
+    var raw = String(value || "");
+    if (raw.indexOf(PRESET_ASSET_PREFIX) !== 0) return "";
+    var assets = { "postcard-stamp": window.LOG_TICKET_POSTCARD_STAMP_ASSET };
+    return String(assets[raw.slice(PRESET_ASSET_PREFIX.length)] || "");
+  }
   function customLayerCanStoreImage(item) { return Boolean(item && (item.type === "image" || item.type === "shape")); }
   function customLayerUsesRasterFill(item) { return Boolean(item && (item.type === "image" || item.type === "shape" && item.fillMode === "image")); }
   function customLayerHasImageAsset(item) { return customLayerCanStoreImage(item) && Boolean(item.imageData); }
@@ -914,13 +1086,13 @@
     if (isProtectedLayer(key)) return side === "front" || side === "back";
     if (Array.isArray(source.removedLayers) && hasLayerFlag(source.removedLayers, key, side, source)) return false;
     if (definition.group === "CUSTOM") return !definition.sides || definition.sides.indexOf(side) >= 0;
-    if (source.template === "train" && (key === "back-note" || (side === "back" && key === "serial"))) return false;
+    if (isTrainTemplate(source) && (key === "back-note" || (side === "back" && key === "serial"))) return false;
     var templateLayers = TEMPLATE_LAYER_SIDES[source.template];
     if (templateLayers) {
       var templateSides = templateLayers[key];
       return Array.isArray(templateSides) && templateSides.indexOf(side) >= 0;
     }
-    if (definition.templates && definition.templates.indexOf(source.template) < 0) return false;
+    if (definition.templates && definition.templates.indexOf(source.template) < 0 && definition.templates.indexOf(templateFamilyId(source)) < 0) return false;
     var allowedSides = source.template === "cinema" && Array.isArray(definition.cinemaSides) ? definition.cinemaSides : definition.sides;
     return !allowedSides || allowedSides.indexOf(side) >= 0;
   }
@@ -982,7 +1154,7 @@
         if (!layerAvailableOnSide(key, side, source)) return;
         var canonicalSide = canonicalTrainCouponSide(side, key, source);
         var saved = savedSideShadows && savedSideShadows[canonicalSide] && savedSideShadows[canonicalSide][key]
-          || source && source.template === "train" && canonicalSide === "front" && TRAIN_MIRRORED_COUPON_LAYERS.indexOf(key) >= 0
+          || source && isTrainTemplate(source) && canonicalSide === "front" && TRAIN_MIRRORED_COUPON_LAYERS.indexOf(key) >= 0
             && savedSideShadows && savedSideShadows.back && savedSideShadows.back[key]
           || savedSideShadows && savedSideShadows[side] && savedSideShadows[side][key]
           || flatShadows && flatShadows[key];
@@ -994,7 +1166,7 @@
   function layerLabel(definition, side, documentState) {
     if (!definition) return null;
     var source = documentState || state;
-    if (source && source.template === "train" && side === "back" && TRAIN_BACK_LAYER_LABELS[definition.key]) {
+    if (source && isTrainTemplate(source) && side === "back" && TRAIN_BACK_LAYER_LABELS[definition.key]) {
       return TRAIN_BACK_LAYER_LABELS[definition.key];
     }
     if (source && source.template === "cinema" && side === "back" && CINEMA_BACK_LAYER_LABELS[definition.key]) {
@@ -1213,6 +1385,17 @@
   $("#templateCount").textContent = String(templateTotal).padStart(2, "0") + " TEMPLATES";
 
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  /* Alpha-mask custom properties carry a whole data URL. Rebuilding and
+     re-assigning one costs tens of milliseconds for a large artwork, so the
+     applied source is remembered per node and only written when it changes. */
+  var appliedAlphaMaskSources = new WeakMap();
+  function setLayerAlphaMask(node, source) {
+    if (!node) return;
+    var next = source || "";
+    if (appliedAlphaMaskSources.get(node) === next) return;
+    appliedAlphaMaskSources.set(node, next);
+    node.style.setProperty("--image-alpha-mask", next ? 'url("' + next + '")' : "none");
+  }
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
   function finiteNumber(value, fallback) {
     var parsed = Number(value);
@@ -1221,8 +1404,6 @@
   function pxToPt(value) { return Math.round(finiteNumber(value, 0) * .75 * 100) / 100; }
   function ptToPx(value) { return finiteNumber(value, 0) * 4 / 3; }
   /* Inspector values are expressed in pt, while preview styles use CSS px. */
-  var MAX_FONT_SIZE_PT = 200;
-  var MAX_FONT_SIZE_PX = ptToPx(MAX_FONT_SIZE_PT);
   /* These are corruption guards, not canvas-bound resize limits. */
   var MAX_OBJECT_SIZE_PERCENT = 10000;
   var MAX_NATIVE_OBJECT_SCALE = 100;
@@ -1417,6 +1598,20 @@
   function normalizeLayerOrderByFolder(order, documentState) {
     return Array.isArray(order) ? order.slice() : [];
   }
+  function validHexColor(value, fallback) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : fallback;
+  }
+  function normalizeStroke(saved) {
+    var next = Object.assign({}, defaultStroke(), saved && typeof saved === "object" ? saved : {});
+    /* Keep the user's checkbox choice independent from the numeric width.
+       Zero pixels is a valid temporarily-hidden outline: raising the width
+       again must restore it without making the user re-enable the effect. */
+    next.enabled = Boolean(next.enabled);
+    next.width = clamp(finiteNumber(next.width, 0), 0, 40);
+    next.color = validHexColor(next.color, "#000000");
+    next.join = next.join === "miter" ? "miter" : "round";
+    return next;
+  }
   function normalizeEffect(saved, fallback) {
     var source = saved && typeof saved === "object" ? saved : {};
     var legacyGlass = clamp(finiteNumber(source.glass, 0), 0, 100);
@@ -1439,8 +1634,15 @@
     var legacyNeutral = next.blur === 0 && next.brightness === 102 && next.saturation === 106 && next.contrast === 100
       && next.hue === 0 && next.sepia === 0 && next.grayscale === 0 && next.vignette === 0 && next.overlay === 0;
     if (legacyNeutral) { next.brightness = 100; next.saturation = 100; }
-    if (!/^#[0-9a-f]{6}$/i.test(String(next.overlayColor || ""))) next.overlayColor = fallback.overlayColor;
+    var legacyOverlayStops = source.overlayGradient && Array.isArray(source.overlayGradient.stops) ? source.overlayGradient.stops : [];
+    var legacyOverlayColor = legacyOverlayStops.reduce(function (color, stop) {
+      return color || (/^#[0-9a-f]{6}$/i.test(String(stop && stop.color || "")) ? stop.color : "");
+    }, "");
+    var preferredOverlayColor = source.overlayType === "gradient" && legacyOverlayColor ? legacyOverlayColor : next.overlayColor;
+    next.overlayColor = validHexColor(preferredOverlayColor, fallback.overlayColor);
     if (["multiply", "soft-light", "screen", "overlay", "normal"].indexOf(next.overlayBlend) < 0) next.overlayBlend = "multiply";
+    delete next.overlayType;
+    delete next.overlayGradient;
     return next;
   }
   function safeStyleValue(value, fallback, maxLength) {
@@ -1545,7 +1747,12 @@
           : (item.type === "text" && boxStyle.mixBlendMode === "difference" ? "difference" : "solid");
         if (item.type === "text" && boxStyle.mixBlendMode === "difference") boxStyle.mixBlendMode = "normal";
         var shapeKind = ["rectangle", "ellipse", "triangle", "star"].indexOf(item.shapeKind) >= 0 ? item.shapeKind : "rectangle";
-        var fillMode = item.fillMode === "image" ? "image" : "color";
+        var fillMode = ["image", "none"].indexOf(item.fillMode) >= 0 ? item.fillMode : "color";
+        var legacyFillStops = item.fillGradient && Array.isArray(item.fillGradient.stops) ? item.fillGradient.stops : [];
+        var legacyFillColor = legacyFillStops.reduce(function (color, stop) {
+          return color || (/^#[0-9a-f]{6}$/i.test(String(stop && stop.color || "")) ? stop.color : "");
+        }, "");
+        var preferredFillColor = item.fillMode === "gradient" && legacyFillColor ? legacyFillColor : item.fillColor;
         var cornerCount = shapeCornerCount(shapeKind);
         var cornerRadius = clamp(finiteNumber(item.cornerRadius, 0), 0, 50);
         var cornerRadii = Array.isArray(item.cornerRadii) ? item.cornerRadii.slice(0, cornerCount).map(function (value) {
@@ -1599,7 +1806,8 @@
           effect: imageEffect,
           shapeKind: shapeKind,
           fillMode: fillMode,
-          fillColor: /^#[0-9a-f]{6}$/i.test(String(item.fillColor || "")) ? item.fillColor : "#b87977",
+          fillColor: validHexColor(preferredFillColor, "#b87977"),
+          stroke: normalizeStroke(item.stroke),
           cornerMode: item.cornerMode === "individual" ? "individual" : "all",
           cornerRadius: cornerRadius,
           cornerRadii: cornerRadii,
@@ -1849,7 +2057,7 @@
       if (normalized.indexOf(value) < 0) normalized.push(value);
     }
     function addForSide(key, side) {
-      var members = key === "frame" && documentState.template === "train"
+      var members = key === "frame" && isTrainTemplate(documentState)
         ? ["main-frame", "stub-frame", "stub-divider"]
         : (LEGACY_LAYER_MEMBERS[key] || [key]);
       members.forEach(function (member) {
@@ -2087,7 +2295,7 @@
     return migrated;
   }
   function compositeTextSplitMap(template) {
-    return template === "train" ? {
+    return isTrainTemplate(template) ? {
       "meta-bot": ["meta-bot-label"],
       "meta-persona": ["meta-persona-label"],
       "meta-date": ["meta-date-label"],
@@ -2342,6 +2550,16 @@
     next.legacyCompositeTransforms = normalizeLegacyCompositeTransforms(next.legacyCompositeTransforms, template);
     next.template = template;
     next.side = next.side === "back" ? "back" : "front";
+    if (template === "ott") {
+      next.ottSubtitleBackgroundEnabled = next.ottSubtitleBackgroundEnabled !== false;
+      next.ottSubtitleBackgroundColor = validHexColor(next.ottSubtitleBackgroundColor, fallback.ottSubtitleBackgroundColor);
+      next.ottSubtitleBackgroundOpacity = ottSubtitleBackgroundOpacity(next);
+      next.ottProgress = ottProgressValue(next);
+      next.ottAspect = ottAspectId(next);
+      ["ottPlayMark", "ottTimeCurrent", "ottTimeTotal", "ottTag"].forEach(function (key) {
+        next[key] = next[key] == null ? fallback[key] : String(next[key]);
+      });
+    }
     /* Legacy non-postcard documents carried postcardViewMode="front" as an
        unused default. On first adoption preserve the face the user actually
        had open instead of incorrectly switching a saved BACK document. */
@@ -2352,6 +2570,7 @@
     next.postcardViewMode = ["front", "back", "both"].indexOf(next.postcardViewMode) >= 0
       ? next.postcardViewMode
       : (template === "postcard" ? "both" : next.side);
+    if (!templateSupportsBoth(template) && next.postcardViewMode === "both") next.postcardViewMode = next.side;
     next.postcardTopSide = next.postcardTopSide === "back" ? "back" : "front";
     if (next.postcardViewMode !== "both") next.side = next.postcardViewMode;
     else next.side = next.postcardTopSide;
@@ -2385,6 +2604,17 @@
     if (migratePolaroidReverse && saved && saved.blocks && saved.blocks.backMain
       && String(saved.blocks.backMain.color || "").toLowerCase() === "#fffdfa") {
       next.blocks.backMain.color = fallback.blocks.backMain.color;
+    }
+    /* The playback and info screens are full-bleed stills. Documents made
+       before the screen-fill fix kept their artwork on "show everything",
+       which letterboxed the screen and left a band inside the fixed canvas
+       ratio. Fill once, then leave the choice to the user. This has to run
+       after the blocks are rebuilt, or normalizeBlock restores the saved fit. */
+    if (template === "ott" && finiteNumber(saved && saved.ottScreenFillVersion, 0) < OTT_SCREEN_FILL_VERSION) {
+      ["frontMain", "backMain"].forEach(function (blockKey) {
+        if (next.blocks[blockKey] && next.blocks[blockKey].fit !== "cover") next.blocks[blockKey].fit = "cover";
+      });
+      next.ottScreenFillVersion = OTT_SCREEN_FILL_VERSION;
     }
     if (template === "train") {
       next.handwrittenNote = String(next.handwrittenNote || fallback.handwrittenNote).slice(0, 600);
@@ -2836,6 +3066,13 @@
     if (resetTrainLogoState) next.shadows["image-stub"] = defaultShadow();
     next.sideShadows = createSideShadows(saved && saved.sideShadows, next.shadows, next);
     if (resetTrainLogoState) next.sideShadows.front["image-stub"] = defaultShadow();
+    next.sideStrokes = { front: {}, back: {} };
+    ["front", "back"].forEach(function (side) {
+      var savedStrokes = saved && saved.sideStrokes && saved.sideStrokes[side] || {};
+      layerOrderFor(side, next).forEach(function (key) {
+        if (!customLayerById(key, next) && layerAvailableOnSide(key, side, next)) next.sideStrokes[side][key] = normalizeStroke(savedStrokes[key]);
+      });
+    });
     if (next.font === "serif") next.font = "noto-serif";
     if (next.font === "sans" || next.font === "mono") next.font = "pretendard";
     if (!fontKeyAllowed(next.font)) next.font = "noto-serif";
@@ -3638,6 +3875,10 @@
     if (!target.effect) target.effect = defaultEffect();
     return target.effect;
   }
+  function usesOttCaptionCentering(layer, side, documentState) {
+    var source = documentState || state;
+    return Boolean(source && source.template === "ott" && layer === "quote" && (side || source.side) === "front");
+  }
   function placementFor(side, layer) {
     var canonicalSide = canonicalTrainCouponSide(side, layer, state);
     return state.placements && state.placements[canonicalSide] && state.placements[canonicalSide][layer]
@@ -3783,13 +4024,13 @@
     /* Railway paper is one physical stock across both faces. Keep the main
        surface color canonical on frontMain while leaving the two main image
        slots independent. The coupon already follows the same frontStub rule. */
-    if (state.template === "train" && layer === "block-main") return "frontMain";
-    if (state.template === "train" && (layer === "image-stub" || side === "back" && layer === "block-stub")) return "frontStub";
+    if (isTrainTemplate(state) && layer === "block-main") return "frontMain";
+    if (isTrainTemplate(state) && (layer === "image-stub" || side === "back" && layer === "block-stub")) return "frontStub";
     return side + (layer === "block-main" || layer === "image-main" ? "Main" : "Stub");
   }
   function canonicalBlockColorKey(key, documentState) {
     var source = documentState || state;
-    if (!source || source.template !== "train") return key;
+    if (!source || !isTrainTemplate(source)) return key;
     if (key === "backMain") return "frontMain";
     if (key === "backStub") return "frontStub";
     return key;
@@ -3807,8 +4048,8 @@
     if (source.blocks[canonicalKey]) source.blocks[canonicalKey].color = color;
     /* Retain mirrored schema fields so old JSON consumers remain compatible;
        all reads still go through the single canonical front-side value. */
-    if (source.template === "train" && canonicalKey === "frontMain" && source.blocks.backMain) source.blocks.backMain.color = color;
-    if (source.template === "train" && canonicalKey === "frontStub" && source.blocks.backStub) source.blocks.backStub.color = color;
+    if (isTrainTemplate(source) && canonicalKey === "frontMain" && source.blocks.backMain) source.blocks.backMain.color = color;
+    if (isTrainTemplate(source) && canonicalKey === "frontStub" && source.blocks.backStub) source.blocks.backStub.color = color;
   }
   function activeBlockKey() { return blockKey(state.side, state.selectedLayer); }
   function activeBlock() {
@@ -3837,7 +4078,7 @@
       font: state.font || "noto-serif", fontSize: 28, fontWeight: "400", fontStyle: "normal",
       lineHeight: "1.35", letterSpacing: "normal", textTransform: "none", whiteSpace: "pre-wrap",
       color: state.quoteColor || "#684b47", colorMode: "solid", opacity: 100, align: "left", writingMode: "horizontal-tb", fit: "contain",
-      zoom: 1, panX: 0, panY: 0, effect: defaultEffect(), inlineTextStyles: [], typingStyle: {}, styledRuns: [], styledShapes: [], boxStyle: normalizeBoxStyle()
+      zoom: 1, panX: 0, panY: 0, effect: defaultEffect(), stroke: defaultStroke(), inlineTextStyles: [], typingStyle: {}, styledRuns: [], styledShapes: [], boxStyle: normalizeBoxStyle()
     };
   }
   function defaultCustomShape(kind) {
@@ -4011,6 +4252,36 @@
     if (run.letterSpacing != null) target.style.setProperty("letter-spacing", run.letterSpacing + "px", "important");
     if (run.lineHeight != null) target.style.setProperty("line-height", String(run.lineHeight), "important");
   }
+  function inlineRunsForRange(runs, start, end) {
+    return (Array.isArray(runs) ? runs : []).map(function (run) {
+      var clipped = Object.assign({}, run, {
+        start: Math.max(finiteNumber(run.start, 0), start) - start,
+        end: Math.min(finiteNumber(run.end, 0), end) - start
+      });
+      return clipped.end > clipped.start ? clipped : null;
+    }).filter(Boolean);
+  }
+  /* The OTT subtitle draws one background box per line, sized to that line,
+     so two lines of different length keep two different widths. */
+  function renderOttSubtitleLines(node, text, runs, suppressColor) {
+    var value = String(text == null ? "" : text);
+    var fragment = document.createDocumentFragment();
+    var offset = 0;
+    value.split("\n").forEach(function (line) {
+      var lineNode = document.createElement("span");
+      lineNode.className = "ott-subtitle-line" + (line.length ? "" : " ott-subtitle-line-empty");
+      /* Keep the subtitle's optional background outside the glyph-only outline
+         filter. Otherwise a transparent text fill would outline the caption
+         box itself along with the letters. */
+      var textNode = document.createElement("span");
+      textNode.className = "ott-subtitle-text text-outline-ink";
+      appendInlineText(textNode, line, inlineRunsForRange(runs, offset, offset + line.length), suppressColor);
+      lineNode.appendChild(textNode);
+      fragment.appendChild(lineNode);
+      offset += line.length + 1;
+    });
+    node.replaceChildren(fragment);
+  }
   function appendInlineText(node, text, runs, suppressColor) {
     var textValue = String(text == null ? "" : text);
     var styles = normalizeInlineStyleRuns(runs, textValue.length);
@@ -4048,7 +4319,7 @@
        inline text inside that item. The wrapper is also copied verbatim by
        the PNG export clone, keeping preview and export geometry identical. */
     var content = document.createElement("span");
-    content.className = "native-inline-text-content";
+    content.className = "native-inline-text-content text-outline-ink";
     appendInlineText(content, text, runs, suppressColor);
     node.replaceChildren(content);
     return true;
@@ -4101,7 +4372,7 @@
     var textValue = String(value || "");
     var visibleValue = textValue || "이름 없음";
     var content = document.createElement("span");
-    content.className = "native-inline-text-content speaker-inline-content";
+    content.className = "native-inline-text-content speaker-inline-content text-outline-ink";
     var valueNode = document.createElement("span");
     valueNode.className = "speaker-inline-value";
     appendInlineText(valueNode, visibleValue, textValue ? runs : [], suppressColor);
@@ -4124,7 +4395,7 @@
       });
     });
     var content = document.createElement("span");
-    content.className = "cinema-cast-inline";
+    content.className = "cinema-cast-inline text-outline-ink";
     appendInlineText(content, textValue || "—", combinedRuns, suppressColor);
     node.replaceChildren(content);
   }
@@ -4132,6 +4403,8 @@
     var pieces = cinemaKickerInlineSegments(value, runs);
     var left = document.createElement("span");
     var right = document.createElement("span");
+    left.className = "text-outline-ink";
+    right.className = "text-outline-ink";
     var first = pieces.shift();
     appendInlineText(left, first ? first.text : String(value || "").trim(), first ? first.runs : [], suppressColor);
     var rightText = "";
@@ -4207,22 +4480,200 @@
     });
     context.closePath();
   }
+  function paintEffectOverlay(context, width, height, effect) {
+    context.fillStyle = effect.overlayColor;
+    context.fillRect(0, 0, width, height);
+  }
+  var imageOutlineFilterCache = Object.create(null);
+  function imageOutlineFilterDefs() {
+    var svg = document.getElementById("imageOutlineFilterDefs");
+    if (svg) return svg.querySelector("defs");
+    var namespace = "http://www.w3.org/2000/svg";
+    svg = document.createElementNS(namespace, "svg");
+    svg.id = "imageOutlineFilterDefs";
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none";
+    var defs = document.createElementNS(namespace, "defs");
+    svg.appendChild(defs);
+    document.body.appendChild(svg);
+    return defs;
+  }
+  function imageOutlineFilter(stroke, pixelScale, outsideOnly) {
+    var value = normalizeStroke(stroke);
+    if (!value.enabled || value.width <= 0) return "";
+    var radius = Math.max(.1, value.width * Math.max(.1, finiteNumber(pixelScale, 1)));
+    var roundedRadius = Math.round(radius * 2) / 2;
+    var key = (outsideOnly ? "ring|" : "image|") + value.join + "|" + value.color.toLowerCase() + "|" + roundedRadius.toFixed(1);
+    if (imageOutlineFilterCache[key]) return 'url("#' + imageOutlineFilterCache[key] + '")';
+
+    var namespace = "http://www.w3.org/2000/svg";
+    var id = (outsideOnly ? "text-outline-" : "image-outline-") + value.join + "-" + value.color.slice(1).toLowerCase() + "-" + roundedRadius.toFixed(1).replace(".", "_");
+    var filter = document.createElementNS(namespace, "filter");
+    filter.id = id;
+    filter.setAttribute("x", "-100%");
+    filter.setAttribute("y", "-100%");
+    filter.setAttribute("width", "300%");
+    filter.setAttribute("height", "300%");
+    filter.setAttribute("filterUnits", "objectBoundingBox");
+    filter.setAttribute("primitiveUnits", "userSpaceOnUse");
+    filter.setAttribute("color-interpolation-filters", "sRGB");
+
+    var expanded;
+    if (value.join === "round") {
+      /* Blur plus a narrow alpha ramp is a single rounded dilation pass.
+         A discrete threshold made diagonal glyph edges visibly stair-step.
+         This steep linear ramp keeps the ring solid while preserving roughly
+         one antialiased edge pixel instead of snapping it fully on/off. */
+      var blur = document.createElementNS(namespace, "feGaussianBlur");
+      blur.setAttribute("in", "SourceAlpha");
+      blur.setAttribute("stdDeviation", (roundedRadius * .54).toFixed(3));
+      blur.setAttribute("result", "outlineBlur");
+      filter.appendChild(blur);
+      expanded = document.createElementNS(namespace, "feComponentTransfer");
+      expanded.setAttribute("in", "outlineBlur");
+      expanded.setAttribute("result", "expandedAlpha");
+      var alpha = document.createElementNS(namespace, "feFuncA");
+      alpha.setAttribute("type", "linear");
+      alpha.setAttribute("slope", "64");
+      alpha.setAttribute("intercept", "-1.5");
+      expanded.appendChild(alpha);
+    } else {
+      expanded = document.createElementNS(namespace, "feMorphology");
+      expanded.setAttribute("in", "SourceAlpha");
+      expanded.setAttribute("operator", "dilate");
+      expanded.setAttribute("radius", roundedRadius.toFixed(3));
+      expanded.setAttribute("result", "expandedAlpha");
+    }
+    filter.appendChild(expanded);
+
+    var flood = document.createElementNS(namespace, "feFlood");
+    flood.setAttribute("flood-color", value.color);
+    flood.setAttribute("result", "outlineColor");
+    filter.appendChild(flood);
+    var colorMask = document.createElementNS(namespace, "feComposite");
+    colorMask.setAttribute("in", "outlineColor");
+    colorMask.setAttribute("in2", "expandedAlpha");
+    colorMask.setAttribute("operator", "in");
+    colorMask.setAttribute("result", "coloredOutline");
+    filter.appendChild(colorMask);
+    var outside = document.createElementNS(namespace, "feComposite");
+    outside.setAttribute("in", "coloredOutline");
+    outside.setAttribute("in2", "SourceAlpha");
+    outside.setAttribute("operator", "out");
+    outside.setAttribute("result", "outsideOutline");
+    filter.appendChild(outside);
+    if (!outsideOnly) {
+      var merge = document.createElementNS(namespace, "feMerge");
+      var outlineNode = document.createElementNS(namespace, "feMergeNode");
+      outlineNode.setAttribute("in", "outsideOutline");
+      var sourceNode = document.createElementNS(namespace, "feMergeNode");
+      sourceNode.setAttribute("in", "SourceGraphic");
+      merge.append(outlineNode, sourceNode);
+      filter.appendChild(merge);
+    }
+    imageOutlineFilterDefs().appendChild(filter);
+    imageOutlineFilterCache[key] = id;
+    return 'url("#' + id + '")';
+  }
+  function paintCanvasOutline(canvas, stroke, pixelScale) {
+    var value = normalizeStroke(stroke);
+    if (!value.enabled || value.width <= 0 || !canvas.width || !canvas.height) return;
+    var radius = Math.max(1, Math.round(value.width * Math.max(.1, finiteNumber(pixelScale, 1))));
+    var source = document.createElement("canvas");
+    source.width = canvas.width;
+    source.height = canvas.height;
+    source.getContext("2d", { alpha: true }).drawImage(canvas, 0, 0);
+    var colorLayer = document.createElement("canvas");
+    colorLayer.width = canvas.width;
+    colorLayer.height = canvas.height;
+    var colorContext = colorLayer.getContext("2d", { alpha: true });
+    colorContext.fillStyle = value.color;
+    colorContext.fillRect(0, 0, colorLayer.width, colorLayer.height);
+    colorContext.globalCompositeOperation = "destination-in";
+    colorContext.drawImage(source, 0, 0);
+    /* colorLayer and scratch swap roles during dilation. Do not let the alpha
+       masking composite mode follow colorLayer into a later scratch pass: an
+       empty destination-in canvas discards every outline pixel. */
+    colorContext.globalCompositeOperation = "source-over";
+    var scratch = document.createElement("canvas");
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    function expandAlong(dx, dy, amount) {
+      amount = Math.max(0, Math.round(amount));
+      var covered = 0;
+      while (covered < amount) {
+        var step = Math.min(covered + 1, amount - covered);
+        var scratchContext = scratch.getContext("2d", { alpha: true });
+        /* Either canvas can be scratch after a swap, so reset its state on
+           every pass instead of relying on the context's previous role. */
+        scratchContext.globalCompositeOperation = "source-over";
+        scratchContext.clearRect(0, 0, scratch.width, scratch.height);
+        scratchContext.drawImage(colorLayer, 0, 0);
+        scratchContext.drawImage(colorLayer, dx * step, dy * step);
+        scratchContext.drawImage(colorLayer, -dx * step, -dy * step);
+        var swap = colorLayer;
+        colorLayer = scratch;
+        scratch = swap;
+        covered += step;
+      }
+    }
+    if (value.join === "round") {
+      /* Four directional segment dilations form a near-circular octagon. This
+         keeps large transparent-PNG outlines smooth without stamping dozens
+         of visibly separate image copies around the source. */
+      var straight = Math.max(1, Math.round(radius * .4142135624));
+      var diagonal = Math.max(0, Math.round(radius * .2928932188));
+      expandAlong(1, 0, straight);
+      expandAlong(0, 1, straight);
+      expandAlong(1, 1, diagonal);
+      expandAlong(1, -1, diagonal);
+    } else {
+      expandAlong(1, 0, radius);
+      expandAlong(0, 1, radius);
+    }
+    var context = canvas.getContext("2d", { alpha: true });
+    context.save();
+    context.globalCompositeOperation = "destination-over";
+    context.drawImage(colorLayer, 0, 0);
+    context.restore();
+    source.width = source.height = colorLayer.width = colorLayer.height = scratch.width = scratch.height = 1;
+  }
   function paintCustomShape(canvas, image, item, renderScale) {
     var cssWidth = Math.max(1, canvas.parentElement.clientWidth || 1);
     var cssHeight = Math.max(1, canvas.parentElement.clientHeight || 1);
+    var shapeStroke = normalizeStroke(item.stroke);
+    var strokeVisible = shapeStroke.enabled && shapeStroke.width > 0;
+    var shapeMiterLimit = 2;
+    var strokePadding = strokeVisible
+      ? shapeStroke.width * (shapeStroke.join === "round" ? 1 : shapeMiterLimit * 2) + 1
+      : 0;
+    var totalCssWidth = cssWidth + strokePadding * 2;
+    var totalCssHeight = cssHeight + strokePadding * 2;
+    canvas.style.left = -strokePadding + "px";
+    canvas.style.top = -strokePadding + "px";
+    canvas.style.right = "auto";
+    canvas.style.bottom = "auto";
+    canvas.style.width = totalCssWidth + "px";
+    canvas.style.height = totalCssHeight + "px";
     /* Shapes are raster-backed even in the editor. A 1x canvas was visibly
        stair-stepped after small/large resizes, especially with image fills.
        Keep a 3x minimum preview backing store (up to 4x on dense displays),
        while the existing 4096/16MP budget still bounds memory. */
     var previewScale = Math.min(4, Math.max(3, (window.devicePixelRatio || 1) * 2));
     var requestedScale = Math.max(1, finiteNumber(renderScale, previewScale));
-    var rawWidth = cssWidth * requestedScale;
-    var rawHeight = cssHeight * requestedScale;
+    var rawWidth = totalCssWidth * requestedScale;
+    var rawHeight = totalCssHeight * requestedScale;
     var maxPixels = 4096 * 4096;
     var memoryScale = Math.min(1, 4096 / rawWidth, 4096 / rawHeight, Math.sqrt(maxPixels / Math.max(1, rawWidth * rawHeight)));
     var width = Math.max(1, Math.round(rawWidth * memoryScale));
     var height = Math.max(1, Math.round(rawHeight * memoryScale));
-    var scale = Math.min(width / cssWidth, height / cssHeight);
+    var scale = Math.min(width / totalCssWidth, height / totalCssHeight);
+    var contentWidth = Math.max(1, cssWidth * scale);
+    var contentHeight = Math.max(1, cssHeight * scale);
+    var offsetX = (width - contentWidth) / 2;
+    var offsetY = (height - contentHeight) / 2;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     var context = canvas.getContext("2d", { alpha: true });
@@ -4230,14 +4681,37 @@
     context.imageSmoothingQuality = "high";
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
+    /* Draw the centered stroke first. The fill is painted afterwards and
+       covers its inner half, so only the requested width remains outside the
+       shape instead of stealing space from the fill. */
+    if (strokeVisible) {
+      context.save();
+      context.translate(offsetX, offsetY);
+      traceShapePath(context, item, contentWidth, contentHeight);
+      context.strokeStyle = shapeStroke.color;
+      context.lineJoin = shapeStroke.join === "round" ? "round" : "miter";
+      context.miterLimit = shapeMiterLimit;
+      context.lineCap = shapeStroke.join === "round" ? "round" : "butt";
+      context.lineWidth = shapeStroke.width * scale * 2;
+      context.stroke();
+      /* Erase the centered stroke's inner half before painting the fill. This
+         also keeps image-filled shapes clean when their source has transparent
+         pixels near the edge. */
+      context.globalCompositeOperation = "destination-out";
+      traceShapePath(context, item, contentWidth, contentHeight);
+      context.fillStyle = "#000";
+      context.fill();
+      context.restore();
+    }
     context.save();
-    traceShapePath(context, item, width, height);
+    context.translate(offsetX, offsetY);
+    traceShapePath(context, item, contentWidth, contentHeight);
     context.clip();
     if (item.fillMode === "image" && image && image.complete && image.naturalWidth) {
-      var crop = calculateCrop(item, image.naturalWidth, image.naturalHeight, width, height, scale);
+      var crop = calculateCrop(item, image.naturalWidth, image.naturalHeight, contentWidth, contentHeight, scale);
       var imageCanvas = document.createElement("canvas");
-      imageCanvas.width = width;
-      imageCanvas.height = height;
+      imageCanvas.width = Math.max(1, Math.round(contentWidth));
+      imageCanvas.height = Math.max(1, Math.round(contentHeight));
       var imageContext = imageCanvas.getContext("2d", { alpha: true });
       imageContext.imageSmoothingEnabled = true;
       imageContext.imageSmoothingQuality = "high";
@@ -4245,17 +4719,19 @@
       imageContext.drawImage(image, crop.x, crop.y, crop.width, crop.height);
       var effect = item.effect || defaultEffect();
       drawAlphaMaskedEffectLayer(imageCanvas, function (layerContext, layerWidth, layerHeight) {
-        layerContext.fillStyle = effect.overlayColor;
-        layerContext.fillRect(0, 0, layerWidth, layerHeight);
+        paintEffectOverlay(layerContext, layerWidth, layerHeight, effect);
       }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
       drawImageVignette(imageCanvas, effect);
-      context.drawImage(imageCanvas, 0, 0);
+        context.drawImage(imageCanvas, 0, 0, contentWidth, contentHeight);
       imageCanvas.width = 1;
       imageCanvas.height = 1;
-    } else {
+    } else if (item.fillMode !== "none") {
       context.fillStyle = item.fillColor || "#b87977";
-      context.fillRect(0, 0, width, height);
+      context.fillRect(0, 0, contentWidth, contentHeight);
     }
+    /* "none" leaves the interior transparent. The centred stroke has already
+       had its inner half erased, so the outline keeps exactly the requested
+       width and the silhouette matches a filled shape of the same size. */
     context.restore();
   }
   function renderCustomLayers(renderScale) {
@@ -4310,9 +4786,24 @@
             (item.styledShapes || []).forEach(function (shape) { appendStyledShape(visual, shape); });
             item.styledRuns.forEach(function (run) { appendStyledRun(visual, run); });
             node.appendChild(visual);
+            /* Rich snapshots can contain decorative shapes and run-level
+               backgrounds. Build one text-only alpha union for the hollow
+               outline so those decorations remain visible but are never
+               mistaken for glyphs. Keeping all runs in one filter target also
+               avoids seams where two styled runs touch. */
+            var outlineVisual = visual.cloneNode(true);
+            outlineVisual.className = "rich-text-visual rich-text-outline-ink text-outline-ink";
+            Array.prototype.forEach.call(outlineVisual.querySelectorAll(".styled-clone-shape"), function (shape) { shape.remove(); });
+            Array.prototype.forEach.call(outlineVisual.querySelectorAll(".styled-clone-run"), function (run) {
+              run.style.background = "transparent";
+              run.style.border = "0";
+              run.style.boxShadow = "none";
+            });
+            node.appendChild(outlineVisual);
           } else {
             applySnapshotBoxStyle(node, item.boxStyle);
             var textNode = document.createElement("span");
+            textNode.className = "text-outline-ink";
             appendInlineText(textNode, item.text || "", item.inlineTextStyles, customTextColorMode(item) === "difference");
             node.appendChild(textNode);
           }
@@ -4337,9 +4828,10 @@
             image.removeAttribute("src");
           }
           var effect = item.effect || defaultEffect();
+          var customOutline = imageOutlineFilter(strokeFor(item.id, side));
           var customShadow = imageShadowFilter(shadowFor(item.id, side));
           var customEffectFilter = effectFilterString(effect, true);
-          image.style.filter = ((customEffectFilter === "none" ? "" : customEffectFilter + " ") + customShadow).trim() || "none";
+          image.style.filter = ((customEffectFilter === "none" ? "" : customEffectFilter + " ") + customOutline + " " + customShadow).trim() || "none";
           /* A free image is its layer box, not a crop inside a separate frame.
              Keeping the bitmap at exactly 100% x 100% makes the selection,
              inspector dimensions, preview and export share one geometry. */
@@ -4352,7 +4844,7 @@
           image.style.setProperty("bottom", "auto", "important");
           node.style.setProperty("--image-alpha-mask-size", "100% 100%");
           node.style.setProperty("--image-alpha-mask-position", "0 0");
-          node.style.setProperty("--image-alpha-mask", item.imageData ? 'url("' + item.imageData + '")' : "none");
+          setLayerAlphaMask(node, item.imageData);
           node.style.setProperty("--image-overlay", effect.overlay / 100);
           node.style.setProperty("--image-overlay-color", effect.overlayColor);
           node.style.setProperty("--image-overlay-blend", effect.overlayBlend);
@@ -4392,6 +4884,10 @@
         node.style.transformOrigin = "center center";
       });
     });
+    /* Re-rendering a custom layer rebuilds its base className (including after
+       an image load). Restore presentation classes such as layer-stroke-on so
+       preview and html2canvas export keep the saved outline. */
+    applyLayerPresentation();
   }
 
   function calculateCrop(config, imageW, imageH, frameW, frameH, renderPixelScale) {
@@ -4425,6 +4921,33 @@
     if (!state.sideShadows[side][layer]) state.sideShadows[side][layer] = defaultShadow();
     return state.sideShadows[side][layer];
   }
+  function strokeFor(layer, side) {
+    side = side || state.side;
+    var custom = customLayerById(layer);
+    if (custom) {
+      if (!custom.stroke) custom.stroke = defaultStroke();
+      return custom.stroke;
+    }
+    side = canonicalTrainCouponSide(side, layer, state);
+    if (!state.sideStrokes) state.sideStrokes = { front: {}, back: {} };
+    if (!state.sideStrokes[side]) state.sideStrokes[side] = {};
+    if (!state.sideStrokes[side][layer]) state.sideStrokes[side][layer] = defaultStroke();
+    return state.sideStrokes[side][layer];
+  }
+  function layerSupportsStroke(layer, side) {
+    side = side || state.side;
+    var custom = customLayerById(layer);
+    if (custom) return ["text", "image", "shape"].indexOf(custom.type) >= 0;
+    return (TEXT_LAYER_KEYS.indexOf(layer) >= 0 || layer === "image-main" || layer === "image-stub")
+      && layerAvailableOnSide(layer, side, state);
+  }
+  function layerSupportsRoundedStroke(layer, side) {
+    side = side || state.side;
+    var custom = customLayerById(layer);
+    if (custom) return ["text", "image", "shape"].indexOf(custom.type) >= 0;
+    return (TEXT_LAYER_KEYS.indexOf(layer) >= 0 || layer === "image-main" || layer === "image-stub")
+      && layerAvailableOnSide(layer, side, state);
+  }
   function layerSupportsShadow(layer, side) {
     side = side || state.side;
     if (!layer || ["face-shadow", "texture", "effects"].indexOf(layer) >= 0) return false;
@@ -4439,6 +4962,23 @@
     var number = parseInt(clean, 16);
     if (!Number.isFinite(number)) number = 0;
     return "rgba(" + (number >> 16 & 255) + "," + (number >> 8 & 255) + "," + (number & 255) + "," + clamp(opacity, 0, 100) / 100 + ")";
+  }
+  function hexToRgbTriplet(hex) {
+    var clean = String(hex || "#000000").replace("#", "");
+    if (clean.length === 3) clean = clean.split("").map(function (char) { return char + char; }).join("");
+    var number = parseInt(clean, 16);
+    if (!Number.isFinite(number)) number = 0;
+    return [number >> 16 & 255, number >> 8 & 255, number & 255];
+  }
+  function differencePreimageColor(hex, node) {
+    var backdrop = backdropRgbFor(node);
+    if (!backdrop) return hex;
+    return "#" + hexToRgbTriplet(hex).map(function (channel, index) {
+      var base = clamp(Math.round(backdrop[index]), 0, 255);
+      /* |base - source| == channel has two roots; keep the one that is a colour. */
+      var source = clamp(Math.round(base - channel >= 0 ? base - channel : base + channel), 0, 255);
+      return (source < 16 ? "0" : "") + source.toString(16);
+    }).join("");
   }
 
   function shadowOffset(shadow) {
@@ -4458,6 +4998,27 @@
     return " drop-shadow(" + (offset.x * scale).toFixed(2) + "px " + (offset.y * scale).toFixed(2) + "px " + blur.toFixed(2) + "px " + hexToRgba(shadow.color, shadow.opacity) + ")";
   }
 
+  function ensureNativeTextOutlineInk(node) {
+    if (!node) return;
+    var textNodes = [];
+    var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (textNode) {
+        if (!String(textNode.nodeValue || "").trim()) return NodeFilter.FILTER_REJECT;
+        var parent = textNode.parentElement;
+        if (!parent || parent.closest(".text-outline-ink,.resize-handle,svg,[aria-hidden='true']")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach(function (textNode) {
+      if (!textNode.parentNode) return;
+      var ink = document.createElement("span");
+      ink.className = "text-outline-ink";
+      textNode.parentNode.replaceChild(ink, textNode);
+      ink.appendChild(textNode);
+    });
+  }
+
   function applyLayerPresentation() {
     $$("[data-canvas-layer]").forEach(function (node) {
       var layer = node.dataset.canvasLayer;
@@ -4470,6 +5031,11 @@
       var textColorMode = custom && custom.type === "text"
         ? customTextColorMode(custom)
         : (TEXT_LAYER_KEYS.indexOf(layer) >= 0 ? nativeTextColorMode(layer, side) : "solid");
+      /* Native templates contain both simple text leaves and compound rows.
+         Put only their actual text nodes through the outline filter so borders,
+         subtitle backgrounds and resize handles never become part of the
+         outline alpha mask. Custom text already owns a dedicated ink wrapper. */
+      if (textBox && !custom) ensureNativeTextOutlineInk(node);
       var nativePlacement = custom ? null : placementFor(side, layer);
       var order = layerOrderFor(side, state).indexOf(layer);
       node.style.zIndex = String(order < 0 ? 1 : order + 1);
@@ -4483,9 +5049,31 @@
       node.style.setProperty("--layer-shadow-blur", shadow.blur + "px");
       node.style.setProperty("--layer-shadow-spread", shadow.spread + "px");
       node.classList.toggle("layer-shadow-on", Boolean(shadow.enabled));
+      var stroke = layerSupportsStroke(layer, side) ? strokeFor(layer, side) : defaultStroke();
+      var strokeDisplayColor = textBox && textColorMode === "difference" && stroke.enabled && stroke.width > 0
+        ? differencePreimageColor(stroke.color, node)
+        : stroke.color;
+      var previewStroke = Object.assign({}, stroke, { color: strokeDisplayColor });
+      node.style.setProperty("--layer-stroke-width", stroke.width + "px");
+      node.style.setProperty("--layer-stroke-join", stroke.join);
+      node.style.setProperty("--layer-text-outline-filter", textBox && stroke.enabled && stroke.width > 0
+        ? imageOutlineFilter(previewStroke, 1, textColorMode === "none")
+        : "none");
+      node.style.setProperty("--layer-rich-text-outline-filter", textBox && stroke.enabled && stroke.width > 0
+        ? imageOutlineFilter(previewStroke, 1, true)
+        : "none");
+      /* An auto-inverting layer is blended as a whole, so a literal outline
+         colour would come back inverted along with the fill. Feed the blend
+         the pre-image of the picked colour instead: difference resolves to
+         |backdrop - source|, so a source of backdrop -/+ the colour lands on
+         exactly the colour that was picked. */
+      node.style.setProperty("--layer-stroke-color", strokeDisplayColor);
+      node.classList.toggle("layer-stroke-on", Boolean(stroke.enabled && stroke.width > 0));
+      node.classList.toggle("layer-stroke-rounded", stroke.join === "round");
       node.classList.toggle("freeform-movable", isMovableLayer(layer));
       node.classList.toggle("layer-color-override", Boolean(layerStyle.color));
       node.classList.toggle("layer-text-difference", textBox && textColorMode === "difference");
+      node.classList.toggle("layer-text-transparent", textBox && textColorMode === "none");
       node.classList.toggle("layer-font-size-override", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && layerStyle.fontSize != null);
       node.classList.toggle("layer-font-family-override", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && Boolean(layerStyle.fontFamily));
       node.classList.toggle("layer-font-weight-override", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && Boolean(layerStyle.fontWeight));
@@ -4550,7 +5138,8 @@
         var scaleY = clamp(finiteNumber(placement.scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE);
         var rotation = clamp(finiteNumber(placement.rotation, 0), -360, 360);
         node.style.transformOrigin = legacyCompositeTransformOrigin(node, side, layer) || "center center";
-        node.style.transform = "translate(" + (finiteNumber(placement.x, 0) * ticket.offsetWidth / 100).toFixed(2) + "px," + (finiteNumber(placement.y, 0) * ticket.offsetHeight / 100).toFixed(2) + "px) rotate(" + rotation + "deg) skewX(" + clamp(finiteNumber(placement.skewX, 0), -70, 70) + "deg) scale(" + scaleX + "," + scaleY + ")";
+        var selfCentering = usesOttCaptionCentering(layer, side, state) ? "translateX(-50%) " : "";
+        node.style.transform = selfCentering + "translate(" + (finiteNumber(placement.x, 0) * ticket.offsetWidth / 100).toFixed(2) + "px," + (finiteNumber(placement.y, 0) * ticket.offsetHeight / 100).toFixed(2) + "px) rotate(" + rotation + "deg) skewX(" + clamp(finiteNumber(placement.skewX, 0), -70, 70) + "deg) scale(" + scaleX + "," + scaleY + ")";
       }
     });
   }
@@ -4941,14 +5530,14 @@
         height: height,
         scrollX: 0,
         scrollY: 0,
-        onclone: function (clonedDocument) {
+        onclone: async function (clonedDocument) {
           var clonedTicket = clonedDocument.querySelector('[data-clipping-capture="' + captureId + '"]');
           if (!clonedTicket) return;
           var clonedFace = clonedTicket.querySelector(side === "back" ? ".ticket-back" : ".ticket-front");
           copyClippingCanvasPixels(scratchFace, clonedFace);
           clonedTicket.classList.add("effects-baked", "layer-overlay-export");
           addExportBlendNeutralizer(clonedDocument, clonedTicket, key);
-          if (bakedImages && bakedImages.length) applyExportImageBakesToClone(clonedTicket, bakedImages);
+          if (bakedImages && bakedImages.length) await applyExportImageBakesToClone(clonedTicket, bakedImages);
           normalizeExportCloneRotations(clonedDocument, clonedTicket);
           if (clonedFace) clonedFace.querySelectorAll(".layer-clipping-preview").forEach(function (node) { node.remove(); });
           var visible = {};
@@ -5213,7 +5802,7 @@
     return source;
   }
   function blockConfigForDomKey(key) {
-    return state.template === "train" && key === "backStub" ? state.blocks.frontStub : state.blocks[key];
+    return isTrainTemplate(state) && key === "backStub" ? state.blocks.frontStub : state.blocks[key];
   }
   function renderBlockImages() {
     Object.keys(blockDom).forEach(function (key) {
@@ -5231,7 +5820,7 @@
       setImageVignetteProperties(dom.node, effect.vignette);
       dom.node.classList.toggle("has-image", Boolean(imageSource));
       if (!imageSource) {
-        dom.node.style.setProperty("--image-alpha-mask", "none");
+        setLayerAlphaMask(dom.node, "");
         dom.image.style.display = "none";
         dom.image.removeAttribute("src");
         return;
@@ -5252,13 +5841,14 @@
       dom.image.style.setProperty("right", "auto", "important");
       dom.image.style.setProperty("bottom", "auto", "important");
       dom.image.style.setProperty("object-fit", "fill", "important");
-      dom.node.style.setProperty("--image-alpha-mask", 'url("' + imageSource + '")');
+      setLayerAlphaMask(dom.node, imageSource);
       dom.node.style.setProperty("--image-alpha-mask-size", crop.width + "px " + crop.height + "px");
       dom.node.style.setProperty("--image-alpha-mask-position", crop.x + "px " + crop.y + "px");
       var effectFilter = effectFilterString(effect, true);
       var imageLayer = key.endsWith("Main") ? "image-main" : "image-stub";
+      var imageOutline = imageOutlineFilter(strokeFor(imageLayer, key.indexOf("back") === 0 ? "back" : "front"));
       var shapeShadow = imageShadowFilter(shadowFor(imageLayer, key.indexOf("back") === 0 ? "back" : "front"));
-      dom.image.style.filter = (effectFilter === "none" ? "" : effectFilter + " ") + shapeShadow || "none";
+      dom.image.style.filter = ((effectFilter === "none" ? "" : effectFilter + " ") + imageOutline + " " + shapeShadow).trim() || "none";
     });
   }
 
@@ -5279,7 +5869,7 @@
     frontQuote.style.setProperty("width", front.quoteW + "%", "important");
     var frontQuoteFontSize = Math.max(16, front.quoteSize * trainScale);
     $("#quotePreview").style.fontSize = frontQuoteFontSize + "px";
-    if (state.template === "train") {
+    if (isTrainTemplate(state)) {
       $("#speakerPreview").style.removeProperty("top");
     } else {
       $("#speakerPreview").style.removeProperty("top");
@@ -5293,13 +5883,38 @@
     backQuote.style.setProperty("width", back.quoteW + "%", "important");
     $("#backTitlePreview").style.fontSize = Math.max(17, back.quoteSize * trainScale) + "px";
     backDetails.style.setProperty("left", back.detailsX + "%", "important");
-    backDetails.style.setProperty("top", back.detailsY + "%", "important");
+    /* The OTT info column is balanced around the face centre, so its episode
+       line is anchored there too instead of to a percentage from the top. */
+    if (state.template === "ott") backDetails.style.setProperty("top", "calc(50% + 174px)", "important");
+    else backDetails.style.setProperty("top", back.detailsY + "%", "important");
     backDetails.style.setProperty("width", back.detailsW + "%", "important");
   }
 
   function textFieldsForLayer(key, side) {
     var front = side === "front";
-    var mirroredTrainCoupon = state.template === "train" && !front;
+    if (state.template === "ott") {
+      var ottMap = {
+        quote: [{ label: "자막", prop: "quote" }],
+        kicker: [{ label: "서비스 상태", prop: "backKicker" }],
+        title: [{ label: "애니메이션 제목", prop: "backHeading" }],
+        subtitle: [{ label: "시즌 · 에피소드", prop: "subtitle" }],
+        "meta-bot-label": [{ label: "장르 항목명", prop: "botLabel" }],
+        "meta-bot": [{ label: "장르", prop: "botName" }],
+        "meta-persona-label": [{ label: "제작사 항목명", prop: "personaLabel" }],
+        "meta-persona": [{ label: "제작사", prop: "personaName" }],
+        "meta-date-label": [{ label: "제작연도 항목명", prop: "dateLabel" }],
+        "meta-date": [{ label: "제작연도", prop: "date" }],
+        "postcard-model": [{ label: "출연 항목명", prop: "postcardModelLabel" }, { label: "출연진", prop: "postcardModel" }],
+        body: [{ label: "작품 설명", prop: "backBody" }],
+        "source-label": [{ label: "에피소드 항목명", prop: "sourceLabel" }],
+        source: [{ label: "에피소드 정보", prop: "source" }],
+        "ott-play-mark": [{ label: "재생 표시", prop: "ottPlayMark" }],
+        "ott-time": [{ label: "현재 시간", prop: "ottTimeCurrent" }, { label: "전체 시간", prop: "ottTimeTotal" }],
+        "ott-quality": [{ label: "화질 표시", prop: "ottTag" }]
+      };
+      return ottMap[key] || [];
+    }
+    var mirroredTrainCoupon = isTrainTemplate(state) && !front;
     var cinemaBack = state.template === "cinema" && !front;
     var map = {
       kicker: [{ label: front || mirroredTrainCoupon ? "상단 운행 문구" : "뒷면 상단 문구", prop: front || mirroredTrainCoupon ? "kicker" : "backKicker" }],
@@ -5349,7 +5964,7 @@
       "copy-label": [{ label: "카피 라벨", prop: "backCopyLabel" }],
       body: [{ label: "본문", prop: "backBody" }],
       "source-label": [{ label: "SEAT", prop: "sourceLabel" }],
-      source: state.template === "train"
+      source: isTrainTemplate(state)
         ? [{ label: "항목명", prop: "sourceLabel" }, { label: "내용", prop: "source" }]
         : [{ label: cinemaBack ? "SEAT" : (templateConfig(state.template).sourceLabel || "REFERENCE") + " 내용", prop: "source" }],
       "back-note-label": [{ label: "THEATER", prop: "backNoteLabel" }],
@@ -5395,8 +6010,13 @@
   function nativeInlineTextRuns(layerKey, side, property) {
     return inlineStyleFieldStore(canonicalTrainCouponSide(side, layerKey, state), layerKey, property, false);
   }
-  function nativeInlineTextTarget(layerKey, side, property) {
-    var front = side === "front";
+  /* One selector map per face, built once. This used to be re-created on
+     every call, and every render calls it once per text layer per side. */
+  var nativeInlineTextTargetMaps = {};
+  function nativeInlineTextTargetMap(side) {
+    var front = side !== "back";
+    var cacheKey = front ? "front" : "back";
+    if (nativeInlineTextTargetMaps[cacheKey]) return nativeInlineTextTargetMaps[cacheKey];
     var ids = {
       kicker: { kicker: front ? "#templateKicker" : "#backKickerPreview", backKicker: "#backKickerPreview" },
       title: { title: front ? "#ticketTitleText" : "#backHeadingText", backHeading: "#backHeadingText" },
@@ -5414,6 +6034,9 @@
       "record-meta-date-label": { dateLabel: "#backRecordDateLabelPreview" },
       "record-meta-date": { date: "#backRecordDatePreview" },
       quote: { quote: "#quotePreview", backTitle: "#backTitlePreview" },
+      "ott-play-mark": { ottPlayMark: "#ottPlayMarkPreview" },
+      "ott-time": { ottTimeCurrent: "#ottTimeCurrentPreview", ottTimeTotal: "#ottTimeTotalPreview" },
+      "ott-quality": { ottTag: "#ottTagPreview" },
       speaker: { speaker: "#speakerPreview" },
       "handwritten-note": { handwrittenNote: "#trainHandwrittenNotePreview" },
       "copy-label": { backCopyLabel: "#backCopyLabelPreview" },
@@ -5454,7 +6077,12 @@
       "postcard-writing-3": { postcardWriting3: "#postcardWriting3Preview" },
       "postcard-writing-4": { postcardWriting4: "#postcardWriting4Preview" }
     };
-    var selector = ids[layerKey] && ids[layerKey][property];
+    nativeInlineTextTargetMaps[cacheKey] = ids;
+    return ids;
+  }
+  function nativeInlineTextTarget(layerKey, side, property) {
+    var map = nativeInlineTextTargetMap(side);
+    var selector = map[layerKey] && map[layerKey][property];
     return selector ? $(selector) : null;
   }
   function trackedTextSelectionMatches(kind) {
@@ -5776,11 +6404,15 @@
     renderInspector();
   }
   function renderNativeInlineTextStyles() {
+    /* Only layers that actually store inline runs need re-rendering. Walking
+       every text layer on both faces cost a lot of needless work on documents
+       that never used substring formatting. */
     ["front", "back"].forEach(function (side) {
       TEXT_LAYER_KEYS.forEach(function (layerKey) {
-        if (!layerAvailableOnSide(layerKey, side, state)) return;
         var canonicalSide = canonicalTrainCouponSide(side, layerKey, state);
-        var fields = state.inlineTextStyles && state.inlineTextStyles[canonicalSide] && state.inlineTextStyles[canonicalSide][layerKey] || {};
+        var fields = state.inlineTextStyles && state.inlineTextStyles[canonicalSide] && state.inlineTextStyles[canonicalSide][layerKey] || null;
+        if (!fields) return;
+        if (!layerAvailableOnSide(layerKey, side, state)) return;
         Object.keys(fields).forEach(function (property) {
           var node = nativeInlineTextTarget(layerKey, side, property);
           if (!node || !document.documentElement.contains(node)) return;
@@ -5805,6 +6437,10 @@
           }
           if (state.template === "polaroid" && side === "back" && property === "personaName") {
             renderPolaroidInlineRepeat(node, textValue, 3, "Persona name", fields[property], suppressColor);
+            return;
+          }
+          if (state.template === "ott" && side === "front" && layerKey === "quote" && property === "quote") {
+            renderOttSubtitleLines(node, textValue, fields[property], suppressColor);
             return;
           }
           if (state.template === "cinema" && side === "back" && property === "ratingMark") {
@@ -5835,14 +6471,28 @@
     var source = documentState || state;
     return Boolean(source && source.template === "postcard" && side === "back" && key === "image-stub");
   }
+  function isOttProgressColor(key, side, documentState) {
+    var source = documentState || state;
+    return Boolean(source && source.template === "ott" && side === "front" && key === "ott-progress");
+  }
   function isIndependentFrameColor(key, side, documentState) {
-    return isCinemaFrontFrameColor(key, side, documentState) || isPostcardStampBorderColor(key, side, documentState);
+    return isCinemaFrontFrameColor(key, side, documentState) || isPostcardStampBorderColor(key, side, documentState)
+      || isOttProgressColor(key, side, documentState);
   }
   function selectedLayerBaseColor(key, side, documentState) {
     var source = documentState || state;
     if (isCinemaFrontFrameColor(key, side || source.side, source)) return CINEMA_FRONT_FRAME_DEFAULT_COLOR;
     if (isPostcardStampBorderColor(key, side || source.side, source)) return POSTCARD_STAMP_BORDER_DEFAULT_COLOR;
+    if (isOttProgressColor(key, side || source.side, source)) return OTT_PROGRESS_DEFAULT_COLOR;
     return FRAME_COLOR_LAYER_KEYS.indexOf(key) >= 0 ? source.accent : source.quoteColor;
+  }
+  function ottProgressValue(documentState) {
+    var source = documentState || state;
+    return clamp(Math.round(finiteNumber(source.ottProgress, 38) * 10) / 10, 0, 100);
+  }
+  function ottSubtitleBackgroundOpacity(documentState) {
+    var source = documentState || state;
+    return clamp(Math.round(finiteNumber(source.ottSubtitleBackgroundOpacity, 100)), 0, 100);
   }
   function effectiveLayerColor(key, side) {
     side = side || state.side;
@@ -5899,7 +6549,7 @@
     }
   }
   function paintTrainPerforations() {
-    if (state.template !== "train") return;
+    if (!isTrainTemplate(state)) return;
     paintTrainPerforation(frontFace.querySelector("canvas.perforation"), "front");
     paintTrainPerforation(backFace.querySelector("canvas.perforation"), "back");
   }
@@ -5960,12 +6610,12 @@
     $("#layerTypographyFields").hidden = !textLayer;
     $("#layerTextColorModeFields").hidden = !textLayer;
     var textColorMode = customText ? customTextColorMode(custom) : nativeTextColorMode(key, state.side);
-    $$('input[name="layerTextColorMode"]').forEach(function (input) {
-      input.checked = input.value === textColorMode;
-    });
+    setInputValue("#layerTextColorMode", textColorMode);
     $("#layerTextColorModeHint").textContent = textColorMode === "difference"
       ? "배경과 겹치는 글자를 자동으로 반전합니다."
-      : "선택한 글자색을 그대로 사용합니다.";
+      : textColorMode === "none"
+        ? "글자 속을 비웁니다. 외곽선만 남으니 STROKE를 함께 켜 보세요."
+        : "선택한 글자색을 그대로 사용합니다.";
     var computedLetter = computed && computed.letterSpacing !== "normal" ? parseFloat(computed.letterSpacing) : 0;
     var computedSize = computed ? parseFloat(computed.fontSize) || 10 : 10;
     var computedLine = computed && computed.lineHeight !== "normal" ? (parseFloat(computed.lineHeight) / computedSize) : 1.2;
@@ -6069,7 +6719,6 @@
     container.querySelectorAll('[data-shape-corner-index]').forEach(function (input) { input.value = shape.cornerRadii[Number(input.dataset.shapeCornerIndex)] || 0; });
     container.hidden = shape.cornerMode !== "individual" || count === 0;
   }
-
   function renderInspector() {
     var definition = layerDefinition(state.selectedLayer);
     var custom = activeCustomLayer();
@@ -6088,6 +6737,7 @@
     if (custom && custom.type === "shape" && custom.fillMode === "image") activeInspectors.push("shape-image-effects");
     if (custom && custom.type === "text") activeInspectors.push("layer-style");
     if (!custom && COLOR_LAYER_KEYS.indexOf(state.selectedLayer) >= 0) activeInspectors.push("layer-style");
+    if (state.template === "ott" && state.side === "front" && state.selectedLayer === "quote") activeInspectors.push("ott-subtitle");
     /* The quote used to open a second, legacy typography panel backed by
        state.font/quoteSize in addition to the normal layer-style controls.
        Keep that legacy DOM and its bindings for document compatibility, but
@@ -6105,6 +6755,13 @@
     $$("[data-custom-fields]").forEach(function (group) {
       group.classList.toggle("active", Boolean(custom && group.dataset.customFields === custom.type));
     });
+    $("#ottSubtitleBackgroundEnabled").checked = Boolean(state.ottSubtitleBackgroundEnabled);
+    $("#ottSubtitleBackgroundColor").value = validHexColor(state.ottSubtitleBackgroundColor, "#000000");
+    $("#ottSubtitleBackgroundColorCode").textContent = validHexColor(state.ottSubtitleBackgroundColor, "#000000").toUpperCase();
+    setInputValue("#ottSubtitleBackgroundOpacityRange", ottSubtitleBackgroundOpacity(state));
+    $("#ottSubtitleBackgroundOpacityOut").textContent = ottSubtitleBackgroundOpacity(state) + "%";
+    setInputValue("#ottProgressRange", ottProgressValue(state));
+    setInputValue("#ottProgressInput", ottProgressValue(state));
 
     $("#multiSelectionCount").textContent = multiCount + "개 선택";
     var movableMultiCount = multiCount > 1 ? multiSelectionItems().length : 0;
@@ -6129,7 +6786,7 @@
         ? customLayerDesignPosition(custom, state.template)
         : nativeLayerDesignPosition(selectedNode, selectedFace, state.side, state.selectedLayer, state.template);
       if (isProtectedLayer(state.selectedLayer)) {
-        var attributionInspectorSize = templateConfig(state.template).preview;
+        var attributionInspectorSize = templatePreviewSize(state.template);
         var attributionInspectorBase = attributionBasePosition(state.template, attributionInspectorSize.width, attributionInspectorSize.height, isBothView(state));
         designPosition = {
           x: attributionInspectorBase.x + finiteNumber(placement.x, 0) / 100 * attributionInspectorSize.width,
@@ -6168,15 +6825,15 @@
       var displayedCustomColor = trackedInlineStyleValue("custom", "color", custom.color);
       setInputValue("#customTextColor", displayedCustomColor);
       var customColorMode = customTextColorMode(custom);
-      $$('input[name="customTextColorMode"]').forEach(function (input) {
-        input.checked = input.value === customColorMode;
-      });
+      setInputValue("#customTextColorMode", customColorMode);
       $("#customTextColorModeHint").textContent = customColorMode === "difference"
         ? "배경과 겹치는 글자를 자동으로 반전합니다."
-        : "선택한 글자색을 그대로 사용합니다.";
-      $("#customTextColor").disabled = customColorMode === "difference";
+        : customColorMode === "none"
+          ? "글자 속을 비웁니다. 외곽선만 남으니 STROKE를 함께 켜 보세요."
+          : "선택한 글자색을 그대로 사용합니다.";
+      $("#customTextColor").disabled = customColorMode !== "solid";
       var customTextColorCodeInput = $('[data-color-picker="customTextColor"]');
-      if (customTextColorCodeInput) customTextColorCodeInput.disabled = customColorMode === "difference";
+      if (customTextColorCodeInput) customTextColorCodeInput.disabled = customColorMode !== "solid";
       $("#customTextColorReset").disabled = customColorMode === "difference";
       setInputValue("#customTextAlign", custom.align);
       setInputValue("#customWritingMode", custom.writingMode === "vertical-rl" ? "vertical-rl" : "horizontal-tb");
@@ -6212,6 +6869,7 @@
         $("#customShapeFillColor").value = custom.fillColor;
         $("#customShapeFillColorCode").textContent = custom.fillColor.toUpperCase();
         $("#customShapeColorFields").hidden = custom.fillMode !== "color";
+        $("#customShapeFillNote").hidden = custom.fillMode !== "none";
         $("#customShapeImageFields").hidden = custom.fillMode !== "image";
         var shapeHasImage = Boolean(custom.imageData || custom.imageName);
         $("#chooseCustomShapeImageBtn").textContent = shapeHasImage ? "이미지 교체" : "파일 불러오기";
@@ -6279,6 +6937,18 @@
         : "클리핑 설정은 유지되지만 아래에 보이는 레이어가 생길 때까지 원본 그대로 표시합니다.";
     }
 
+    var strokeEditable = hasSelection && layerSupportsStroke(state.selectedLayer, state.side);
+    $("#strokeInspector").classList.toggle("active", strokeEditable);
+    if (strokeEditable) {
+      var activeStroke = strokeFor(state.selectedLayer, state.side);
+      $("#strokeEnabled").checked = Boolean(activeStroke.enabled);
+      $("#strokeColor").value = activeStroke.color;
+      $("#strokeColorCode").textContent = activeStroke.color.toUpperCase();
+      setInputValue("#strokeWidthOut", activeStroke.width);
+      $("#strokeRound").checked = activeStroke.join === "round";
+      $("#strokeRound").disabled = !layerSupportsRoundedStroke(state.selectedLayer, state.side);
+    }
+
     var shadowEditable = hasSelection && layerSupportsShadow(state.selectedLayer, state.side);
     $("#shadowInspector").classList.toggle("active", shadowEditable);
     if (shadowEditable) {
@@ -6302,7 +6972,7 @@
   }
 
   function updateTicketGeometry() {
-    var preview = templateConfig(state.template).preview;
+    var preview = templatePreviewSize(state.template);
     var baseWidth = preview.width;
     var baseHeight = preview.height;
     var radians = state.viewRotation * Math.PI / 180;
@@ -6369,7 +7039,7 @@
       node.classList.remove("canvas-selected");
     });
     $$("[data-record-layer]").forEach(function (node) {
-      node.hidden = state.template !== "train" || isLayerHidden(node.dataset.recordLayer, "back");
+      node.hidden = !isTrainTemplate(state) || isLayerHidden(node.dataset.recordLayer, "back");
     });
     var activeFace = state.side === "front" ? frontFace : backFace;
     selectedLayerKeys().forEach(function (key) {
@@ -6401,20 +7071,28 @@
 
   function customLayerDesignPosition(custom, template) {
     if (!custom) return null;
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     return {
       x: finiteNumber(custom.x, 0) / 100 * preview.width,
       y: finiteNumber(custom.y, 0) / 100 * preview.height
     };
   }
 
+  /* The OTT caption parks its layout origin on the face centre and shifts
+     itself back by half its own width, so its layout offset is half a box to
+     the right of the edge the inspector reports for every other layer. */
+  function nativeLayerDesignOriginShift(node, face, side, layer, template) {
+    if (!node || !face || !usesOttCaptionCentering(layer, side, state)) return 0;
+    var preview = templatePreviewSize(template);
+    return -node.offsetWidth / 2 / Math.max(1, face.offsetWidth) * preview.width;
+  }
   function nativeLayerDesignPosition(node, face, side, layer, template) {
     if (!node || !face) return null;
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var base = elementOffsetInside(node, face);
     var placement = placementFor(side, layer);
     return {
-      x: base.x / Math.max(1, face.offsetWidth) * preview.width + finiteNumber(placement.x, 0) / 100 * preview.width,
+      x: base.x / Math.max(1, face.offsetWidth) * preview.width + nativeLayerDesignOriginShift(node, face, side, layer, template) + finiteNumber(placement.x, 0) / 100 * preview.width,
       y: base.y / Math.max(1, face.offsetHeight) * preview.height + finiteNumber(placement.y, 0) / 100 * preview.height
     };
   }
@@ -6423,7 +7101,7 @@
     var custom = customLayerById(layer);
     if (custom) return customShapeSizeToDesignPx(custom, template);
     if (!node || !face) return { width: 0, height: 0 };
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var width = node.offsetWidth / Math.max(1, face.offsetWidth) * preview.width;
     var height = node.offsetHeight / Math.max(1, face.offsetHeight) * preview.height;
     if (TEXT_LAYER_KEYS.indexOf(layer) >= 0) return { width: width, height: height };
@@ -6445,7 +7123,7 @@
       return;
     }
     if (!node || !face) return;
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var dimension = axis === "width" ? "offsetWidth" : "offsetHeight";
     if (TEXT_LAYER_KEYS.indexOf(layer) >= 0) {
       var textPlacement = writablePlacementFor(side, layer);
@@ -6467,14 +7145,14 @@
 
   function setCustomLayerDesignPosition(axis, value, custom, template) {
     if (!custom) return;
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var basis = axis === "x" ? preview.width : preview.height;
     custom[axis] = clamp(finiteNumber(value, 0) / Math.max(1, basis) * 100, -50, 100);
   }
 
   function setNativeLayerDesignPosition(axis, value, node, face, side, layer, template) {
     if (isProtectedLayer(layer)) {
-      var attributionPreview = templateConfig(template).preview;
+      var attributionPreview = templatePreviewSize(template);
       var attributionBasePoint = attributionBasePosition(template, attributionPreview.width, attributionPreview.height, isBothView(state));
       var attributionBase = axis === "x" ? attributionBasePoint.x : attributionBasePoint.y + 8;
       var attributionBasis = axis === "x" ? attributionPreview.width : attributionPreview.height;
@@ -6482,11 +7160,11 @@
       return;
     }
     if (!node || !face) return;
-    var preview = templateConfig(template).preview;
+    var preview = templatePreviewSize(template);
     var basis = axis === "x" ? preview.width : preview.height;
     var base = elementOffsetInside(node, face);
     var baseDesign = axis === "x"
-      ? base.x / Math.max(1, face.offsetWidth) * preview.width
+      ? base.x / Math.max(1, face.offsetWidth) * preview.width + nativeLayerDesignOriginShift(node, face, side, layer, template)
       : base.y / Math.max(1, face.offsetHeight) * preview.height;
     writablePlacementFor(side, layer)[axis] = clamp((finiteNumber(value, 0) - baseDesign) / Math.max(1, basis) * 100, -100, 100);
   }
@@ -6717,7 +7395,7 @@
       var repeat = document.createElement("span");
       repeat.className = "polaroid-repeat-item";
       var content = document.createElement("span");
-      content.className = "native-inline-text-content";
+      content.className = "native-inline-text-content text-outline-ink";
       content.textContent = textValue;
       repeat.appendChild(content);
       fragment.appendChild(repeat);
@@ -6747,7 +7425,7 @@
     var fragment = document.createDocumentFragment();
     for (var index = 0; index < count; index += 1) {
       var repeat = document.createElement("span");
-      repeat.className = "cinema-rating-repeat-item";
+      repeat.className = "cinema-rating-repeat-item text-outline-ink";
       appendInlineText(repeat, textValue, runs, suppressColor);
       fragment.appendChild(repeat);
     }
@@ -6774,6 +7452,9 @@
   function render() {
     enforceProtectedAttribution(state);
     var postcardStatic = state.template === "postcard";
+    if (!templateSupportsBoth(state) && state.postcardViewMode === "both") {
+      state.postcardViewMode = state.side === "back" ? "back" : "front";
+    }
     if (["front", "back", "both"].indexOf(state.postcardViewMode) < 0) {
       state.postcardViewMode = postcardStatic ? "both" : state.side;
     }
@@ -6800,7 +7481,11 @@
     var textureVisible = state.texture && (bothStatic
       ? ["front", "back"].some(function (side) { return layerAvailableOnSide("texture", side) && !isLayerHidden("texture", side); })
       : layerAvailableOnSide("texture", state.side) && !isLayerHidden("texture", state.side));
-    ticket.className = "ticket " + state.template + " " + state.theme + " quote-effect-" + nativeTextColorMode("quote", "front") + (showBackClass ? " is-back" : "") + postcardViewClass + (textureVisible ? " texture-on" : "") + (state.freeform ? " freeform-mode" : "") + (flipPhase ? " " + flipPhase : "") + (animateFade ? " play-fade" : "");
+    var familyClass = templateFamilyId(state) !== state.template ? " " + templateFamilyId(state) : "";
+    ticket.className = "ticket " + state.template + familyClass + " " + state.theme + " quote-effect-" + nativeTextColorMode("quote", "front") + (showBackClass ? " is-back" : "") + postcardViewClass + (textureVisible ? " texture-on" : "") + (state.freeform ? " freeform-mode" : "") + (flipPhase ? " " + flipPhase : "") + (animateFade ? " play-fade" : "");
+    ticket.classList.toggle("ott-subtitle-bg", state.template === "ott" && Boolean(state.ottSubtitleBackgroundEnabled));
+    ticket.style.setProperty("--ott-progress", ottProgressValue(state) + "%");
+    ticket.style.setProperty("--ott-subtitle-background", hexToRgba(validHexColor(state.ottSubtitleBackgroundColor, "#000000"), ottSubtitleBackgroundOpacity(state)));
     renderAttributionPreview();
     ticket.dataset.postcardView = faceViewActive ? state.postcardViewMode : "";
     ticket.dataset.postcardTop = faceViewActive ? state.postcardTopSide : "";
@@ -6813,7 +7498,7 @@
       keepsakeBackMainFrame.removeAttribute("data-canvas-layer");
       keepsakeBackMainFrame.classList.remove("canvas-selected", "hidden-layer", "template-unavailable", "freeform-movable");
     }
-    var faceClipPath = state.template === "train"
+    var faceClipPath = isTrainTemplate(state)
       ? trainSilhouettePolygon()
       : (state.template === "cinema" ? cinemaSilhouettePolygon() : "");
     [frontFace, backFace].forEach(function (face) {
@@ -6850,7 +7535,12 @@
     $("#backQuoteLayer").className = "back-copy quote-layer runtime-font" + runtimeFontClass;
     $("#frontQuoteLayer").style.setProperty("--runtime-font-family", runtimeFontFamily);
     $("#backQuoteLayer").style.setProperty("--runtime-font-family", runtimeFontFamily);
-    $("#quotePreview").textContent = state.quote;
+    if (state.template === "ott") renderOttSubtitleLines($("#quotePreview"), state.quote, [], false);
+    else $("#quotePreview").textContent = state.quote;
+    $("#ottPlayMarkPreview").textContent = state.ottPlayMark;
+    $("#ottTimeCurrentPreview").textContent = state.ottTimeCurrent;
+    $("#ottTimeTotalPreview").textContent = state.ottTimeTotal;
+    $("#ottTagPreview").textContent = state.ottTag;
     $("#speakerPreview").className = "speaker-layer runtime-font" + runtimeFontClass;
     $("#speakerPreview").style.setProperty("--runtime-font-family", runtimeFontFamily);
     $("#speakerPreview").textContent = "— " + (state.speaker || "이름 없음");
@@ -6872,7 +7562,7 @@
     $("#admitTextPreview").textContent = state.admitText;
     $("#platformTextPreview").textContent = state.platformText;
     $("#validationTextPreview").textContent = state.validationText;
-    var mirrorTrainCoupon = state.template === "train";
+    var mirrorTrainCoupon = isTrainTemplate(state);
     renderBackKickerPreview(mirrorTrainCoupon ? state.kicker : state.backKicker, state.template === "cinema");
     $("#backHeadingText").textContent = mirrorTrainCoupon ? resolvedFrontTitle() : state.backHeading;
     $("#backSubtitlePreview").textContent = state.subtitle;
@@ -6976,8 +7666,8 @@
     setInputValue("#validationTextInput", state.validationText.replace(/\n/g, " "));
     setInputValue("#backIndexInput", state.backIndex);
     setInputValue("#backStampInput", state.backStamp);
-    $("#quoteFieldLabel").textContent = state.template === "cinema" && state.side === "front" ? "대표 대사" : "문장";
-    $("#speakerFields").hidden = state.template === "cinema" && state.side === "front";
+    $("#quoteFieldLabel").textContent = state.template === "ott" ? "자막" : (state.template === "cinema" && state.side === "front" ? "대표 대사" : "문장");
+    $("#speakerFields").hidden = state.template === "ott" || state.template === "cinema" && state.side === "front";
     setInputValue("#fontSizeInput", pxToPt(activeLayout().quoteSize));
     $("#quoteColor").value = state.quoteColor;
     $("#quoteColorValue").textContent = state.quoteColor.toUpperCase();
@@ -7006,6 +7696,7 @@
     $("#vignetteRange").value = effect.vignette;
     $("#overlayRange").value = effect.overlay;
     $("#overlayColorInput").value = effect.overlayColor;
+    $("#overlayColorCode").textContent = effect.overlayColor.toUpperCase();
     $("#overlayBlendInput").value = effect.overlayBlend;
     setInputValue("#blurOut", effect.blur);
     setInputValue("#brightOut", uiBrightness);
@@ -7042,13 +7733,22 @@
       button.setAttribute("aria-pressed", String(Boolean(config.enabled)));
       button.setAttribute("aria-label", config.enabled ? config.on : config.off);
     });
-    var exportSize = templateConfig(state.template).export;
+    var exportSize = templateExportSize(state.template);
     $("#canvasSize").textContent = exportSize.width + " × " + exportSize.height;
     var activeTemplateConfig = templateConfig(state.template);
     var sideLabel = activeTemplateConfig.sideLabels[state.side] || "FRONT";
     $("#faceStatus").textContent = faceViewActive ? activeTemplateConfig.sideLabels[state.postcardViewMode] : sideLabel;
     $("#layerFaceTitle").textContent = sideLabel + " LAYERS";
     $("#documentName").textContent = activeTemplateConfig.documentName;
+    var ottAspectControl = $("#ottAspectControl");
+    ottAspectControl.hidden = state.template !== "ott";
+    setInputValue("#ottAspectSelect", ottAspectId(state));
+    var allPngCaption = $("#allPngBtn span");
+    if (allPngCaption) allPngCaption.textContent = templateSupportsBoth(state) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸";
+    var allPngHelp = $("#allPngHelp");
+    if (allPngHelp) allPngHelp.innerHTML = templateSupportsBoth(state)
+      ? "<strong>전체 이미지</strong> FRONT · BACK · BOTH를 ZIP 한 개로 저장"
+      : "<strong>전체 이미지</strong> 영상 재생 · 정보칸 두 장을 ZIP 한 개로 저장";
     renderLayoutPresetControls();
 
     $(".side-switch").hidden = false;
@@ -7060,10 +7760,10 @@
     }
     $$(".side-switch [data-side]").forEach(function (button) {
       var view = button.dataset.side;
-      button.hidden = false;
+      button.hidden = view === "both" && !templateSupportsBoth(state);
       button.textContent = activeTemplateConfig.sideLabels[view] || view.toUpperCase();
       button.classList.toggle("active", faceViewActive ? view === state.postcardViewMode : view === state.side);
-      button.disabled = Boolean(flipPhase);
+      button.disabled = Boolean(flipPhase) || (view === "both" && !templateSupportsBoth(state));
     });
     var postcardTopSwitch = $("#postcardTopSwitch");
     postcardTopSwitch.hidden = state.postcardViewMode !== "both";
@@ -7177,6 +7877,7 @@
       next.layerStyles[side] = remapRecord(next.layerStyles[side]);
       next.inlineTextStyles[side] = remapRecord(next.inlineTextStyles[side]);
       next.sideShadows[side] = remapRecord(next.sideShadows[side]);
+      if (next.sideStrokes && next.sideStrokes[side]) next.sideStrokes[side] = remapRecord(next.sideStrokes[side]);
     });
     next.shadows = remapRecord(next.shadows);
     /* A hidden user layer in a saved example is an abandoned draft, not part
@@ -7203,6 +7904,7 @@
         delete next.layerStyles[side][id];
         delete next.inlineTextStyles[side][id];
         delete next.sideShadows[side][id];
+        if (next.sideStrokes && next.sideStrokes[side]) delete next.sideStrokes[side][id];
       });
     });
     removedIds.forEach(function (id) { delete next.shadows[id]; });
@@ -7211,6 +7913,27 @@
     return next;
   }
 
+  /* Swap every named asset for its real bytes before the document is
+     installed, so from here on the layer is an ordinary embedded image and
+     every existing save, hydrate and export path already knows what to do. */
+  function resolvePresetAssets(runtime) {
+    ["front", "back"].forEach(function (side) {
+      ((runtime.customLayers || {})[side] || []).forEach(function (item) {
+        if (String(item.imageData || "").indexOf(PRESET_ASSET_PREFIX) !== 0) return;
+        var dataUrl = presetAssetDataUrl(item.imageData);
+        item.imageData = dataUrl;
+        item.imageAssetStored = Boolean(dataUrl);
+      });
+    });
+    Object.keys(runtime.blocks || {}).forEach(function (key) {
+      var block = runtime.blocks[key];
+      if (!block || String(block.imageData || "").indexOf(PRESET_ASSET_PREFIX) !== 0) return;
+      var dataUrl = presetAssetDataUrl(block.imageData);
+      block.imageData = dataUrl;
+      block.imageAssetStored = Boolean(dataUrl);
+    });
+    return runtime;
+  }
   function applyLayoutPreset(preset) {
     if (!preset || preset.template !== state.template) return;
     var runtime = runtimeLayoutPreset(preset);
@@ -7225,8 +7948,9 @@
       snapToObjects: state.snapToObjects,
       snapToCanvasCenter: state.snapToCanvasCenter
     };
+    var resolved = resolvePresetAssets(runtime);
     commit(function () {
-      state = normalizeDocument(runtime, preset.template);
+      state = normalizeDocument(resolved, preset.template);
       Object.keys(preservedUi).forEach(function (key) { state[key] = preservedUi[key]; });
       clearLayerSelection();
     });
@@ -7299,7 +8023,46 @@
       requestAnimationFrame(fitPreview);
     });
   });
-  $("#openTemplateBtn").addEventListener("click", function () { $("#templateEntry").classList.remove("hidden"); });
+  $("#ottAspectSelect").addEventListener("change", function () {
+    if (state.template !== "ott") return;
+    var target = ottAspectId($("#ottAspectSelect").value);
+    if (target === ottAspectId(state)) return;
+    commit(function () { state.ottAspect = target; });
+    requestAnimationFrame(fitPreview);
+  });
+  $("#ottSubtitleBackgroundEnabled").addEventListener("change", function () {
+    if (state.template !== "ott") return;
+    commit(function () { state.ottSubtitleBackgroundEnabled = $("#ottSubtitleBackgroundEnabled").checked; });
+  });
+  bindInput("#ottSubtitleBackgroundColor", function (value) {
+    if (state.template === "ott") state.ottSubtitleBackgroundColor = validHexColor(value, "#000000");
+  });
+  bindInput("#ottSubtitleBackgroundOpacityRange", function (value) {
+    if (state.template === "ott") state.ottSubtitleBackgroundOpacity = clamp(Math.round(finiteNumber(value, 100)), 0, 100);
+  });
+  ["#ottProgressRange", "#ottProgressInput"].forEach(function (selector) {
+    bindInput(selector, function (value) {
+      if (state.template === "ott") state.ottProgress = ottProgressValue({ ottProgress: value });
+    });
+  });
+  /* The catalog scroll hint retires once the list is at its end. */
+  function syncEntryScrollHint() {
+    var options = $(".entry-options");
+    var catalog = $(".entry-catalog");
+    if (!options || !catalog) return;
+    var scrollable = options.scrollHeight - options.clientHeight;
+    var atEnd = scrollable <= 2 || options.scrollTop >= scrollable - 2;
+    catalog.classList.toggle("is-scroll-end", atEnd);
+  }
+  if ($(".entry-options")) {
+    $(".entry-options").addEventListener("scroll", syncEntryScrollHint, { passive: true });
+    window.addEventListener("resize", syncEntryScrollHint);
+    syncEntryScrollHint();
+  }
+  $("#openTemplateBtn").addEventListener("click", function () {
+    $("#templateEntry").classList.remove("hidden");
+    syncEntryScrollHint();
+  });
   $("#layoutPresetSelect").addEventListener("change", renderLayoutPresetControls);
   $("#applyLayoutPresetBtn").addEventListener("click", function () {
     applyLayoutPreset(activeLayoutPreset());
@@ -7455,6 +8218,7 @@
     button.addEventListener("click", function () {
       if (flipPhase) return;
       var nextSide = button.dataset.side;
+      if (nextSide === "both" && !templateSupportsBoth(state)) return;
       state.postcardViewMode = nextSide;
       if (nextSide === "front" || nextSide === "back") state.side = nextSide;
       else state.side = state.postcardTopSide;
@@ -7732,6 +8496,7 @@
       layer: clone(layer),
       presentation: {
         shadow: clone(shadowFor(sourceLayer || state.selectedLayer)),
+        stroke: clone(strokeFor(sourceLayer || state.selectedLayer)),
         clipToBelow: isLayerClipped(sourceLayer || state.selectedLayer, state.side)
       }
     };
@@ -7831,6 +8596,7 @@
     layer.name = String(layer.name || (layer.type === "image" ? "사용자 이미지" : layer.type === "shape" ? "사용자 도형" : "사용자 텍스트")) + (labelSuffix || " 복사본");
     layer.x = clamp(finiteNumber(layer.x, 12) + 2, -50, 100);
     layer.y = clamp(finiteNumber(layer.y, 12) + 2, -50, 100);
+    if (payload.presentation && payload.presentation.stroke) layer.stroke = normalizeStroke(payload.presentation.stroke);
     addCustomLayer(layer, payload.presentation && payload.presentation.shadow);
     if (payload.presentation && payload.presentation.clipToBelow) {
       if (!state.clipping) state.clipping = [];
@@ -8010,26 +8776,30 @@
   document.addEventListener("pointercancel", finishPointerLayerDrag, true);
 
   bindInput("#quoteInput", function (value) { setNativeTextProperty("quote", value); });
-  $$('input[name="layerTextColorMode"]').forEach(function (input) {
-    input.addEventListener("change", function () {
-      var value = input.value;
-      var custom = activeCustomLayer();
-      var customText = custom && custom.type === "text";
-      if (!input.checked || TEXT_COLOR_MODES.indexOf(value) < 0 || !customText && TEXT_LAYER_KEYS.indexOf(state.selectedLayer) < 0) return;
-      commit(function () {
-        if (customText) { custom.colorMode = value; return; }
+  $("#layerTextColorMode").addEventListener("change", function () {
+    var value = $("#layerTextColorMode").value;
+    var custom = activeCustomLayer();
+    var customText = custom && custom.type === "text";
+    if (TEXT_COLOR_MODES.indexOf(value) < 0 || !customText && TEXT_LAYER_KEYS.indexOf(state.selectedLayer) < 0) return;
+    commit(function () {
+      var target = customText ? custom.id : state.selectedLayer;
+      var targetSide = customText ? custom.side || state.side : state.side;
+      if (value === "none") makeTextFillLiteralForOutline(target, targetSide);
+      if (customText) custom.colorMode = value;
+      else {
         var style = layerStyleEntry(state.side, state.selectedLayer, true);
         style.colorMode = value;
         if (state.selectedLayer === "quote" && state.side === "front") state.quoteEffect = value;
-      });
+      }
+      if (value === "none") seedOutlineForTransparentText(target, targetSide);
     });
   });
   bindInput("#speakerInput", function (value) { setNativeTextProperty("speaker", value); });
   bindInput("#kickerInput", function (value) { setNativeTextProperty("kicker", value); });
   bindInput("#titleInput", function (value) { setNativeTextProperty("title", value); });
   bindInput("#subtitleInput", function (value) { setNativeTextProperty("subtitle", value); });
-  bindInput("#backKickerInput", function (value) { setNativeTextProperty(state.template === "train" ? "kicker" : "backKicker", value); });
-  bindInput("#backHeadingInput", function (value) { setNativeTextProperty(state.template === "train" ? "title" : "backHeading", value); });
+  bindInput("#backKickerInput", function (value) { setNativeTextProperty(isTrainTemplate(state) ? "kicker" : "backKicker", value); });
+  bindInput("#backHeadingInput", function (value) { setNativeTextProperty(isTrainTemplate(state) ? "title" : "backHeading", value); });
   bindInput("#botLabelInput", function (value) { setNativeTextProperty("botLabel", value); });
   bindInput("#personaLabelInput", function (value) { setNativeTextProperty("personaLabel", value); });
   bindInput("#dateLabelInput", function (value) { setNativeTextProperty("dateLabel", value); });
@@ -8088,7 +8858,7 @@
   bindInput("#layerColorInput", function (value) {
     var custom = activeCustomLayer();
     if (custom && custom.type === "text") {
-      if (customTextColorMode(custom) === "difference") return;
+      if (customTextColorMode(custom) !== "solid") return;
       if (trackedTextSelectionMatches("custom") && applyInlineStyleToTrackedSelection({ color: value })) return;
       removeCustomInlineStyleProperty(custom, "color");
       custom.color = value;
@@ -8097,7 +8867,7 @@
     }
     if (FRAME_COLOR_LAYER_KEYS.indexOf(state.selectedLayer) >= 0 && !isIndependentFrameColor(state.selectedLayer, state.side, state) && !$("#layerColorMode").checked) return;
     if (trackedTextSelectionMatches("native")) { applyInlineStyleToTrackedSelection({ color: value }); return; }
-    if (TEXT_LAYER_KEYS.indexOf(state.selectedLayer) >= 0 && nativeTextColorMode(state.selectedLayer, state.side) === "difference") return;
+    if (TEXT_LAYER_KEYS.indexOf(state.selectedLayer) >= 0 && nativeTextColorMode(state.selectedLayer, state.side) !== "solid") return;
     if (TEXT_LAYER_KEYS.indexOf(state.selectedLayer) >= 0) removeNativeInlineStyleProperty(state.side, state.selectedLayer, "color");
     var style = layerStyleEntry(state.side, state.selectedLayer, true);
     style.color = value;
@@ -8337,14 +9107,18 @@
     layer.color = value;
     (layer.styledRuns || []).forEach(function (run) { run.color = value; });
   });
-  $$('input[name="customTextColorMode"]').forEach(function (input) {
-    input.addEventListener("change", function () {
-      var value = input.value;
-      if (!input.checked || TEXT_COLOR_MODES.indexOf(value) < 0) return;
-      commit(function () {
-        var layer = activeCustomLayer();
-        if (layer && layer.type === "text") layer.colorMode = value;
-      });
+  $("#customTextColorMode").addEventListener("change", function () {
+    var value = $("#customTextColorMode").value;
+    if (TEXT_COLOR_MODES.indexOf(value) < 0) return;
+    commit(function () {
+      var layer = activeCustomLayer();
+      if (!layer || layer.type !== "text") return;
+      /* Flatten first: once the mode reads "none" the fill colour is frozen at
+         whatever the blend was fed, and the outline would be seeded from that
+         instead of from the ink the layer was actually showing. */
+      if (value === "none") makeTextFillLiteralForOutline(layer.id, layer.side);
+      layer.colorMode = value;
+      if (value === "none") seedOutlineForTransparentText(layer.id, layer.side);
     });
   });
   bindInput("#customLetterSpacing", function (value) {
@@ -8439,7 +9213,7 @@
     layer.cornerRadii = Array(shapeCornerCount(value)).fill(layer.cornerRadius || 0);
   });
   $("#customShapeFillMode").addEventListener("change", function (event) {
-    var fillMode = event.currentTarget.value === "image" ? "image" : "color";
+    var fillMode = ["color", "image", "none"].indexOf(event.currentTarget.value) >= 0 ? event.currentTarget.value : "color";
     commit(function () {
       var layer = activeCustomLayer();
       if (isCustomShapeLayer(layer)) layer.fillMode = fillMode;
@@ -8594,8 +9368,10 @@
         block.imageType = file.type;
         block.tintMode = "none";
         /* A newly chosen image starts as an uncropped, unscaled original.
-           Users can still opt into Cover or zoom after it is loaded. */
-        resetImagePlacementToOriginal(block);
+           Users can still opt into Cover or zoom after it is loaded. The OTT
+           screen is the exception: it is a full-bleed still, so letterboxing
+           a new artwork would leave bands inside the fixed canvas ratio. */
+        resetImagePlacementToOriginal(block, state.template === "ott" && key.indexOf("Main") > 0 ? "cover" : "contain");
       });
       putImageAsset({
         id: imageBlockAssetId(state.template, key), data: state.blocks[key].imageData,
@@ -8842,7 +9618,7 @@
 
   function multiSelectionItems() {
     var face = state.side === "back" ? backFace : frontFace;
-    var preview = templateConfig(state.template).preview;
+    var preview = templatePreviewSize(state.template);
     var scaleX = preview.width / Math.max(1, face.offsetWidth);
     var scaleY = preview.height / Math.max(1, face.offsetHeight);
     return selectedLayerKeys().map(function (key) {
@@ -8976,7 +9752,7 @@
   }
 
   function translateSelectedLayerByDesignPixels(key, dx, dy) {
-    var preview = templateConfig(state.template).preview;
+    var preview = templatePreviewSize(state.template);
     var percentX = finiteNumber(dx, 0) / Math.max(1, preview.width) * 100;
     var percentY = finiteNumber(dy, 0) / Math.max(1, preview.height) * 100;
     var custom = customLayerById(key);
@@ -9150,9 +9926,131 @@
     });
   });
 
+  /* A fixed 2px outline is a slab on a 9px caption and a hairline on a 120px
+     title, so an untouched width is scaled to the layer's own type size the
+     same way the shadow default is. */
+  function defaultOutlineWidthFor(layer, side) {
+    var fontSize = layerShadowTypeSize(layer, side);
+    if (!fontSize) return 2;
+    return clamp(Math.round(2 * (fontSize / 40) * 10) / 10, 1, 40);
+  }
+  /* Choosing a transparent fill with no outline would simply erase the layer.
+     Seed one - in the text's own colour, so the letters stay recognisable -
+     unless the user already set an outline of their own. */
+  /* An auto-inverting layer paints literal white and lets mix-blend-mode turn
+     it into 255 minus whatever sits behind it, so white is never the colour
+     the eye reads. Walk out to the first painted surface behind the layer and
+     invert that, so flattening the mode keeps the ink the user is looking at
+     instead of flipping the layer to white - and so an outline seeded from it
+     is dark on pale paper rather than invisible. */
+  function backdropRgbFor(node) {
+    var el = node && node.parentElement;
+    while (el) {
+      var match = String(getComputedStyle(el).backgroundColor || "").match(/rgba?\(([^)]+)\)/);
+      if (match) {
+        var parts = match[1].split(",").map(function (part) { return parseFloat(part); });
+        var alpha = parts.length > 3 ? parts[3] : 1;
+        if (parts.length >= 3 && alpha >= .5) return [parts[0], parts[1], parts[2]];
+      }
+      if (el === ticket) break;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function differenceInkColor(layer, side) {
+    var face = (side || state.side) === "front" ? frontFace : backFace;
+    var node = face && layer ? face.querySelector('[data-canvas-layer="' + layer + '"]') : null;
+    var backdrop = backdropRgbFor(node);
+    if (!backdrop) return "#000000";
+    return "#" + backdrop.map(function (channel) {
+      var inverted = clamp(Math.round(255 - channel), 0, 255);
+      return (inverted < 16 ? "0" : "") + inverted.toString(16);
+    }).join("");
+  }
+  function makeTextFillLiteralForOutline(layer, side) {
+    if (!layer || customLayerById(layer) && customLayerById(layer).type !== "text") return;
+    var custom = customLayerById(layer);
+    if (custom) {
+      if (customTextColorMode(custom) !== "difference") return;
+      custom.colorMode = "solid";
+      custom.color = differenceInkColor(layer, custom.side || side);
+      return;
+    }
+    if (TEXT_LAYER_KEYS.indexOf(layer) < 0 || nativeTextColorMode(layer, side) !== "difference") return;
+    var style = layerStyleEntry(side, layer, true);
+    style.colorMode = "solid";
+    style.color = differenceInkColor(layer, side);
+    if (layer === "quote" && side === "front") state.quoteEffect = "solid";
+  }
+  function seedOutlineForTransparentText(layer, side) {
+    if (!layer || !layerSupportsStroke(layer, side)) return;
+    var stroke = strokeFor(layer, side);
+    if (stroke.enabled && stroke.width > 0) return;
+    var custom = customLayerById(layer);
+    stroke.enabled = true;
+    stroke.width = defaultOutlineWidthFor(layer, side);
+    stroke.color = validHexColor(custom && custom.type === "text" ? custom.color : effectiveLayerColor(layer, side), stroke.color);
+  }
+  $("#strokeEnabled").addEventListener("change", function () {
+    if (!state.selectedLayer || !layerSupportsStroke(state.selectedLayer, state.side)) return;
+    commit(function () {
+      var stroke = strokeFor(state.selectedLayer, state.side);
+      stroke.enabled = $("#strokeEnabled").checked;
+      if (stroke.enabled && stroke.width <= 0) stroke.width = defaultOutlineWidthFor(state.selectedLayer, state.side);
+    });
+  });
+  bindInput("#strokeColor", function (value) {
+    if (state.selectedLayer && layerSupportsStroke(state.selectedLayer, state.side)) strokeFor(state.selectedLayer, state.side).color = value;
+  });
+  bindEffectNumber("#strokeWidthOut", 0, 40, function (value) {
+    if (!state.selectedLayer || !layerSupportsStroke(state.selectedLayer, state.side)) return;
+    var stroke = strokeFor(state.selectedLayer, state.side);
+    stroke.width = clamp(value, 0, 40);
+  });
+  $("#strokeRound").addEventListener("change", function () {
+    if (!state.selectedLayer || !layerSupportsRoundedStroke(state.selectedLayer, state.side)) return;
+    commit(function () { strokeFor(state.selectedLayer, state.side).join = $("#strokeRound").checked ? "round" : "miter"; });
+  });
+
+  function isUntouchedDefaultShadow(shadow) {
+    var base = defaultShadow();
+    return Boolean(shadow) && shadow.color === base.color && shadow.opacity === base.opacity
+      && shadow.angle === base.angle && shadow.distance === base.distance
+      && shadow.blur === base.blur && shadow.spread === base.spread;
+  }
+  function layerShadowTypeSize(layer, side) {
+    var face = side === "back" ? backFace : frontFace;
+    var node = face && face.querySelector('[data-canvas-layer="' + layer + '"]');
+    if (!node) return 0;
+    var custom = customLayerById(layer);
+    var isText = custom ? custom.type === "text" : TEXT_LAYER_KEYS.indexOf(layer) >= 0;
+    if (!isText) return 0;
+    /* Read the leaf that actually carries the glyphs: a metadata row's label
+       and value can use very different sizes from their wrapper. */
+    var leaf = node.querySelector("span,b,em,small,strong,p,blockquote") || node;
+    return finiteNumber(parseFloat(window.getComputedStyle(leaf).fontSize), 0);
+  }
+  function scaleDefaultShadowToLayer(layer, side) {
+    var shadow = shadowFor(layer, side);
+    if (!isUntouchedDefaultShadow(shadow)) return;
+    var fontSize = layerShadowTypeSize(layer, side);
+    if (!fontSize) return;
+    /* The stock default reads well on ~40px type. Keep that proportion so a
+       9px caption and a 120px title both get a shadow you can actually see. */
+    var base = defaultShadow();
+    var ratio = fontSize / 40;
+    shadow.distance = clamp(Math.round(base.distance * ratio * 10) / 10, 1, 120);
+    shadow.blur = clamp(Math.round(base.blur * ratio * 10) / 10, 2, 120);
+  }
   $("#shadowEnabled").addEventListener("change", function () {
     if (!state.selectedLayer) return;
-    commit(function () { shadowFor(state.selectedLayer).enabled = $("#shadowEnabled").checked; });
+    var enabled = $("#shadowEnabled").checked;
+    commit(function () {
+      /* Enabling must always show something: rescale an untouched default to
+         the layer's real type size before switching it on. */
+      if (enabled) scaleDefaultShadowToLayer(state.selectedLayer, state.side);
+      shadowFor(state.selectedLayer).enabled = enabled;
+    });
   });
   bindInput("#shadowColor", function (value) { if (state.selectedLayer) shadowFor(state.selectedLayer).color = value; });
   $("#shadowColorReset").addEventListener("click", function () {
@@ -9357,7 +10255,7 @@
       blockDom[key].node.classList.add("image-load-error");
       blockDom[key].node.classList.remove("has-image");
       blockDom[key].image.style.display = "none";
-      blockDom[key].node.style.setProperty("--image-alpha-mask", "none");
+      setLayerAlphaMask(blockDom[key].node, "");
       renderBlockImages();
     });
   });
@@ -9375,7 +10273,7 @@
         key: key, kind: "custom", startX: finiteNumber(custom.x, 0), startY: finiteNumber(custom.y, 0),
         minX: -50, maxX: 100, minY: -50, maxY: 100
       };
-      if (key === "quote" && layout) return {
+      if (key === "quote" && layout && !usesOttCaptionCentering(key, side, state)) return {
         key: key, kind: "quote", startX: finiteNumber(layout.quoteX, 0), startY: finiteNumber(layout.quoteY, 0),
         minX: -100, maxX: 100, minY: -20, maxY: 100
       };
@@ -9569,7 +10467,7 @@
           startX: event.clientX, startY: event.clientY, customX: custom.x, customY: custom.y,
           ticketW: activeFaceWidth, ticketH: activeFaceHeight
         };
-      } else if (layer === "quote") {
+      } else if (layer === "quote" && !usesOttCaptionCentering(layer, state.side, state)) {
         drag = {
           mode: event.target.classList.contains("resize-handle") ? "resize-quote" : "move-quote",
           pointerId: event.pointerId, target: target, startX: event.clientX, startY: event.clientY,
@@ -10035,7 +10933,7 @@
 
   function serializedPlacements(side) {
     var placements = clone(state.placements && state.placements[side] || {});
-    if (state.template !== "train" || side !== "back") return placements;
+    if (!isTrainTemplate(state) || side !== "back") return placements;
     TRAIN_MIRRORED_COUPON_LAYERS.forEach(function (key) {
       if (state.placements.front && state.placements.front[key]) placements[key] = clone(state.placements.front[key]);
       else delete placements[key];
@@ -10047,7 +10945,7 @@
     var serialized = clone(store || { front: {}, back: {} });
     serialized.front = serialized.front || {};
     serialized.back = serialized.back || {};
-    if (state.template !== "train") return serialized;
+    if (!isTrainTemplate(state)) return serialized;
     TRAIN_MIRRORED_COUPON_LAYERS.forEach(function (key) {
       if (serialized.front[key]) serialized.back[key] = clone(serialized.front[key]);
       else delete serialized.back[key];
@@ -10077,19 +10975,19 @@
     var config = templateConfig(state.template);
     var backBlocks = {
       main: serializedBlock("backMain", assetPaths),
-      stub: serializedBlock(state.template === "train" ? "frontStub" : "backStub", assetPaths)
+      stub: serializedBlock(isTrainTemplate(state) ? "frontStub" : "backStub", assetPaths)
     };
-    if (state.template === "train") backBlocks.logo = serializedBlock("frontStub", assetPaths);
+    if (isTrainTemplate(state)) backBlocks.logo = serializedBlock("frontStub", assetPaths);
     return {
       packageVersion: 14,
       compositeTextLayerVersion: COMPOSITE_TEXT_LAYER_VERSION,
       templateId: config.templateId,
       templateVersion: config.templateVersion,
       faces: {
-        front: { text: { kicker: state.kicker, title: resolvedFrontTitle(), subtitle: state.subtitle, botLabel: state.botLabel, botName: state.botName, personaLabel: state.personaLabel, personaName: state.personaName, dateLabel: state.dateLabel, date: state.date, routeFrom: state.routeFrom, routeTo: state.routeTo, routeIndex: state.routeIndex, sealText: state.sealText, coachLabel: state.coachLabel, coachNumber: state.coachNumber, stubTopline: state.stubTopline, admitText: state.admitText, stubTitle: state.stubTitle, platformText: state.platformText, validationText: state.validationText, barcode: state.barcode, quote: state.quote, speaker: state.speaker, handwrittenNote: state.handwrittenNote, sourceLabel: state.sourceLabel, source: state.source, serialLabel: state.serialLabel, serial: state.serial, serialCopyLabel: state.serialCopyLabel, serialCopy: state.serial }, blocks: { main: serializedBlock("frontMain", assetPaths), stub: serializedBlock("frontStub", assetPaths) }, customLayers: serializedCustomLayers("front", assetPaths), layout: clone(state.layouts.front), placements: serializedPlacements("front") },
-        back: { text: { kicker: state.template === "train" ? state.kicker : state.backKicker, heading: state.template === "train" ? resolvedFrontTitle() : state.backHeading, subtitle: state.subtitle, botLabel: state.botLabel, botName: state.botName, personaLabel: state.personaLabel, personaName: state.personaName, dateLabel: state.dateLabel, date: state.date, postcardCardTitle: state.postcardCardTitle, postcardCardSubtitle: state.postcardCardSubtitle, postcardModelLabel: state.postcardModelLabel, postcardModel: state.postcardModel, postcardPromptLabel: state.postcardPromptLabel, postcardPrompt: state.postcardPrompt, postcardWritingLines: [state.postcardWriting1, state.postcardWriting2, state.postcardWriting3, state.postcardWriting4], routeFrom: state.backRouteFrom, routeTo: state.backRouteTo, copyLabel: state.backCopyLabel, title: state.backTitle, body: state.backBody, backNoteLabel: state.backNoteLabel, note: state.backNote, sourceLabel: state.sourceLabel, source: state.source, coachLabel: state.coachLabel, coachNumber: state.coachNumber, stubTopline: state.stubTopline, admitText: state.admitText, stubTitle: state.stubTitle, platformText: state.platformText, barcode: state.template === "train" ? state.barcode : state.backBarcode, serialLabel: state.serialLabel, serial: state.serial, serialCopyLabel: state.serialCopyLabel, serialCopy: state.serial, ratingLabel: state.ratingLabel, ratingMark: state.ratingMark, ratingScore: state.ratingScore, cinemaEtcLabel: state.cinemaEtcLabel }, record: cinemaRecordPayload(), blocks: backBlocks, customLayers: serializedCustomLayers("back", assetPaths), layout: clone(state.layouts.back), placements: serializedPlacements("back") }
+        front: { text: { kicker: state.kicker, title: resolvedFrontTitle(), subtitle: state.subtitle, botLabel: state.botLabel, botName: state.botName, personaLabel: state.personaLabel, personaName: state.personaName, dateLabel: state.dateLabel, date: state.date, routeFrom: state.routeFrom, routeTo: state.routeTo, routeIndex: state.routeIndex, sealText: state.sealText, coachLabel: state.coachLabel, coachNumber: state.coachNumber, stubTopline: state.stubTopline, admitText: state.admitText, stubTitle: state.stubTitle, platformText: state.platformText, validationText: state.validationText, barcode: state.barcode, quote: state.quote, speaker: state.speaker, handwrittenNote: state.handwrittenNote, ottPlayMark: state.ottPlayMark, ottTimeCurrent: state.ottTimeCurrent, ottTimeTotal: state.ottTimeTotal, ottTag: state.ottTag, ottProgress: ottProgressValue(state), sourceLabel: state.sourceLabel, source: state.source, serialLabel: state.serialLabel, serial: state.serial, serialCopyLabel: state.serialCopyLabel, serialCopy: state.serial }, blocks: { main: serializedBlock("frontMain", assetPaths), stub: serializedBlock("frontStub", assetPaths) }, customLayers: serializedCustomLayers("front", assetPaths), layout: clone(state.layouts.front), placements: serializedPlacements("front") },
+        back: { text: { kicker: isTrainTemplate(state) ? state.kicker : state.backKicker, heading: isTrainTemplate(state) ? resolvedFrontTitle() : state.backHeading, subtitle: state.subtitle, botLabel: state.botLabel, botName: state.botName, personaLabel: state.personaLabel, personaName: state.personaName, dateLabel: state.dateLabel, date: state.date, postcardCardTitle: state.postcardCardTitle, postcardCardSubtitle: state.postcardCardSubtitle, postcardModelLabel: state.postcardModelLabel, postcardModel: state.postcardModel, postcardPromptLabel: state.postcardPromptLabel, postcardPrompt: state.postcardPrompt, postcardWritingLines: [state.postcardWriting1, state.postcardWriting2, state.postcardWriting3, state.postcardWriting4], routeFrom: state.backRouteFrom, routeTo: state.backRouteTo, copyLabel: state.backCopyLabel, title: state.backTitle, body: state.backBody, backNoteLabel: state.backNoteLabel, note: state.backNote, sourceLabel: state.sourceLabel, source: state.source, coachLabel: state.coachLabel, coachNumber: state.coachNumber, stubTopline: state.stubTopline, admitText: state.admitText, stubTitle: state.stubTitle, platformText: state.platformText, barcode: isTrainTemplate(state) ? state.barcode : state.backBarcode, serialLabel: state.serialLabel, serial: state.serial, serialCopyLabel: state.serialCopyLabel, serialCopy: state.serial, ratingLabel: state.ratingLabel, ratingMark: state.ratingMark, ratingScore: state.ratingScore, cinemaEtcLabel: state.cinemaEtcLabel }, record: cinemaRecordPayload(), blocks: backBlocks, customLayers: serializedCustomLayers("back", assetPaths), layout: clone(state.layouts.back), placements: serializedPlacements("back") }
       },
-      style: { quoteColor: state.quoteColor, quoteEffect: state.quoteEffect, accentColor: state.accent, mutedColor: state.muted, font: state.font, layerStyles: serializedFaceStyleStore(state.layerStyles), inlineTextVersion: INLINE_TEXT_STYLE_VERSION, inlineTextStyles: serializedFaceStyleStore(state.inlineTextStyles), textTypingStyles: serializedFaceStyleStore(state.textTypingStyles), material: state.texture && state.template !== "cinema" ? { id: "paper-fiber-v2", version: 2, asset: "template://textures/ticket-paper-fiber-v2.png", strength: state.textureStrength } : null },
+      style: { quoteColor: state.quoteColor, quoteEffect: state.quoteEffect, accentColor: state.accent, mutedColor: state.muted, font: state.font, layerStyles: serializedFaceStyleStore(state.layerStyles), inlineTextVersion: INLINE_TEXT_STYLE_VERSION, inlineTextStyles: serializedFaceStyleStore(state.inlineTextStyles), textTypingStyles: serializedFaceStyleStore(state.textTypingStyles), ottAspect: state.template === "ott" ? ottAspectId(state) : null, ottSubtitleBackground: state.template === "ott" ? { enabled: Boolean(state.ottSubtitleBackgroundEnabled), color: validHexColor(state.ottSubtitleBackgroundColor, "#000000"), opacity: ottSubtitleBackgroundOpacity(state) } : null, material: state.texture && state.template !== "cinema" ? { id: "paper-fiber-v2", version: 2, asset: "template://textures/ticket-paper-fiber-v2.png", strength: state.textureStrength } : null },
       effects: { mode: "per-image", version: 1 },
       layers: {
         order: clone(layerOrderFor(state.side, state).filter(function (key) { return key !== "route-copy" && key !== "route-index"; })),
@@ -10098,6 +10996,7 @@
         locked: state.locked,
         clipping: state.clipping,
         shadows: clone(state.sideShadows),
+        strokes: clone(state.sideStrokes),
         legacyCompositeTransforms: clone(state.legacyCompositeTransforms)
       },
       view: { mode: state.postcardViewMode, topSide: state.postcardTopSide, activeSide: state.side },
@@ -10260,6 +11159,7 @@
         delete documentState.sideShadows;
       }
     }
+    if (isPlainJsonObject(layers.strokes)) documentState.sideStrokes = clone(layers.strokes);
     return documentState;
   }
   function exportedPayloadHasSplitCompositeLayers(payload, template) {
@@ -10302,8 +11202,10 @@
       coachLabel: "coachLabel", coachNumber: "coachNumber", stubTopline: "stubTopline", admitText: "admitText",
       stubTitle: "stubTitle", platformText: "platformText", validationText: "validationText", barcode: "barcode",
       quote: "quote", speaker: "speaker", handwrittenNote: "handwrittenNote",
+      ottPlayMark: "ottPlayMark", ottTimeCurrent: "ottTimeCurrent", ottTimeTotal: "ottTimeTotal", ottTag: "ottTag",
       sourceLabel: "sourceLabel", source: "source", serialLabel: "serialLabel", serial: "serial", serialCopyLabel: "serialCopyLabel"
     });
+    if (front.text && front.text.ottProgress != null) documentState.ottProgress = ottProgressValue({ ottProgress: front.text.ottProgress });
     assignImportedText(documentState, back.text, {
       kicker: "backKicker", heading: "backHeading", botLabel: "botLabel", botName: "botName",
       personaLabel: "personaLabel", personaName: "personaName", dateLabel: "dateLabel", date: "date",
@@ -10338,7 +11240,7 @@
     importBlock(front.blocks && front.blocks.main, "frontMain", "FRONT MAIN");
     importBlock(front.blocks && front.blocks.stub, "frontStub", "FRONT STUB");
     importBlock(back.blocks && back.blocks.main, "backMain", "BACK MAIN");
-    if (template !== "train") importBlock(back.blocks && back.blocks.stub, "backStub", "BACK STUB");
+    if (!isTrainTemplate(template)) importBlock(back.blocks && back.blocks.stub, "backStub", "BACK STUB");
     documentState.customLayers = {
       front: importedCustomLayers(front.customLayers, "front"),
       back: importedCustomLayers(back.customLayers, "back")
@@ -10356,6 +11258,12 @@
       if (isPlainJsonObject(payload.style.layerStyles)) documentState.layerStyles = clone(payload.style.layerStyles);
       if (isPlainJsonObject(payload.style.inlineTextStyles)) documentState.inlineTextStyles = clone(payload.style.inlineTextStyles);
       if (isPlainJsonObject(payload.style.textTypingStyles)) documentState.textTypingStyles = clone(payload.style.textTypingStyles);
+      if (template === "ott" && payload.style.ottAspect != null) documentState.ottAspect = ottAspectId(payload.style.ottAspect);
+      if (template === "ott" && isPlainJsonObject(payload.style.ottSubtitleBackground)) {
+        documentState.ottSubtitleBackgroundEnabled = payload.style.ottSubtitleBackground.enabled !== false;
+        documentState.ottSubtitleBackgroundColor = validHexColor(payload.style.ottSubtitleBackground.color, "#000000");
+        documentState.ottSubtitleBackgroundOpacity = clamp(Math.round(finiteNumber(payload.style.ottSubtitleBackground.opacity, 100)), 0, 100);
+      }
       documentState.texture = Boolean(payload.style.material);
       if (payload.style.material && payload.style.material.strength != null) documentState.textureStrength = payload.style.material.strength;
     }
@@ -10384,7 +11292,7 @@
       { key: "backMain", source: back.blocks && back.blocks.main, label: "BACK MAIN" },
       { key: "backStub", source: back.blocks && back.blocks.stub, label: "BACK STUB" }
     ].forEach(function (entry) {
-      if (template === "train" && entry.key === "backStub") return;
+      if (isTrainTemplate(template) && entry.key === "backStub") return;
       var block = next.blocks[entry.key];
       if (!block) return;
       var bundledTrainLogo = template === "train" && entry.key === "frontStub"
@@ -10790,7 +11698,7 @@
     clearTimeout(saveTimer);
     suspendAutoSave = true;
     try {
-      var views = ["front", "back", "both"];
+      var views = exportViewsForTemplate(exportTemplate);
       for (var index = 0; index < views.length; index++) {
         if (state !== exportStateRef) throw new Error("내보내기 중 문서가 변경되었습니다.");
         var view = views[index];
@@ -10813,7 +11721,8 @@
       return {
         blob: new Blob([makeZip(files)], { type: "application/zip" }),
         name: stem + "-all-images.zip",
-        count: exportedImageCount
+        count: exportedImageCount,
+        label: templateSupportsBoth(exportTemplate) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸"
       };
     } finally {
       if (canvas) canvas.width = canvas.height = 1;
@@ -10976,7 +11885,7 @@
     try {
       var archive = await createAllViewImageArchive();
       download(archive.blob, archive.name);
-      showToast("FRONT · BACK · BOTH 이미지 " + archive.count + "장을 한 번에 저장했습니다.");
+      showToast(archive.label + " 이미지 " + archive.count + "장을 한 번에 저장했습니다.");
     } catch (error) {
       console.error("All-image export failed", error);
       showToast("전체 이미지를 만드는 중 문제가 생겼습니다: " + (error && error.message ? error.message : String(error)));
@@ -11210,7 +12119,7 @@
     maskCanvas.height = 1;
   }
 
-  function bakeImageEffects(image, config, frameWidth, frameHeight, requestedScale, shadow, openingMask, openingMaskScaleX, openingMaskScaleY) {
+  function bakeImageEffects(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke, openingMask, openingMaskScaleX, openingMaskScaleY) {
     var cssWidth = Math.max(1, frameWidth);
     var cssHeight = Math.max(1, frameHeight);
     var renderScale = Math.min(Math.max(1, requestedScale), 4096 / cssWidth, 4096 / cssHeight);
@@ -11228,8 +12137,7 @@
     var alphaMask = snapshotCanvasAlphaMask(canvas);
 
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
-      layerContext.fillStyle = effect.overlayColor;
-      layerContext.fillRect(0, 0, width, height);
+      paintEffectOverlay(layerContext, width, height, effect);
     }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
 
     drawImageVignette(canvas, effect);
@@ -11237,6 +12145,7 @@
        Restore every alpha byte from the filtered source, rather than only
        clearing fully transparent pixels, so a transparent PNG stays exact. */
     restoreCanvasAlphaMask(canvas, alphaMask);
+    paintCanvasOutline(canvas, stroke, renderScale);
 
     if (openingMask && openingMask.complete && openingMask.naturalWidth) {
       context.save();
@@ -11253,10 +12162,28 @@
     return dataUrl;
   }
 
-  function bakeStretchedCustomImage(image, config, frameWidth, frameHeight, requestedScale, shadow) {
+  function customImageBakeOutset(stroke, shadow) {
+    var outline = normalizeStroke(stroke);
+    var outset = outline.enabled && outline.width > 0 ? outline.width + 1 : 0;
+    if (shadow && shadow.enabled) {
+      var offset = shadowOffset(shadow);
+      var blur = Math.max(0, (Number(shadow.blur) || 0) + (Number(shadow.spread) || 0) * .45);
+      /* CSS drop-shadow can extend roughly two blur radii past the source.
+         Reserve a symmetric box so rotation, export scaling and either offset
+         direction cannot clip the last antialiased pixels. */
+      outset = Math.max(outset, (outline.enabled ? outline.width : 0)
+        + Math.max(Math.abs(offset.x), Math.abs(offset.y)) + blur * 2 + 2);
+    }
+    return Math.max(0, Math.ceil(outset));
+  }
+
+  function bakeStretchedCustomImage(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke) {
     var cssWidth = Math.max(1, frameWidth);
     var cssHeight = Math.max(1, frameHeight);
-    var renderScale = Math.min(Math.max(1, requestedScale), 4096 / cssWidth, 4096 / cssHeight);
+    var outsetCss = customImageBakeOutset(stroke, shadow);
+    var totalCssWidth = cssWidth + outsetCss * 2;
+    var totalCssHeight = cssHeight + outsetCss * 2;
+    var renderScale = Math.min(Math.max(1, requestedScale), 4096 / totalCssWidth, 4096 / totalCssHeight);
     var canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(cssWidth * renderScale));
     canvas.height = Math.max(1, Math.round(cssHeight * renderScale));
@@ -11264,33 +12191,65 @@
     var effect = config.effect || defaultEffect();
     context.save();
     var bakedEffectFilter = effectFilterString(effect, true, renderScale);
-    context.filter = ((bakedEffectFilter === "none" ? "" : bakedEffectFilter + " ") + imageShadowFilter(shadow, renderScale)).trim() || "none";
+    /* Preview order is effect -> outline -> shadow. Keep the inner bitmap free
+       of shadow here; the padded final pass below applies it after the outline. */
+    context.filter = bakedEffectFilter;
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     context.restore();
     var alphaMask = snapshotCanvasAlphaMask(canvas);
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
-      layerContext.fillStyle = effect.overlayColor;
-      layerContext.fillRect(0, 0, width, height);
+      paintEffectOverlay(layerContext, width, height, effect);
     }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
     drawImageVignette(canvas, effect);
     restoreCanvasAlphaMask(canvas, alphaMask);
-    var dataUrl = canvas.toDataURL("image/png");
+
+    var output = canvas;
+    if (outsetCss > 0) {
+      var padded = document.createElement("canvas");
+      padded.width = Math.max(1, Math.round(totalCssWidth * renderScale));
+      padded.height = Math.max(1, Math.round(totalCssHeight * renderScale));
+      var padX = (padded.width - canvas.width) / 2;
+      var padY = (padded.height - canvas.height) / 2;
+      padded.getContext("2d", { alpha: true }).drawImage(canvas, padX, padY);
+      output = padded;
+    }
+    paintCanvasOutline(output, stroke, renderScale);
+
+    if (shadow && shadow.enabled) {
+      var shadowed = document.createElement("canvas");
+      shadowed.width = output.width;
+      shadowed.height = output.height;
+      var shadowContext = shadowed.getContext("2d", { alpha: true });
+      shadowContext.filter = imageShadowFilter(shadow, renderScale).trim() || "none";
+      shadowContext.drawImage(output, 0, 0);
+      if (output !== canvas) output.width = output.height = 1;
+      output = shadowed;
+    }
+
+    var result = {
+      dataUrl: output.toDataURL("image/png"),
+      outsetCss: outsetCss,
+      contentWidthCss: cssWidth,
+      contentHeightCss: cssHeight
+    };
+    if (output !== canvas) output.width = output.height = 1;
     canvas.width = canvas.height = 1;
-    return dataUrl;
+    return result;
   }
 
-  function imageEffectNeedsRasterBake(effect, shadow) {
+  function imageEffectNeedsRasterBake(effect, shadow, stroke) {
     var value = effect || defaultEffect();
     return effectFilterString(value, true) !== "none"
       || finiteNumber(value.overlay, 0) > 0
       || finiteNumber(value.vignette, 0) !== 0
+      || Boolean(stroke && stroke.enabled && finiteNumber(stroke.width, 0) > 0)
       || Boolean(shadow && shadow.enabled);
   }
 
   async function prepareExportImageBakes(exportScale) {
     var activeFace = state.side === "front" ? frontFace : backFace;
     var useFrontOpeningMask = templateHasFeature(state.template, "mainImageOpeningMask") && state.side === "front";
-    var useBackOpeningMask = state.template === "train" && state.side === "back";
+    var useBackOpeningMask = templateHasFeature(state.template, "mainImageOpeningMask") && state.side === "back";
     var trainMainOpeningMask = useFrontOpeningMask ? await loadTrainMainOpeningMask() : null;
     var trainBackOpeningMask = useBackOpeningMask ? await loadTrainBackOpeningMask() : null;
     var records = [];
@@ -11307,10 +12266,11 @@
       /* A neutral polaroid photograph is already browser-ready. Rasterizing it
          through an intermediate canvas needlessly color-converts embedded ICC
          profiles and was the source of the darker exported photograph. */
-      if (state.template === "polaroid" && !imageEffectNeedsRasterBake(config.effect, layerShadow)) return;
+      var layerStroke = strokeFor(layer, side);
+      if (state.template === "polaroid" && !imageEffectNeedsRasterBake(config.effect, layerShadow, layerStroke)) return;
       records.push({
         selector: "#" + dom.image.id,
-        dataUrl: bakeImageEffects(dom.image, config, dom.frame.clientWidth, dom.frame.clientHeight, exportScale, layerShadow, openingMask, openingMaskScaleX, openingMaskScaleY)
+        dataUrl: bakeImageEffects(dom.image, config, dom.frame.clientWidth, dom.frame.clientHeight, exportScale, layerShadow, layerStroke, openingMask, openingMaskScaleX, openingMaskScaleY)
       });
     });
     (state.customLayers[state.side] || []).forEach(function (item) {
@@ -11318,9 +12278,13 @@
       var node = activeFace.querySelector('[data-canvas-layer="' + item.id + '"]');
       var image = node && node.querySelector("img.custom-image-source");
       if (!node || !image || !image.complete || !image.naturalWidth) return;
+      var customBake = bakeStretchedCustomImage(image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id), strokeFor(item.id));
       records.push({
         selector: '[data-canvas-layer="' + item.id + '"] img.custom-image-source',
-        dataUrl: bakeStretchedCustomImage(image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id))
+        dataUrl: customBake.dataUrl,
+        outsetCss: customBake.outsetCss,
+        contentWidthCss: customBake.contentWidthCss,
+        contentHeightCss: customBake.contentHeightCss
       });
     });
     if (state.template === "postcard" && state.side === "back" && !isLayerHidden("image-stub", "back")) {
@@ -11377,7 +12341,7 @@
     });
   }
 
-  function normalizeExportCloneArtifacts(clonedTicket) {
+  function normalizeExportCloneArtifacts(clonedTicket, exportScale, compositedLayerKeys) {
     if (!clonedTicket) return;
     /* Empty image frames are editor affordances, not document ink. Their
        placeholder label was already suppressed during export, but template
@@ -11402,7 +12366,7 @@
     if (state.template === "polaroid") {
       var polaroidImageConfig = blockConfigForDomKey("frontMain");
       var polaroidImageShadow = shadowFor("image-main", "front");
-      if (polaroidImageConfig && !imageEffectNeedsRasterBake(polaroidImageConfig.effect, polaroidImageShadow)) {
+      if (polaroidImageConfig && !imageEffectNeedsRasterBake(polaroidImageConfig.effect, polaroidImageShadow, strokeFor("image-main", "front"))) {
         var polaroidImageSlot = clonedTicket.querySelector(".ticket-front .image-main");
         if (polaroidImageSlot) {
           polaroidImageSlot.style.setProperty("--image-overlay", "0", "important");
@@ -11415,9 +12379,158 @@
         }
       }
     }
+    /* The live editor uses an SVG alpha expansion for every text outline so its
+       saved round/angular join is visible and smoothly antialiased. html2canvas
+       does not evaluate url() filters. Restore the equivalent native stroke on
+       the clone and pass the inherited --layer-stroke-join to the patched
+       renderer. Hollow text and rich-text outline unions are ring-only masks;
+       ordinary text keeps its own fill and uses a doubled centred stroke so the
+       requested width remains visible outside the glyph. */
+    Array.prototype.forEach.call(clonedTicket.querySelectorAll(".layer-stroke-on .text-outline-ink"), function (ink) {
+      var host = ink.closest("[data-canvas-layer]");
+      var ringOnly = ink.classList.contains("rich-text-outline-ink")
+        || Boolean(host && host.classList.contains("layer-text-transparent"));
+      var textNodes = [ink].concat(Array.prototype.slice.call(ink.querySelectorAll("*")));
+      textNodes.forEach(function (textNode) {
+        textNode.style.setProperty("filter", "none", "important");
+        if (ringOnly) {
+          textNode.style.setProperty("color", "transparent", "important");
+          textNode.style.setProperty("-webkit-text-fill-color", "transparent", "important");
+        }
+        textNode.style.setProperty("-webkit-text-stroke-width", ringOnly
+          ? "var(--layer-stroke-width)"
+          : "calc(var(--layer-stroke-width) * 2)", "important");
+        textNode.style.setProperty("-webkit-text-stroke-color", "var(--layer-stroke-color)", "important");
+        if (ringOnly) {
+          textNode.style.setProperty("text-shadow", "none", "important");
+          textNode.style.setProperty("mix-blend-mode", "normal", "important");
+        }
+      });
+    });
+    applyExportVerticalTextFallback(clonedTicket);
+    applyExportTextShadowFallback(clonedTicket, exportScale, compositedLayerKeys);
+  }
+
+  /* Text layers paint their drop shadow with a CSS filter, which html2canvas
+     1.4 does not implement. Image layers already bake their shadow into the
+     exported bitmap, so only glyph shadows were lost. Restore them on the
+     export clone as the equivalent text-shadow, which the renderer supports. */
+  function exportTextShadowValue(shadow, blurScale) {
+    if (!shadow || !shadow.enabled) return "";
+    var offset = shadowOffset(shadow);
+    /* html2canvas multiplies the shadow offsets by the export scale but
+       assigns the blur radius verbatim, so the blur is pre-scaled here. */
+    var blur = Math.max(0, (Number(shadow.blur) || 0) + (Number(shadow.spread) || 0) * .45) * Math.max(.01, finiteNumber(blurScale, 1));
+    return offset.x.toFixed(2) + "px " + offset.y.toFixed(2) + "px " + blur.toFixed(2) + "px " + hexToRgba(shadow.color, shadow.opacity);
+  }
+
+  /* Code point ranges that CSS text-orientation: mixed keeps upright:
+     Hangul, kana, bopomofo, CJK ideographs and the fullwidth forms. Anything
+     else - Latin, digits, punctuation - is painted a quarter turn over. */
+  function verticalUprightCodePoint(codePoint) {
+    return (codePoint >= 0x1100 && codePoint <= 0x11ff)
+      || (codePoint >= 0x2e80 && codePoint <= 0x303e)
+      || (codePoint >= 0x3041 && codePoint <= 0x33ff)
+      || (codePoint >= 0x3400 && codePoint <= 0x4dbf)
+      || (codePoint >= 0x4e00 && codePoint <= 0x9fff)
+      || (codePoint >= 0xa960 && codePoint <= 0xa97f)
+      || (codePoint >= 0xac00 && codePoint <= 0xd7ff)
+      || (codePoint >= 0xf900 && codePoint <= 0xfaff)
+      || (codePoint >= 0xfe30 && codePoint <= 0xfe4f)
+      || (codePoint >= 0xff00 && codePoint <= 0xff60)
+      || (codePoint >= 0xffe0 && codePoint <= 0xffe6)
+      || (codePoint >= 0x20000 && codePoint <= 0x3ffff);
+  }
+  function splitExportTextIntoGlyphs(root) {
+    var document_ = root.ownerDocument;
+    var walker = document_.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach(function (textNode) {
+      var value = textNode.nodeValue;
+      if (!value || !value.trim() || !textNode.parentNode) return;
+      var fragment = document_.createDocumentFragment();
+      Array.from(value).forEach(function (character) {
+        var glyph = document_.createElement("span");
+        glyph.className = "export-vertical-glyph";
+        glyph.textContent = character;
+        if (!verticalUprightCodePoint(character.codePointAt(0))) {
+          glyph.style.setProperty("display", "inline-block", "important");
+          glyph.style.setProperty("transform", "rotate(90deg)", "important");
+          glyph.style.setProperty("transform-origin", "center center", "important");
+        }
+        fragment.appendChild(glyph);
+      });
+      textNode.parentNode.replaceChild(fragment, textNode);
+    });
+  }
+
+  function applyExportVerticalTextFallback(clonedTicket) {
+    var view = clonedTicket.ownerDocument && clonedTicket.ownerDocument.defaultView;
+    if (!view) return;
+    Array.prototype.forEach.call(clonedTicket.querySelectorAll("[data-canvas-layer]"), function (node) {
+      if (String(view.getComputedStyle(node).writingMode || "").indexOf("vertical") !== 0) return;
+      splitExportTextIntoGlyphs(node);
+    });
+  }
+
+  function applyExportTextShadowFallback(clonedTicket, exportScale, skipLayerKeys) {
+    if (!clonedTicket) return;
+    var view = clonedTicket.ownerDocument && clonedTicket.ownerDocument.defaultView;
+    if (!view) return;
+    var skip = {};
+    (skipLayerKeys || []).forEach(function (key) { skip[key] = true; });
+    Array.prototype.forEach.call(clonedTicket.querySelectorAll("[data-canvas-layer].layer-shadow-on"), function (node) {
+      var key = node.dataset.canvasLayer;
+      if (skip[key]) return;
+      var custom = customLayerById(key);
+      var isTextLayer = custom ? custom.type === "text" : TEXT_LAYER_KEYS.indexOf(key) >= 0;
+      if (!isTextLayer) return;
+      var side = node.closest(".ticket-back") ? "back" : "front";
+      var value = exportTextShadowValue(shadowFor(key, side), exportScale);
+      if (!value) return;
+      var nodes = [node].concat(Array.prototype.slice.call(node.querySelectorAll("*")));
+      /* Read every existing shadow before mutating. A descendant that already
+         declares one would otherwise stop inheriting the layer shadow. */
+      var existing = nodes.map(function (item) {
+        var computed = String(view.getComputedStyle(item).textShadow || "none");
+        return computed && computed !== "none" ? computed : "";
+      });
+      nodes.forEach(function (item, index) {
+        if (index > 0 && !existing[index]) return;
+        item.style.setProperty("text-shadow", existing[index] ? value + ", " + existing[index] : value, "important");
+      });
+    });
+  }
+
+  function waitForExportCloneImageSource(image, expectedSrc) {
+    if (image.complete && image.naturalWidth > 0 && image.currentSrc === expectedSrc) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var settled = false;
+      function finish() {
+        if (settled) return;
+        settled = true;
+        image.removeEventListener("load", finish);
+        image.removeEventListener("error", finish);
+        resolve();
+      }
+      image.addEventListener("load", finish);
+      image.addEventListener("error", finish);
+      /* html2canvas clones a loaded image before running onclone and later
+         parses currentSrc before src. Wait for the baked data URL to become
+         that current source, otherwise the parser can cache the old bitmap
+         after we have already disabled its live outline/effect filters. */
+      if (typeof image.decode === "function") {
+        image.decode().then(finish).catch(function () {
+          if (image.complete && image.currentSrc === expectedSrc) finish();
+        });
+      }
+      if (image.complete && image.naturalWidth > 0 && image.currentSrc === expectedSrc) finish();
+    });
   }
 
   function applyExportImageBakesToClone(clonedTicket, bakedImages) {
+    var pendingSources = [];
     bakedImages.forEach(function (record) {
       var image = clonedTicket.querySelector(record.selector);
       if (!image) return;
@@ -11441,16 +12554,34 @@
         effectsHost.style.setProperty("--image-vignette", "0", "important");
         effectsHost.style.setProperty("--image-vignette-edge", "rgba(0,0,0,0)", "important");
       }
+      /* The original clone may carry a responsive currentSrc copied by
+         html2canvas. Remove those candidates before assigning the baked PNG,
+         then hold onclone open until the new source has decoded. */
+      image.removeAttribute("srcset");
+      image.removeAttribute("sizes");
       image.src = record.dataUrl;
+      pendingSources.push(waitForExportCloneImageSource(image, image.src));
       image.style.setProperty("filter", "none", "important");
       image.style.setProperty("object-fit", "fill", "important");
-      image.style.setProperty("width", "100%", "important");
-      image.style.setProperty("height", "100%", "important");
-      image.style.setProperty("left", "0", "important");
-      image.style.setProperty("top", "0", "important");
+      var customOutset = effectsHost && effectsHost.classList.contains("custom-image-layer")
+        ? Math.max(0, finiteNumber(record.outsetCss, 0))
+        : 0;
+      if (customOutset > 0) {
+        effectsHost.style.setProperty("overflow", "visible", "important");
+        image.style.setProperty("width", (finiteNumber(record.contentWidthCss, effectsHost.clientWidth) + customOutset * 2) + "px", "important");
+        image.style.setProperty("height", (finiteNumber(record.contentHeightCss, effectsHost.clientHeight) + customOutset * 2) + "px", "important");
+        image.style.setProperty("left", -customOutset + "px", "important");
+        image.style.setProperty("top", -customOutset + "px", "important");
+      } else {
+        image.style.setProperty("width", "100%", "important");
+        image.style.setProperty("height", "100%", "important");
+        image.style.setProperty("left", "0", "important");
+        image.style.setProperty("top", "0", "important");
+      }
       image.style.setProperty("right", "auto", "important");
       image.style.setProperty("bottom", "auto", "important");
     });
+    return Promise.all(pendingSources);
   }
 
   function rememberInlineCustomProperty(node, name) {
@@ -11588,7 +12719,8 @@
     if (!activeFace) return;
     Array.prototype.forEach.call(activeFace.children, function (child) {
       var ownKey = child.dataset && child.dataset.canvasLayer;
-      var ownsVisibleLayer = ownKey && visibleLookup[ownKey]
+      var ownsVisibleLayer = child.hasAttribute("data-export-decor")
+        || ownKey && visibleLookup[ownKey]
         || Array.prototype.some.call(child.querySelectorAll("[data-canvas-layer]"), function (node) {
           return Boolean(visibleLookup[node.dataset.canvasLayer]);
         });
@@ -11619,6 +12751,25 @@
     return layerAvailableOnSide(layerKey, state.side);
   }
 
+  function exportLayerShadowCompositeFilter(layerKey, node, computed) {
+    /* Image layers bake their shadow into the exported bitmap and glyph
+       shadows are restored as text-shadow on the clone. Everything else -
+       frames, rules, perforations, fills, shapes - paints with a CSS filter or
+       box-shadow that html2canvas ignores, so it needs a real canvas
+       drop-shadow. Text deliberately stays out of this path: a composite step
+       is another full-size render, and a document with a handful of shadowed
+       text layers would spend minutes in the exporter for no visible gain. */
+    if (node.closest(".image-slot") || node.classList.contains("custom-image-layer")) return "";
+    if (TEXT_LAYER_KEYS.indexOf(layerKey) >= 0) return "";
+    var textLayer = customLayerById(layerKey);
+    if (textLayer && textLayer.type === "text") return "";
+    var shadow = shadowFor(layerKey, state.side);
+    if (!shadow || !shadow.enabled) return "";
+    var existing = String(computed.filter || "none");
+    if (existing !== "none" && existing.indexOf("drop-shadow") >= 0) return existing;
+    return imageShadowFilter(shadow).trim();
+  }
+
   function exportLayerCompositeSpec(layerKey) {
     if (isLayerHidden(layerKey, state.side) || !exportLayerAvailableOnSide(layerKey)) return null;
     var activeFace = state.side === "front" ? frontFace : backFace;
@@ -11629,9 +12780,11 @@
     var supportedModes = ["multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
     if (supportedModes.indexOf(mode) < 0) mode = "source-over";
     var filter = String(computed.filter || "none");
-    /* Ordinary filters stay in the base render. Only blend modes that need
-       canvas compositing justify another multi-megapixel pass. */
-    return mode !== "source-over" ? { mode: mode, filter: filter } : null;
+    var shadowFilter = exportLayerShadowCompositeFilter(layerKey, node, computed);
+    if (shadowFilter) filter = shadowFilter;
+    /* Ordinary filters stay in the base render. Blend modes and layer shadows
+       are the two effects that justify another multi-megapixel pass. */
+    return mode !== "source-over" || shadowFilter ? { mode: mode, filter: filter } : null;
   }
 
   function exportLayerStackPath(node, activeFace) {
@@ -11683,6 +12836,27 @@
     return entries.map(function (entry) { return entry.key; });
   }
 
+  function exportDecorPaintsBelow(deferredLayers) {
+    var activeFace = state.side === "front" ? frontFace : backFace;
+    var decorNodes = Array.prototype.filter.call(activeFace.querySelectorAll("[data-export-decor]"), function (node) {
+      if (node.querySelector("[data-canvas-layer]")) return false;
+      var computed = getComputedStyle(node);
+      return computed.display !== "none" && computed.visibility !== "hidden" && finiteNumber(parseFloat(computed.opacity), 1) > 0;
+    });
+    if (!decorNodes.length) return true;
+    var domOrder = Array.prototype.slice.call(activeFace.querySelectorAll("*"));
+    function stackEntry(node) {
+      return { path: exportLayerStackPath(node, activeFace), domIndex: domOrder.indexOf(node) };
+    }
+    var decorEntries = decorNodes.map(stackEntry);
+    return deferredLayers.every(function (key) {
+      var node = activeFace.querySelector('[data-canvas-layer="' + key + '"]');
+      if (!node) return true;
+      var layerEntry = stackEntry(node);
+      return decorEntries.every(function (decorEntry) { return compareExportStackPaths(decorEntry, layerEntry) < 0; });
+    });
+  }
+
   function buildExportLayerPlan() {
     /* html2canvas can leak the cinema reverse table/background through the
        transparent overlay passes used by the advanced blend compositor.
@@ -11704,6 +12878,10 @@
     });
     if (anchorIndex < 0) return null;
     var deferredLayers = order.slice(anchorIndex);
+    /* Decorations render once, in the base pass. That is only faithful while
+       every deferred layer paints above them, so anything else falls back to
+       the dependable single-pass renderer. */
+    if (!exportDecorPaintsBelow(deferredLayers)) return null;
     var steps = [];
     var group = [];
     function flushGroup() {
@@ -11720,9 +12898,9 @@
       }
     });
     flushGroup();
-    /* Bound memory use for documents with many custom blend layers. A null
-       plan tells the caller to use the dependable single-pass renderer. */
-    if (steps.length > 4) return null;
+    /* Bound the work for documents with many blended or shadowed layers. A
+       null plan tells the caller to use the dependable single-pass renderer. */
+    if (steps.length > 5) return null;
     return { hiddenLayers: deferredLayers, steps: steps };
   }
 
@@ -11744,7 +12922,7 @@
       height: ticket.offsetHeight,
       scrollX: 0,
       scrollY: 0,
-      onclone: function (clonedDocument) {
+      onclone: async function (clonedDocument) {
         var clonedTicket = clonedDocument.getElementById("ticket");
         if (!clonedTicket) return;
         Array.prototype.forEach.call(clonedTicket.querySelectorAll('[data-canvas-layer="attribution"]'), function (node) {
@@ -11753,7 +12931,14 @@
         copyLayerClippingPreviewPixels(ticket, clonedTicket);
         clonedTicket.classList.add("effects-baked", "layer-overlay-export");
         clonedTicket.style.setProperty("background", "transparent", "important");
-        normalizeExportCloneArtifacts(clonedTicket);
+        normalizeExportCloneArtifacts(clonedTicket, exportScale, neutralizeBlendKeys || []);
+        /* Standalone decorations are not layers, so they belong to the base
+           pass alone. Leaving them visible here composited the OTT info scrim
+           once per overlay pass and darkened the whole info face. */
+        Array.prototype.forEach.call(clonedTicket.querySelectorAll("[data-export-decor]"), function (decor) {
+          if (decor.querySelector("[data-canvas-layer]")) return;
+          decor.style.setProperty("visibility", "hidden", "important");
+        });
         var inactiveFace = clonedTicket.querySelector(layerSnapshot && layerSnapshot.side === "back" ? ".ticket-front" : ".ticket-back");
         if (inactiveFace) inactiveFace.style.setProperty("visibility", "hidden", "important");
         applyExportLayerSnapshot(clonedTicket, layerSnapshot);
@@ -11775,7 +12960,7 @@
           }
         });
         addExportBlendNeutralizer(clonedDocument, clonedTicket);
-        applyExportImageBakesToClone(clonedTicket, bakedImages);
+        await applyExportImageBakesToClone(clonedTicket, bakedImages);
         pruneExportCloneWrappers(clonedTicket, layerLookup, true, layerSnapshot && layerSnapshot.side);
       }
     });
@@ -11821,7 +13006,7 @@
       height: ticket.offsetHeight,
       scrollX: 0,
       scrollY: 0,
-      onclone: function (clonedDocument) {
+      onclone: async function (clonedDocument) {
         var clonedTicket = clonedDocument.getElementById("ticket");
         if (!clonedTicket) return;
         Array.prototype.forEach.call(clonedTicket.querySelectorAll('[data-canvas-layer="attribution"]'), function (node) {
@@ -11829,7 +13014,7 @@
         });
         copyLayerClippingPreviewPixels(ticket, clonedTicket);
         clonedTicket.classList.add("effects-baked");
-        normalizeExportCloneArtifacts(clonedTicket);
+        normalizeExportCloneArtifacts(clonedTicket, exportScale, exportLayerPlan ? exportLayerPlan.hiddenLayers : []);
         var inactiveFace = clonedTicket.querySelector(layerSnapshot && layerSnapshot.side === "back" ? ".ticket-front" : ".ticket-back");
         if (inactiveFace) inactiveFace.style.setProperty("visibility", "hidden", "important");
         applyExportLayerSnapshot(clonedTicket, layerSnapshot);
@@ -11845,7 +13030,7 @@
         } else if (layerSnapshot) {
           pruneExportCloneWrappers(clonedTicket, layerSnapshot.visible, false, layerSnapshot.side);
         }
-        applyExportImageBakesToClone(clonedTicket, bakedImages);
+        await applyExportImageBakesToClone(clonedTicket, bakedImages);
         if (window.location.protocol === "file:") Array.prototype.forEach.call(clonedTicket.querySelectorAll(".decor"), function (node) { node.style.backgroundImage = "none"; });
       }
     });
@@ -11958,7 +13143,7 @@
     var placement = source.placements && source.placements[side] && source.placements[side][ATTRIBUTION_LAYER_KEY] || {};
     var style = source.layerStyles && source.layerStyles[side] && source.layerStyles[side][ATTRIBUTION_LAYER_KEY] || {};
     var contentRect = sourceCanvas.ticketContentRect || { x: 0, y: 0, width: sourceCanvas.width, height: sourceCanvas.height };
-    var previewSize = templateConfig(source.template).preview;
+    var previewSize = templatePreviewSize(source.template, source);
     var exportScale = Math.min(contentRect.width / Math.max(1, previewSize.width), contentRect.height / Math.max(1, previewSize.height));
     var fontSize = Math.max(1, 7 * exportScale);
     var gap = 8 * exportScale;
@@ -12005,7 +13190,7 @@
     paintTrainPerforations();
     await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
 
-    var targetSize = templateConfig(state.template).export;
+    var targetSize = templateExportSize(state.template);
     var targetWidth = targetSize.width;
     var targetHeight = targetSize.height;
     var previousTransform = ticketViewTransform.style.transform;
@@ -12080,7 +13265,7 @@
       sourceCanvas.ticketContentRect = sourceContentRect;
       return sourceCanvas;
     }
-    var previewSize = templateConfig((documentState || state).template).preview;
+    var previewSize = templatePreviewSize((documentState || state).template, documentState || state);
     var renderScale = Math.min(
       sourceCanvas.width / Math.max(1, previewSize.width),
       sourceCanvas.height / Math.max(1, previewSize.height)
@@ -12162,7 +13347,7 @@
     clearTimeout(saveTimer);
     suspendAutoSave = true;
     try {
-      var size = templateConfig(exportTemplate).export;
+      var size = templateExportSize(exportTemplate, exportStateRef);
       output = document.createElement("canvas");
       output.width = size.width;
       output.height = size.height;

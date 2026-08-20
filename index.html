@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..900&amp;family=Cinzel:wght@400;500;600;700&amp;family=Gothic+A1:wght@300;400;500;600;700&amp;family=Gowun+Batang:wght@400;700&amp;family=Gowun+Dodum&amp;family=Italianno&amp;family=M+PLUS+Rounded+1c:wght@300;400;500;700&amp;family=Nanum+Brush+Script&amp;family=Nanum+Pen+Script&amp;family=Noto+Serif+JP:wght@300;400;600;700&amp;family=Noto+Serif+KR:wght@300;400;600;700&amp;family=Song+Myung&amp;family=Zen+Kurenaido&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-  <link rel="stylesheet" href="ticket-editor.css?v=135">
-  <link rel="stylesheet" href="ticket-editor-v14.css?v=133">
-  <link rel="stylesheet" href="ticket-templates-v1.css?v=133">
+  <link rel="stylesheet" href="ticket-editor.css?v=139">
+  <link rel="stylesheet" href="ticket-editor-v14.css?v=147">
+  <link rel="stylesheet" href="ticket-templates-v1.css?v=137">
 </head>
 <body>
   <section class="template-entry" id="templateEntry" aria-label="템플릿 선택">
@@ -25,8 +25,8 @@
       </header>
       <main class="entry-main">
         <aside class="entry-meta" aria-label="서비스 정보">
-          <span class="entry-count" id="templateCount">04 TEMPLATES</span>
-          <span class="entry-version" id="entryVersion">VERSION 0.1.1</span>
+          <span class="entry-count" id="templateCount">05 TEMPLATES</span>
+          <span class="entry-version" id="entryVersion">VERSION 0.1.2</span>
           <footer class="entry-credit"><span>© 2026 @gim. All rights reserved.</span></footer>
         </aside>
         <section class="entry-catalog" aria-label="템플릿 목록">
@@ -52,6 +52,11 @@
               <span class="entry-card-copy"><small>ARCHIVE FORMAT 04</small><strong>POLAROID MEMORY</strong><span>사진과 대표 대사, 짧은 기억을 함께 품은 한 장의 폴라로이드</span><em>편집 열기 →</em></span>
               <span class="entry-spec" aria-hidden="true"><b>PORTRAIT PHOTO</b><small>2460 × 3000</small><i>FRONT / BACK</i></span>
             </button>
+            <button class="entry-card" data-start-template="ott">
+              <span class="entry-index">05</span>
+              <span class="entry-card-copy"><small>ARCHIVE FORMAT 05</small><strong>OTT MEMORY</strong><span>재생 장면의 자막과 멈춘 화면의 작품 정보를 한 쌍으로</span><em>편집 열기 →</em></span>
+              <span class="entry-spec" aria-hidden="true"><b>16:9 STREAM</b><small>3200 × 1800</small><i>PLAYBACK / INFO</i></span>
+            </button>
           </div>
         </section>
       </main>
@@ -65,9 +70,9 @@
         <button class="icon-btn panel-toggle" id="toggleLayersBtn" title="레이어 패널 접기" aria-label="레이어 패널 접기" aria-pressed="false">☷</button>
         <button class="icon-btn panel-toggle" id="toggleInspectorBtn" title="속성 패널 접기" aria-label="속성 패널 접기" aria-pressed="false">◫</button>
       </div>
-      <div class="document-state"><strong id="documentName">TRAIN TICKET</strong><span id="saveState">브라우저에 자동 저장</span></div>
+      <div class="document-state"><strong id="documentName">TRAIN TICKET</strong><span id="saveState">브라우저에 자동 저장</span><label class="train-theme-control ott-aspect-control" id="ottAspectControl"><span>RATIO</span><select id="ottAspectSelect" aria-label="OTT 화면 비율"><option value="16x9">16 : 9 · 3200 × 1800</option><option value="1216x832">1216 × 832 · 3200 × 2190</option></select></label></div>
       <div class="top-actions">
-        <button class="btn text" id="openTemplateBtn">티켓 선택</button>
+        <button class="btn text" id="openTemplateBtn">템플릿 선택</button>
         <button class="btn text ui-theme-toggle" id="uiThemeBtn" aria-label="편집 UI 테마 전환">다크 모드</button>
         <button class="btn import-json-action" id="importJsonBtn" type="button" title="저장한 편집 데이터 JSON 불러오기">JSON 불러오기</button>
         <input id="importJsonInput" type="file" accept="application/json,.json" aria-label="편집 데이터 JSON 파일 선택" hidden>
@@ -79,7 +84,7 @@
             <button class="btn primary" id="allPngBtn" type="button"><strong>전체 이미지</strong><span>FRONT · BACK · BOTH</span></button>
             <button class="btn secondary" id="zipBtn" type="button"><strong>게시용 ZIP</strong><span>JSON과 이미지 부품</span></button>
             <button class="export-help-button" id="exportHelpBtn" aria-expanded="false" aria-controls="exportHelp" title="내보내기 도움말">?</button>
-            <div class="export-help" id="exportHelp" hidden><b>EXPORT</b><p><strong>JSON</strong> 나중에 다시 불러올 수 있는 편집 데이터</p><p><strong>현재 면</strong> 현재 FRONT, BACK 또는 BOTH 보기 한 장</p><p><strong>전체 이미지</strong> FRONT · BACK · BOTH를 ZIP 한 개로 저장</p><p><strong>게시용 ZIP</strong> 글에서 조립할 JSON과 용량 최적화 이미지 부품</p></div>
+            <div class="export-help" id="exportHelp" hidden><b>EXPORT</b><p><strong>JSON</strong> 나중에 다시 불러올 수 있는 편집 데이터</p><p><strong>현재 면</strong> 현재 FRONT, BACK 또는 BOTH 보기 한 장</p><p id="allPngHelp"><strong>전체 이미지</strong> FRONT · BACK · BOTH를 ZIP 한 개로 저장</p><p><strong>게시용 ZIP</strong> 글에서 조립할 JSON과 용량 최적화 이미지 부품</p></div>
           </div>
         </details>
       </div>
@@ -180,6 +185,14 @@
                 </div>
                 <div class="paper-texture" id="frontTexture" data-canvas-layer="texture"></div>
                 <div class="effect-layer" id="frontEffects" data-canvas-layer="effects"></div>
+                <div class="ott-player-chrome">
+                  <span class="ott-player-progress" data-canvas-layer="ott-progress"><i></i></span>
+                  <span class="ott-player-status">
+                    <b class="ott-player-mark" id="ottPlayMarkPreview" data-canvas-layer="ott-play-mark">▶</b>
+                    <em class="ott-player-time" data-canvas-layer="ott-time"><span id="ottTimeCurrentPreview">23:48</span><span class="ott-player-time-split">/</span><span id="ottTimeTotalPreview">47:12</span></em>
+                    <small class="ott-player-tag" id="ottTagPreview" data-canvas-layer="ott-quality">CC&nbsp;&nbsp;HD</small>
+                  </span>
+                </div>
                 <div class="ticket-frame-layer" id="frontFrameLayer">
                   <span class="ticket-inner-frame" data-canvas-layer="frame"></span>
                   <span class="train-main-frame" data-canvas-layer="main-frame">
@@ -240,6 +253,7 @@ Some journeys remain long after arrival.</p>
                 </div>
                 <div class="paper-texture" id="backTexture" data-canvas-layer="texture"></div>
                 <div class="effect-layer" id="backEffects" data-canvas-layer="effects"></div>
+                <div class="ott-info-scrim" data-export-decor="true" aria-hidden="true"><span>Ⅱ</span></div>
                 <div class="ticket-frame-layer" id="backFrameLayer">
                   <span class="ticket-inner-frame" data-canvas-layer="frame">
                     <span class="cinema-table-lines" aria-hidden="true">
@@ -354,10 +368,8 @@ Some journeys remain long after arrival.</p>
             <div class="inspector-group layer-style-inspector" data-inspector="layer-style">
               <div class="inspector-subheading"><span>LAYER STYLE</span></div>
               <div class="quote-style-controls text-color-mode-fields" id="layerTextColorModeFields">
-                <span class="control-label">글자 색상 방식</span>
-                <div class="quote-effect-options" role="radiogroup" aria-label="선택한 글자 레이어의 색상 방식">
-                  <label><input type="radio" name="layerTextColorMode" value="difference"><span>자동 반전</span></label>
-                  <label><input type="radio" name="layerTextColorMode" value="solid" checked><span>지정 색상</span></label>
+                <div class="compact-grid one-up">
+                  <label><span>글자 색상 방식</span><select id="layerTextColorMode" aria-label="선택한 글자 레이어의 색상 방식"><option value="solid">지정 색상</option><option value="difference">자동 반전</option><option value="none">투명</option></select></label>
                 </div>
                 <small id="layerTextColorModeHint">선택한 글자색을 그대로 사용합니다.</small>
               </div>
@@ -370,7 +382,7 @@ Some journeys remain long after arrival.</p>
                   <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="layer">시스템 글꼴</button>
                 </div>
                 <div class="font-source-panel" data-font-panel="app" data-font-target="layer">
-                  <select id="layerFontFamily" class="font-preview-select"><option value="">Template default</option><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
+                  <select id="layerFontFamily" class="font-preview-select"><option value="">Template default</option><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="gulim">Gulim · 굴림</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
                 </div>
                 <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="layer" hidden>
                   <button type="button" class="system-font-browse" data-system-font-browse="layer">내 컴퓨터 글꼴 보기</button>
@@ -395,6 +407,20 @@ Some journeys remain long after arrival.</p>
                 <p class="field-note">공통 색상은 전체 장식을 바꾸고, 개별 색상을 켜면 현재 프레임·장식·로고에만 적용됩니다.</p>
               </div>
               <button class="text-btn" id="layerStyleReset" type="button">레이어 스타일 모두 원래대로</button>
+            </div>
+
+            <div class="inspector-group ott-subtitle-inspector" data-inspector="ott-subtitle">
+              <div class="inspector-subheading"><span>OTT SUBTITLE</span><strong>자막 배경</strong></div>
+              <label class="layer-color-mode"><input type="checkbox" id="ottSubtitleBackgroundEnabled"><span>단색 배경 사용</span></label>
+              <label class="color-control"><span>배경 색상</span><span class="color-reset-row"><input type="color" id="ottSubtitleBackgroundColor" value="#000000"><code id="ottSubtitleBackgroundColorCode">#000000</code></span></label>
+              <div class="range-field"><span><strong>배경 불투명도</strong><output id="ottSubtitleBackgroundOpacityOut">100%</output></span><input id="ottSubtitleBackgroundOpacityRange" type="range" min="0" max="100" value="100"></div>
+              <p class="field-note">영상 재생 화면의 자막 뒤에만 적용되며 정보칸에는 영향을 주지 않습니다.</p>
+            </div>
+
+            <div class="inspector-group ott-progress-inspector" data-inspector="ott-progress">
+              <div class="inspector-subheading"><span>OTT PROGRESS</span><strong>재생 막대</strong></div>
+              <div class="range-field"><span><strong>채워진 정도</strong><label class="view-number effect-value"><input id="ottProgressInput" type="number" min="0" max="100" step="0.5" value="38" aria-label="재생 막대 채워진 정도 직접 입력"><span>%</span></label></span><input id="ottProgressRange" type="range" min="0" max="100" step="0.5" value="38" aria-label="재생 막대 채워진 정도"></div>
+              <p class="field-note">막대 색상은 아래 LAYER STYLE의 색상에서 바꿉니다.</p>
             </div>
 
             <div class="inspector-group" data-inspector="quote-options">
@@ -438,6 +464,7 @@ Some journeys remain long after arrival.</p>
                 <button class="font-nanum-brush" data-font="nanum-brush">Nanum Brush Script</button>
                 <button class="font-nanum-pen" data-font="nanum-pen">Nanum Pen Script</button>
                 <button class="font-italianno" data-font="italianno">Italianno · Handwriting</button>
+                <button class="font-gulim" data-font="gulim">Gulim · 굴림</button>
               </div>
               </div>
               <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="global" hidden>
@@ -567,7 +594,7 @@ Some journeys remain long after arrival.</p>
               <div class="compact-grid"><label><span>세피아 %</span><input id="sepiaInput" type="number" min="0" max="100" value="0"></label><label><span>흑백 %</span><input id="grayscaleInput" type="number" min="0" max="100" value="0"></label></div>
               <div class="range-field"><span><strong>비네트</strong><label class="view-number effect-value"><input id="vignetteOut" type="number" min="-100" max="100" value="0" step="1" aria-label="비네트 수치"><span>%</span></label></span><input id="vignetteRange" type="range" min="-100" max="100" value="0" step="1"></div>
               <div class="range-field"><span><strong>컬러 오버레이</strong><label class="view-number effect-value"><input id="overlayOut" type="number" min="0" max="100" value="0" step="1" aria-label="컬러 오버레이 수치"><span>%</span></label></span><input id="overlayRange" type="range" min="0" max="100" value="0" step="1"></div>
-              <div class="compact-grid"><label><span>오버레이 색</span><input id="overlayColorInput" type="color" value="#6f3f43"></label><label><span>혼합</span><select id="overlayBlendInput"><option value="multiply">Multiply</option><option value="soft-light">Soft light</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="normal">Normal</option></select></label></div>
+              <div class="compact-grid"><label class="color-control overlay-color-control"><span>오버레이 색</span><input id="overlayColorInput" type="color" value="#6f3f43"><code id="overlayColorCode">#6F3F43</code></label><label><span>혼합</span><select id="overlayBlendInput"><option value="multiply">Multiply</option><option value="soft-light">Soft light</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="normal">Normal</option></select></label></div>
               <p class="field-note">효과값은 이미지마다 독립 저장됩니다. 블러는 이미지 전체 픽셀에 적용됩니다.</p>
               <button class="text-btn" id="resetEffectsBtn" type="button">효과 초기화</button>
             </div>
@@ -588,10 +615,8 @@ Some journeys remain long after arrival.</p>
                 <p class="field-note">복제한 복합 블록은 줄마다 원본 글자 크기와 서식을 유지한 채 수정됩니다.</p>
                 <div class="legacy-custom-typography" hidden aria-hidden="true">
                 <div class="quote-style-controls text-color-mode-fields">
-                  <span class="control-label">글자 색상 방식</span>
-                  <div class="quote-effect-options" role="radiogroup" aria-label="사용자 텍스트 색상 방식">
-                    <label><input type="radio" name="customTextColorMode" value="difference"><span>자동 반전</span></label>
-                    <label><input type="radio" name="customTextColorMode" value="solid" checked><span>지정 색상</span></label>
+                  <div class="compact-grid one-up">
+                    <label><span>글자 색상 방식</span><select id="customTextColorMode" aria-label="사용자 텍스트 레이어의 색상 방식"><option value="solid">지정 색상</option><option value="difference">자동 반전</option><option value="none">투명</option></select></label>
                   </div>
                   <small id="customTextColorModeHint">선택한 글자색을 그대로 사용합니다.</small>
                 </div>
@@ -608,7 +633,7 @@ Some journeys remain long after arrival.</p>
                   <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="custom">시스템 글꼴</button>
                 </div>
                 <div class="font-source-panel" data-font-panel="app" data-font-target="custom">
-                  <select id="customTextFont" class="font-preview-select"><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
+                  <select id="customTextFont" class="font-preview-select"><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="gulim">Gulim · 굴림</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
                 </div>
                 <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="custom" hidden>
                   <button type="button" class="system-font-browse" data-system-font-browse="custom">내 컴퓨터 글꼴 보기</button>
@@ -630,8 +655,8 @@ Some journeys remain long after arrival.</p>
                 <p class="field-note">투명 PNG·WebP의 알파 채널을 그대로 보존하며 흰색이나 검정 배경을 추가하지 않습니다.</p>
               </div>
               <div data-custom-fields="shape">
-                <div class="compact-grid"><label><span>도형</span><select id="customShapeType"><option value="rectangle">사각형</option><option value="ellipse">원 · 타원</option><option value="triangle">삼각형</option><option value="star">별</option></select></label><label><span>채우기</span><select id="customShapeFillMode"><option value="color">단색</option><option value="image">이미지</option></select></label></div>
-                <div id="customShapeColorFields"><label class="color-control"><span>채우기 색상</span><input id="customShapeFillColor" type="color" value="#b87977"><code id="customShapeFillColorCode">#B87977</code></label></div>
+                <div class="compact-grid"><label><span>도형</span><select id="customShapeType"><option value="rectangle">사각형</option><option value="ellipse">원 · 타원</option><option value="triangle">삼각형</option><option value="star">별</option></select></label><label><span>채우기</span><select id="customShapeFillMode"><option value="color">단색</option><option value="image">이미지</option><option value="none">채우기 없음</option></select></label></div>
+                <div id="customShapeColorFields"><label class="color-control"><span>채우기 색상</span><input id="customShapeFillColor" type="color" value="#b87977"><code id="customShapeFillColorCode">#B87977</code></label></div><p class="field-note" id="customShapeFillNote" hidden>속을 비웁니다. 외곽선만 남으니 STROKE를 함께 켜 보세요.</p>
                 <div id="customShapeImageFields" hidden>
                   <input class="sr-only" type="file" id="customShapeImageInput" accept="image/png,image/jpeg,image/webp,image/gif">
                   <div class="shape-image-actions"><label class="text-btn shape-image-file-button" id="chooseCustomShapeImageBtn" for="customShapeImageInput" aria-describedby="customShapeImageName">파일 불러오기</label><button class="text-btn" id="removeCustomShapeImageBtn" type="button">이미지 제거</button></div>
@@ -695,6 +720,14 @@ Some journeys remain long after arrival.</p>
               <label class="switch-row"><span><strong>아래 레이어에 클리핑</strong><small id="clippingTargetHint">현재 레이어를 바로 아래의 보이는 레이어 모양으로 자릅니다.</small></span><input type="checkbox" id="layerClippingToggle"></label>
             </div>
 
+            <div class="stroke-inspector" id="strokeInspector">
+              <div class="inspector-subheading"><span>STROKE</span><strong>윤곽선</strong></div>
+              <label class="switch-row"><span><strong>윤곽선 사용</strong><small>현재 텍스트·이미지·도형 레이어에 적용</small></span><input type="checkbox" id="strokeEnabled"></label>
+              <label class="color-control"><span>윤곽선 색상</span><input type="color" id="strokeColor" value="#000000"><code id="strokeColorCode">#000000</code></label>
+              <div class="range-field stroke-width-field"><span><strong>선 굵기</strong><label class="view-number effect-value"><input id="strokeWidthOut" type="number" min="0" max="40" value="0" step="0.5" aria-label="윤곽선 굵기"><span>px</span></label></span></div>
+              <label class="switch-row"><span><strong>윤곽선 둥글게</strong><small>텍스트·이미지·도형 윤곽선의 모서리를 부드럽게 연결</small></span><input type="checkbox" id="strokeRound" checked></label>
+            </div>
+
             <div class="shadow-inspector" id="shadowInspector">
               <div class="inspector-subheading"><span>SHADOW</span><strong>그림자</strong></div>
               <label class="switch-row"><span><strong>그림자 사용</strong><small>현재 선택한 레이어에만 적용</small></span><input type="checkbox" id="shadowEnabled"></label>
@@ -733,8 +766,9 @@ Some journeys remain long after arrival.</p>
   <div class="toast" id="toast" role="status"></div>
   <script src="train-logo-asset.js?v=131" defer></script>
   <script src="train-frame-assets.js?v=131" defer></script>
-  <script src="html2canvas.min.js?v=131" defer></script>
-  <script src="layout-presets.js?v=131" defer></script>
-  <script src="ticket-editor.js?v=138" defer></script>
+  <script src="html2canvas.min.js?v=134" defer></script>
+  <script src="postcard-stamp-asset.js?v=1" defer></script>
+  <script src="layout-presets.js?v=138" defer></script>
+  <script src="ticket-editor.js?v=159" defer></script>
 </body>
 </html>

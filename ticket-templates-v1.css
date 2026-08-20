@@ -1309,7 +1309,11 @@ body.exporting-ticket #ticket.postcard > .ticket-face { box-shadow: none !import
   right: 0 !important;
   left: 0 !important;
   height: 1px !important;
-  background: currentColor !important;
+  /* Resolve the rule ink from the same token used by every frame/ornament
+     layer.  Using currentColor here made the generated pseudo-element keep
+     its captured colour in some editor/export paths even after the owning
+     layer's individual colour changed. */
+  background: var(--layer-custom-color, var(--ticket-accent)) !important;
   transform: translateY(-.5px) !important;
   pointer-events: none !important;
 }
