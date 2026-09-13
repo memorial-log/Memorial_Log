@@ -1,0 +1,36 @@
+/* Layout-only scaffolding. User color, typography and transforms live in state. */
+#ticket.train.train-summer .ticket-face { overflow:hidden !important; background:#fff; --rail-ink:var(--ticket-accent); }
+#ticket.train.train-summer .ticket-face :is(.train-back-record-rules,.train-back-image-frame,.train-handwritten-note,.train-stub-divider,.train-stub-frame,.ticket-frame-layer,.train-main-serial-row::before) { display:none !important; }
+#ticket.train.train-summer .custom-layer-object { text-shadow:none; }
+#ticket.train.train-summer .block-main { width:68.2%; }
+#ticket.train.train-summer .block-stub { left:68.2%; width:31.8%; }
+
+/* Only the perimeter and perforation strokes capture clicks, not their box. */
+#ticket.train.train-summer .summer-outline-layer,
+#ticket.train.train-summer .summer-outline-layer > * { pointer-events:none !important; }
+#ticket.train.train-summer .summer-outline-hit {
+  position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:5;
+}
+#ticket.train.train-summer .summer-outline-hit path { pointer-events:stroke !important; }
+
+#ticket.train.train-summer .ticket-front .image-main {
+  inset:auto !important;left:5.7604166667% !important;top:15.5416666667% !important;
+  width:58.4583333333% !important;height:62.3125% !important;
+  overflow:visible !important;border:0 !important;border-radius:0 !important;
+  mask:none !important;-webkit-mask:none !important;clip-path:none !important;
+}
+#ticket.train.train-summer .ticket-front .image-main .block-image-frame {
+  inset:0 !important;width:100% !important;height:100% !important;
+  border:0 !important;border-radius:0 !important;box-shadow:none !important;
+  overflow:hidden !important;mask:none !important;-webkit-mask:none !important;clip-path:none !important;
+  background:transparent !important;
+}
+#ticket.train.train-summer .image-main .block-image-frame::before,
+#ticket.train.train-summer .image-main .block-image-frame::after { display:none !important; }
+/* The border belongs to the frame, even with a transparent or contained photo. */
+#ticket.train.train-summer .ticket-front .image-main.layer-stroke-on::after {
+  content:"";position:absolute;inset:calc(-1 * var(--layer-stroke-width));
+  border:var(--layer-stroke-width) solid var(--layer-stroke-color);border-radius:0;
+  box-sizing:border-box;pointer-events:none;z-index:10;
+  background:none;mask:none;-webkit-mask:none;filter:none;
+}

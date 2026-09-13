@@ -12,8 +12,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..900&amp;family=Cinzel:wght@400;500;600;700&amp;family=Gothic+A1:wght@300;400;500;600;700&amp;family=Gowun+Batang:wght@400;700&amp;family=Gowun+Dodum&amp;family=Italianno&amp;family=M+PLUS+Rounded+1c:wght@300;400;500;700&amp;family=Nanum+Brush+Script&amp;family=Nanum+Pen+Script&amp;family=Noto+Serif+JP:wght@300;400;600;700&amp;family=Noto+Serif+KR:wght@300;400;600;700&amp;family=Song+Myung&amp;family=Zen+Kurenaido&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <link rel="stylesheet" href="ticket-editor.css?v=139">
-  <link rel="stylesheet" href="ticket-editor-v14.css?v=147">
-  <link rel="stylesheet" href="ticket-templates-v1.css?v=137">
+  <link rel="stylesheet" href="ticket-editor-v14.css?v=20260913-photo-cleanup1">
+  <link rel="stylesheet" href="ticket-templates-v1.css?v=163">
+<link rel="stylesheet" href="train-autumn-fonts.css?v=1">
+<link rel="stylesheet" href="train-autumn.css?v=2">
+  <link rel="stylesheet" href="train-winter.css?v=1">
+  <link rel="stylesheet" href="train-winter-fonts.css?v=1">
+  <link rel="stylesheet" href="season-display-fonts.css?v=2">
+  <link rel="stylesheet" href="train-summer.css?v=20260913-outline-hit1">
 </head>
 <body>
   <section class="template-entry" id="templateEntry" aria-label="템플릿 선택">
@@ -70,7 +76,7 @@
         <button class="icon-btn panel-toggle" id="toggleLayersBtn" title="레이어 패널 접기" aria-label="레이어 패널 접기" aria-pressed="false">☷</button>
         <button class="icon-btn panel-toggle" id="toggleInspectorBtn" title="속성 패널 접기" aria-label="속성 패널 접기" aria-pressed="false">◫</button>
       </div>
-      <div class="document-state"><strong id="documentName">TRAIN TICKET</strong><span id="saveState">브라우저에 자동 저장</span><label class="train-theme-control ott-aspect-control" id="ottAspectControl"><span>RATIO</span><select id="ottAspectSelect" aria-label="OTT 화면 비율"><option value="16x9">16 : 9 · 3200 × 1800</option><option value="1216x832">1216 × 832 · 3200 × 2190</option></select></label></div>
+      <div class="document-state"><strong id="documentName">TRAIN TICKET</strong><span id="saveState">브라우저에 자동 저장</span><label class="train-theme-control" id="trainThemeControl" hidden><span>THEME</span><select id="trainThemeSelect" aria-label="기차 티켓 테마"><option value="train">빈티지 열차</option><option value="train-spring">사계절 · 봄</option><option value="train-summer">사계절 · 여름</option><option value="train-autumn">사계절 · 가을</option><option value="train-winter">사계절 · 겨울</option></select></label><label class="train-theme-control ott-aspect-control" id="ottAspectControl"><span>RATIO</span><select id="ottAspectSelect" aria-label="OTT 화면 비율"><option value="16x9">16 : 9 · 3200 × 1800</option><option value="1216x832">1216 × 832 · 3200 × 2190</option></select></label></div>
       <div class="top-actions">
         <button class="btn text" id="openTemplateBtn">템플릿 선택</button>
         <button class="btn text ui-theme-toggle" id="uiThemeBtn" aria-label="편집 UI 테마 전환">다크 모드</button>
@@ -106,6 +112,7 @@
               <button type="button" data-add-shape="ellipse">원 · 타원</button>
               <button type="button" data-add-shape="triangle">삼각형</button>
               <button type="button" data-add-shape="star">별</button>
+              <button type="button" data-add-shape="heart">하트</button>
             </div>
           </div>
         </div>
@@ -382,7 +389,7 @@ Some journeys remain long after arrival.</p>
                   <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="layer">시스템 글꼴</button>
                 </div>
                 <div class="font-source-panel" data-font-panel="app" data-font-target="layer">
-                  <select id="layerFontFamily" class="font-preview-select"><option value="">Template default</option><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="gulim">Gulim · 굴림</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
+                  <select id="layerFontFamily" class="font-preview-select"><option value="">Template default</option><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="gulim">Gulim · 굴림</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="bodoni-moda">Bodoni Moda</option><option value="bodoni-archive">Bodoni Archive</option><option value="prata">Prata</option><option value="memorial-winter">Memorial Winter</option><option value="memorial-didone">Memorial Didone · Autumn</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
                 </div>
                 <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="layer" hidden>
                   <button type="button" class="system-font-browse" data-system-font-browse="layer">내 컴퓨터 글꼴 보기</button>
@@ -586,6 +593,14 @@ Some journeys remain long after arrival.</p>
 
             <div class="inspector-group effects-inspector" data-inspector="image-main image-stub custom-image shape-image-effects">
               <div class="inspector-subheading"><span>IMAGE EFFECTS</span><strong>선택한 이미지에만 적용</strong></div>
+              <label class="switch-row"><span><strong>전체 이미지 효과</strong><small>원본을 보존하며 효과만 켜고 끄기</small></span><input type="checkbox" id="imageEffectsToggle" checked></label>
+              <div class="winter-filter-controls" id="winterFilterControls" hidden><label class="switch-row"><span><strong>겨울 필터 레이어</strong><small>원본 이미지 위에 적용되는 블러와 필름 질감</small></span><input type="checkbox" id="winterFilmToggle" checked></label><div class="range-field"><span><strong>블러</strong><input id="winter-blur-out" type="number" min="0" max="50" step="1" aria-label="블러 수치"></span><input id="winter-blur" type="range" min="0" max="50" step="1"></div><div class="range-field"><span><strong>그레인</strong><input id="winter-grain-out" type="number" min="0" max="100" step="1" aria-label="그레인 수치"></span><input id="winter-grain" type="range" min="0" max="100" step="1"></div><div class="range-field"><span><strong>푸른 색감</strong><input id="winter-tone-out" type="number" min="0" max="100" step="1" aria-label="푸른 색감 수치"></span><input id="winter-tone" type="range" min="0" max="100" step="1"></div><div class="range-field"><span><strong>밝은 베일</strong><input id="winter-wash-out" type="number" min="0" max="100" step="1" aria-label="밝은 베일 수치"></span><input id="winter-wash" type="range" min="0" max="100" step="1"></div><label>필터 색상 <input id="winter-color" type="color" value="#2936ff"></label></div><div id="winterInkControls" hidden><label>아트 색상 <input id="winterInkColor" type="color" value="#2024f4"></label></div><div class="film-filter-controls" id="filmFilterControls">
+                <label class="switch-row"><span><strong>필름 필터 레이어</strong><small>부드러운 필름 색감과 선명한 글자</small></span><input type="checkbox" id="filmLayerToggle" checked></label>
+                <div class="range-field"><span><strong>필름 톤</strong><label class="view-number effect-value"><input id="filmToneOut" type="number" min="0" max="100" value="0" step="1" aria-label="필름 톤 수치"><span>%</span></label></span><input id="filmToneRange" type="range" min="0" max="100" value="0" step="1"></div>
+                <div class="range-field"><span><strong>글자 뒤 어둡게</strong><label class="view-number effect-value"><input id="filmShadeOut" type="number" min="0" max="100" value="0" step="1" aria-label="글자 뒤 어두움 수치"><span>%</span></label></span><input id="filmShadeRange" type="range" min="0" max="100" value="0" step="1"></div>
+              <div class="range-field" id="springFilmBlurControl" hidden><span><strong>블러</strong><input id="springFilmBlurOut" type="number" min="0" max="50" value="0" step="1" aria-label="필름 블러 수치"></span><input id="springFilmBlurRange" type="range" min="0" max="50" value="0" step="1"></div>
+              <div class="range-field"><span><strong>필름 그레인</strong><label class="view-number effect-value"><input id="grainOut" type="number" min="0" max="100" value="0" step="1" aria-label="필름 그레인 수치"><span>%</span></label></span><input id="grainRange" type="range" min="0" max="100" value="0" step="1"></div>
+              </div>
               <div class="range-field"><span><strong>블러</strong><label class="view-number effect-value"><input id="blurOut" type="number" min="0" max="12" value="0" step="0.5" aria-label="블러 수치"><span>px</span></label></span><input id="blurRange" type="range" min="0" max="12" value="0" step="0.5"></div>
               <div class="range-field"><span><strong>밝기</strong><label class="view-number effect-value"><input id="brightOut" type="number" min="-100" max="100" value="0" step="1" aria-label="밝기 수치"><span>%</span></label></span><input id="brightRange" type="range" min="-100" max="100" value="0"></div>
               <div class="range-field"><span><strong>채도</strong><label class="view-number effect-value"><input id="satOut" type="number" min="-100" max="100" value="0" step="1" aria-label="채도 수치"><span>%</span></label></span><input id="satRange" type="range" min="-100" max="100" value="0"></div>
@@ -612,6 +627,8 @@ Some journeys remain long after arrival.</p>
                   <span id="customPartialTextStatus">텍스트에서 서식을 다르게 할 부분을 선택하세요.</span>
                   <button class="text-btn" id="clearCustomPartialStyle" type="button" disabled>선택 부분 서식 지우기</button>
                 </div>
+                <button class="text-btn" id="trimCustomTextBoundsBtn" type="button" hidden>텍스트 여백 줄이기</button>
+                <p class="field-note">투명색 글자도 실제 글자 영역을 기준으로 선택 상자를 줄이며, 화면에서 보이는 글자 위치는 유지합니다.</p>
                 <p class="field-note">복제한 복합 블록은 줄마다 원본 글자 크기와 서식을 유지한 채 수정됩니다.</p>
                 <div class="legacy-custom-typography" hidden aria-hidden="true">
                 <div class="quote-style-controls text-color-mode-fields">
@@ -633,7 +650,7 @@ Some journeys remain long after arrival.</p>
                   <button type="button" role="tab" aria-selected="false" data-font-tab="system" data-font-target="custom">시스템 글꼴</button>
                 </div>
                 <div class="font-source-panel" data-font-panel="app" data-font-target="custom">
-                  <select id="customTextFont" class="font-preview-select"><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="gulim">Gulim · 굴림</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
+                  <select id="customTextFont" class="font-preview-select"><option value="noto-serif">Noto Serif KR</option><option value="pretendard">Pretendard</option><option value="gowun-batang">Gowun Batang</option><option value="song-myung">Song Myung</option><option value="gowun-dodum">Gowun Dodum</option><option value="gothic-a1">Gothic A1</option><option value="gulim">Gulim · 굴림</option><option value="noto-serif-jp">Noto Serif JP · 明朝</option><option value="m-plus-rounded-1c">M PLUS Rounded 1c · 丸ゴシック</option><option value="zen-kurenaido">Zen Kurenaido · 手書き</option><option value="bodoni-moda">Bodoni Moda</option><option value="bodoni-archive">Bodoni Archive</option><option value="prata">Prata</option><option value="memorial-winter">Memorial Winter</option><option value="memorial-didone">Memorial Didone · Autumn</option><option value="cinzel">Cinzel</option><option value="nanum-brush">Nanum Brush Script</option><option value="nanum-pen">Nanum Pen Script</option><option value="italianno">Italianno · Handwriting</option></select>
                 </div>
                 <div class="font-source-panel system-font-panel" data-font-panel="system" data-font-target="custom" hidden>
                   <button type="button" class="system-font-browse" data-system-font-browse="custom">내 컴퓨터 글꼴 보기</button>
@@ -652,10 +669,16 @@ Some journeys remain long after arrival.</p>
                 <label class="upload-zone"><input type="file" id="customImageReplaceInput" accept="image/png,image/jpeg,image/webp,image/gif"><strong>이미지 교체</strong><small id="customImageName">선택한 파일 없음</small></label>
                 <label class="field-label" for="customImageFit">맞춤</label>
                 <select id="customImageFit"><option value="contain">비율 유지 · 전체 표시</option><option value="cover">영역 채우기</option></select>
-                <p class="field-note">투명 PNG·WebP의 알파 채널을 그대로 보존하며 흰색이나 검정 배경을 추가하지 않습니다.</p>
+                <button class="text-btn" id="trimCustomImageAlphaBtn" type="button" hidden>투명 여백 줄이기</button>
+                <p class="field-note">투명 PNG·WebP의 알파 채널을 그대로 보존하며 흰색이나 검정 배경을 추가하지 않습니다. GIF는 투명 여백 줄이기를 지원하지 않습니다.</p>
               </div>
               <div data-custom-fields="shape">
-                <div class="compact-grid"><label><span>도형</span><select id="customShapeType"><option value="rectangle">사각형</option><option value="ellipse">원 · 타원</option><option value="triangle">삼각형</option><option value="star">별</option></select></label><label><span>채우기</span><select id="customShapeFillMode"><option value="color">단색</option><option value="image">이미지</option><option value="none">채우기 없음</option></select></label></div>
+                <div class="compact-grid"><label><span>도형</span><select id="customShapeType"><option value="rectangle">사각형</option><option value="ellipse">원 · 타원</option><option value="triangle">삼각형</option><option value="star">별</option><option value="heart">하트</option><option value="arch">아치</option><option value="summer-foam-behind">여름 포말 · 사진 뒤</option><option value="summer-foam-over">여름 포말 · 사진 위</option><option value="summer-foam-letter">여름 포말 · 편지</option></select></label><label><span>채우기</span><select id="customShapeFillMode"><option value="color">단색</option><option value="image">이미지</option><option value="none">채우기 없음</option></select></label></div>
+                <div id="customShapeStarPointsFields" hidden>
+                  <label class="field-label" for="customShapeStarPoints">별 꼭짓점 수</label>
+                  <input id="customShapeStarPoints" type="number" min="3" max="20" value="5" step="1" inputmode="numeric" aria-describedby="customShapeStarPointsNote">
+                  <p class="field-note" id="customShapeStarPointsNote">바깥쪽으로 뾰족하게 나온 꼭짓점 수를 3~20개로 조절합니다.</p>
+                </div>
                 <div id="customShapeColorFields"><label class="color-control"><span>채우기 색상</span><input id="customShapeFillColor" type="color" value="#b87977"><code id="customShapeFillColorCode">#B87977</code></label></div><p class="field-note" id="customShapeFillNote" hidden>속을 비웁니다. 외곽선만 남으니 STROKE를 함께 켜 보세요.</p>
                 <div id="customShapeImageFields" hidden>
                   <input class="sr-only" type="file" id="customShapeImageInput" accept="image/png,image/jpeg,image/webp,image/gif">
@@ -671,7 +694,7 @@ Some journeys remain long after arrival.</p>
                   <label class="switch-row"><span><strong>모서리별 설정</strong><small>끄면 모든 모서리를 함께 조절</small></span><input id="customShapeCornerMode" type="checkbox"></label>
                   <div class="range-field" id="customShapeCornerAllRow"><span><strong>모서리 둥글기</strong><label class="view-number shape-corner-value"><input id="customShapeCornerAllNumber" type="number" min="0" max="50" value="0" step="1" aria-label="전체 모서리 둥글기 직접 입력"><span>%</span></label></span><input id="customShapeCornerAll" type="range" min="0" max="50" value="0"></div>
                   <div class="shape-corner-grid" id="customShapeCornerIndividual" hidden></div>
-                  <p class="field-note">원은 크기 조절로 타원이 됩니다. 삼각형과 별은 각 영역 방향의 꼭짓점 둥글기를 조절합니다.</p>
+                  <p class="field-note">원은 크기 조절로 타원이 됩니다. 하트는 곡선형으로 고정되며, 삼각형과 별은 각 영역 방향의 꼭짓점 둥글기를 조절합니다.</p>
                 </div>
               </div>
               <div class="range-field"><span><strong>불투명도</strong><output id="customOpacityOut">100%</output></span><input id="customOpacityRange" type="range" min="0" max="100" value="100"></div>
@@ -765,10 +788,20 @@ Some journeys remain long after arrival.</p>
 
   <div class="toast" id="toast" role="status"></div>
   <script src="train-logo-asset.js?v=131" defer></script>
-  <script src="train-frame-assets.js?v=131" defer></script>
+  <script src="train-spring-logo-asset.js?v=1" defer></script>
+  <script src="train-spring-wordmark-asset.js?v=20260913-photo-cleanup1" defer></script>
+  <script src="train-spring-frame-assets.js?v=20260912-spring-no-diamonds19" defer></script>
+  <script src="train-frame-assets.js?v=20260913-assets-cleanup1" defer></script>
   <script src="html2canvas.min.js?v=134" defer></script>
   <script src="postcard-stamp-asset.js?v=1" defer></script>
-  <script src="layout-presets.js?v=138" defer></script>
-  <script src="ticket-editor.js?v=159" defer></script>
+  <script src="layout-presets.js?v=140" defer></script>
+  <script src="train-autumn-assets.js?v=20260913-photo-cleanup1" defer></script>
+  <script src="train-autumn-theme.js?v=20260913-photo-cleanup1" defer></script>
+  <script src="train-winter-assets.js?v=20260913-photo-cleanup1" defer></script>
+<script src="train-winter-theme.js?v=20260913-winter-back-header1" defer></script>
+<script src="train-summer-theme.js?v=20260913-empty-frame1" defer></script>
+<script src="season-display-fonts.js?v=2" defer></script>
+<script src="ticket-paper-texture-asset.js?v=20260913-export-match1" defer></script>
+<script src="ticket-editor.js?v=20260913-summer-empty-frame1" defer></script>
 </body>
 </html>

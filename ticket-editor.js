@@ -18,7 +18,7 @@
   var FACE_VIEW_VERSION = 1;
   var POSTCARD_WRITING_LINES = ["오늘의 온도를 오래 기억해.", "멀리 있어도 마음은 가까이.", "다시 만날 날을 기다리며.", "언제나 네 편인 내가."];
   var POSTCARD_WRITING_SAMPLE = POSTCARD_WRITING_LINES.join("\n");
-  var TEMPLATE_IDS = ["train", "cinema", "postcard", "polaroid", "ott"];
+  var TEMPLATE_IDS = ["train", "train-spring", "train-summer", "train-autumn", "train-winter", "cinema", "postcard", "polaroid", "ott"];
   var LAYOUT_PRESETS = Array.isArray(window.LOG_TICKET_LAYOUT_PRESETS) ? window.LOG_TICKET_LAYOUT_PRESETS : [];
   var TEMPLATE_CONFIG = {
     train: {
@@ -29,6 +29,39 @@
       preview: { width: 960, height: 480 }, export: { width: 3200, height: 1600 },
       silhouette: "train", textureTone: "paper", textureSeed: 7261,
       features: { perforation: true, mainImageOpeningMask: true, differenceQuote: true }
+    },
+    "train-spring": {
+      documentName: "TRAIN TICKET", resetName: "열차 · 봄", templateId: "spring-train-ticket-v1", templateVersion: 1,
+      family: "train", themeId: "spring",
+      sourceLabel: "FARE / ROUTE",
+      sideLabels: { front: "FRONT", back: "BACK", both: "BOTH" },
+      preview: { width: 960, height: 480 }, export: { width: 3200, height: 1600 },
+      silhouette: "train", textureTone: "paper", textureSeed: 7262,
+      features: { perforation: true, mainImageOpeningMask: false, differenceQuote: true }
+    },
+    "train-summer": {
+      documentName: "TRAIN TICKET", resetName: "열차 · 여름", templateId: "summer-train-ticket-v1", templateVersion: 1,
+      family: "train", themeId: "summer", sourceLabel: "FARE / ROUTE",
+      sideLabels: { front: "FRONT", back: "BACK", both: "BOTH" },
+      preview: { width: 960, height: 480 }, export: { width: 3200, height: 1600 },
+      silhouette: "train", textureTone: "paper", textureSeed: 7265,
+      features: { perforation: true, mainImageOpeningMask: false, differenceQuote: false }
+    },
+    "train-autumn": {
+      documentName: "TRAIN TICKET", resetName: "열차 · 가을", templateId: "autumn-train-ticket-v1", templateVersion: 1,
+      family: "train", themeId: "autumn", sourceLabel: "FARE / ROUTE",
+      sideLabels: { front: "FRONT", back: "BACK", both: "BOTH" },
+      preview: { width: 960, height: 480 }, export: { width: 3200, height: 1600 },
+      silhouette: "train", textureTone: "paper", textureSeed: 7264,
+      features: { perforation: true, mainImageOpeningMask: false, differenceQuote: true }
+    },
+    "train-winter": {
+      documentName: "TRAIN TICKET", resetName: "열차 · 겨울", templateId: "winter-train-ticket-v1", templateVersion: 1,
+      family: "train", themeId: "winter", sourceLabel: "FARE / ROUTE",
+      sideLabels: { front: "FRONT", back: "BACK", both: "BOTH" },
+      preview: { width: 960, height: 480 }, export: { width: 3200, height: 1600 },
+      silhouette: "train", textureTone: "paper", textureSeed: 7263,
+      features: { perforation: true, mainImageOpeningMask: false, differenceQuote: true }
     },
     cinema: {
       documentName: "CINEMA TICKET", resetName: "영화", templateId: "cinema-ticket-v10", templateVersion: 10,
@@ -119,6 +152,7 @@
     ott: { scale: .94, offsetX: .0404, offsetY: .0056 }
   };
   function trainSilhouetteShape() {
+    if (state && state.template === "train-summer") return window.LOG_TICKET_SUMMER_THEME.silhouette();
     return [
       [.018, 0], [.708, 0], [.728, .017], [.748, 0], [.982, 0], [1, .044],
       [1, .956], [.982, 1], [.748, 1], [.728, .983], [.708, 1], [.018, 1],
@@ -134,11 +168,13 @@
     return normalizedShapePolygon(trainSilhouetteShape());
   }
   function bothGeometryFor(template, side) {
-    var set = TEMPLATE_BOTH_GEOMETRY[safeTemplateId(template)] || TEMPLATE_BOTH_GEOMETRY.postcard;
+    var templateId = safeTemplateId(template);
+    var set = TEMPLATE_BOTH_GEOMETRY[templateId] || TEMPLATE_BOTH_GEOMETRY[templateFamilyId(templateId)] || TEMPLATE_BOTH_GEOMETRY.postcard;
     return set[side === "back" ? "back" : "front"];
   }
   function bothProjectionFor(template) {
-    return TEMPLATE_BOTH_EXPORT_PROJECTION[safeTemplateId(template)] || TEMPLATE_BOTH_EXPORT_PROJECTION.postcard;
+    var templateId = safeTemplateId(template);
+    return TEMPLATE_BOTH_EXPORT_PROJECTION[templateId] || TEMPLATE_BOTH_EXPORT_PROJECTION[templateFamilyId(templateId)] || TEMPLATE_BOTH_EXPORT_PROJECTION.postcard;
   }
   function projectedBothGeometryFor(template, side) {
     var geometry = bothGeometryFor(template, side);
@@ -453,7 +489,10 @@
     source: ["Seat Value", "TEXT"]
   };
   function templateLayerOrder(template) {
-    var nativeMap = TEMPLATE_LAYER_SIDES[template];
+    if (template === "train-summer") return ["face-shadow", "block-main", "block-stub", "image-main", "attribution"];
+    if (template === "train-autumn") return ["face-shadow", "block-main", "block-stub", "route-art", "texture", "attribution"];
+    if (template === "train-winter") return ["face-shadow", "block-main", "block-stub", "image-main", "route-art", "attribution"];
+    var nativeMap = TEMPLATE_LAYER_SIDES[template] || TEMPLATE_LAYER_SIDES[templateFamilyId(template)];
     if (!nativeMap) {
       return LAYER_ORDER.filter(function (key) {
         var definition = LAYER_DEFS.find(function (item) { return item.key === key; });
@@ -475,9 +514,15 @@
     "gowun-dodum": "'Gowun Dodum', sans-serif", "gothic-a1": "'Gothic A1', sans-serif",
     "noto-serif-jp": "'Noto Serif JP', serif", "m-plus-rounded-1c": "'M PLUS Rounded 1c', sans-serif",
     "zen-kurenaido": "'Zen Kurenaido', cursive",
+    "bodoni-moda": "'Bodoni Moda', serif",
+    "bodoni-archive": "'Bodoni Archive', serif",
+    prata: "'Prata', serif",
+    "memorial-winter": "'Memorial Winter', serif",
+    "memorial-didone": "'Memorial Didone', serif",
     cinzel: "Cinzel, serif", "nanum-brush": "'Nanum Brush Script', cursive",
     "nanum-pen": "'Nanum Pen Script', cursive",
     italianno: "Italianno, cursive",
+    "spring-flourish": "Italianno, cursive",
     gulim: "Gulim, '굴림', sans-serif"
   };
   var FONT_FAMILY_KEYS = Object.keys(FONT_FAMILY_MAP);
@@ -524,7 +569,7 @@
   });
   var defaultEffect = function () {
     return {
-      blur: 0, brightness: 100, saturation: 100, contrast: 100, hue: 0,
+      enabled: true, filmEnabled: true, filmTone: 0, readability: 0, grain: 0, blur: 0, brightness: 100, saturation: 100, contrast: 100, hue: 0,
       sepia: 0, grayscale: 0, vignette: 0, overlay: 0,
       overlayColor: "#6f3f43", overlayBlend: "multiply", vignetteSignedVersion: 1
     };
@@ -533,10 +578,18 @@
   var defaultBlock = function (color) {
     return { color: color, imageData: "", imageName: "", imageType: "", fit: "contain", zoom: 1, panX: 0, panY: 0, tintMode: "none", effect: defaultEffect() };
   };
-  var defaultTrainLogoBlock = function (color) {
+  function bundledTrainLogoSource(template) {
+    if (template === "train-winter") return "";
+    return template === "train-spring" ? window.LOG_TICKET_TRAIN_SPRING_LOGO_ASSET || "" : window.LOG_TICKET_TRAIN_LOGO_ASSET || "";
+  }
+  function bundledTrainLogoName(template) {
+    if (template === "train-winter") return "";
+    return template === "train-spring" ? "train-spring-flower-logo-v1.png" : "train-travel-logo-v4.png";
+  }
+  var defaultTrainLogoBlock = function (color, template) {
     var block = defaultBlock(color);
-    block.imageData = window.LOG_TICKET_TRAIN_LOGO_ASSET || "";
-    block.imageName = "train-travel-logo-v4.png";
+    block.imageData = bundledTrainLogoSource(template);
+    block.imageName = bundledTrainLogoName(template);
     block.imageType = "image/png";
     block.fit = "contain";
     block.tintMode = "accent";
@@ -694,12 +747,437 @@
     selectedLayer: ""
   };
 
+  /* Apply the approved spring design once to existing spring documents.
+     The template remains independent from vintage train and other documents. */
+  function applySpringFlowerLogo(documentState) {
+    if (documentState.template !== "train-spring") return documentState;
+    var block = documentState.blocks.frontStub;
+    if (documentState.springFlowerLogoVersion !== 1) {
+      block.imageData = bundledTrainLogoSource("train-spring");
+      block.imageName = bundledTrainLogoName("train-spring");
+      block.imageType = "image/png";
+      block.imageAssetStored = false;
+      block.fit = "contain";
+      block.zoom = 1; block.panX = 0; block.panY = 0;
+      block.tintMode = "accent";
+      documentState.springFlowerLogoVersion = 1;
+    } else if (!block.imageData && block.imageAssetStored !== true && block.imageName === bundledTrainLogoName("train-spring")) {
+      block.imageData = bundledTrainLogoSource("train-spring");
+    }
+    return documentState;
+  }
+  function applySpringFrontInk(documentState, previousVersion) {
+    if (documentState.template !== "train-spring") return documentState;
+    var version = arguments.length > 1 ? previousVersion : documentState.springFrontInkVersion;
+    documentState.springFrontInkVersion = 1;
+    if (version === 1) return documentState;
+    // Upgrade only the previous default inks. Explicit custom colors survive.
+    var styles = documentState.layerStyles.front;
+    ["main-frame", "image-stub"].forEach(function (key) {
+      var style = styles[key] || {};
+      var previous = String(style.color || documentState.accent).toLowerCase();
+      var defaults = key === "main-frame" ? ["#f7bfd6", "#b9718d"] : ["#b9718d"];
+      if (defaults.indexOf(previous) >= 0) styles[key] = Object.assign({}, style, { color: "#ffe4ee" });
+    });
+    return documentState;
+  }
+  function retiredSeasonPhotoMatches(data, template) {
+    // Fingerprints identify the removed bundled photos without shipping
+    // their pixels again. User uploads, even with the same filename, survive.
+    var spec = template === "train-summer" ? [3179202, "ab44f7b2"]
+      : template === "train-autumn" ? [3710570, "f1dbe4bc"] : [2317214, "3bea7232"];
+    if (typeof data !== "string" || data.length !== spec[0]) return false;
+    var hash = 2166136261;
+    for (var index = 0; index < data.length; index++) hash = Math.imul(hash ^ data.charCodeAt(index), 16777619) >>> 0;
+    return hash.toString(16) === spec[1];
+  }
+  function removeRetiredSeasonAssets(documentState, previousVersion) {
+    if (["train-spring", "train-summer", "train-autumn", "train-winter"].indexOf(documentState.template) < 0) return documentState;
+    var version = arguments.length > 1 ? previousVersion : documentState.seasonAssetCleanupVersion;
+    var targetVersion = documentState.template === "train-summer" ? 2 : 1;
+    var firstPass = version !== targetVersion;
+    documentState.seasonAssetCleanupVersion = targetVersion;
+    if (documentState.template === "train-spring") {
+      if (!firstPass) return documentState;
+      var retired = "spring-botanical";
+      function prune(value) {
+        if (Array.isArray(value)) return value.filter(function (item) { return typeof item !== "string" || item.replace(/^(front|back)::/, "") !== retired; }).map(prune);
+        if (value && typeof value === "object") Object.keys(value).forEach(function (key) { if (key === retired) delete value[key]; else value[key] = prune(value[key]); });
+        return value;
+      }
+      ["layerOrder", "layerOrders", "hidden", "hiddenLayers", "locked", "removedLayers", "clipping", "placements", "layerStyles", "inlineTextStyles", "textTypingStyles", "sideStrokes", "sideShadows", "shadows", "selectedLayers"].forEach(function (key) { if (documentState[key]) documentState[key] = prune(documentState[key]); });
+      if (documentState.selectedLayer === retired) documentState.selectedLayer = "";
+      return documentState;
+    }
+    var candidates = documentState.template === "train-summer" ? ["frontMain"]
+      : documentState.template === "train-winter" ? ["frontMain", "backMain"] : ["custom-autumn-front-arch-photo"];
+    var pending = firstPass ? candidates : documentState.retiredSeasonSampleChecks || [];
+    var remaining = [];
+    pending.forEach(function (key) {
+      var owner = documentState.blocks[key] || (documentState.customLayers.front || []).find(function (item) { return item.id === key; });
+      if (!owner) return;
+      if (owner.imageData) {
+        if (retiredSeasonPhotoMatches(owner.imageData, documentState.template)) {
+          owner.imageData = owner.imageName = owner.imageType = "";
+          owner.imageAssetStored = false;
+        }
+      } else if (metadataReferencesImageAsset(owner)) remaining.push(key);
+    });
+    if (remaining.length) documentState.retiredSeasonSampleChecks = remaining;
+    else delete documentState.retiredSeasonSampleChecks;
+    return documentState;
+  }
+  function applySpringPanorama(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springPanoramaVersion === 1) return documentState;
+    // One photo slot spans the front. Keep its source, zoom, pan and film settings.
+    if (documentState.placements && documentState.placements.front) delete documentState.placements.front["image-main"];
+    documentState.springPanoramaVersion = 1;
+    return documentState;
+  }
+  function applySpringBackPanorama(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springBackPanoramaVersion === 1) return documentState;
+    // Expand the existing reverse photo without replacing its source or crop.
+    delete documentState.placements.back["image-main"];
+    var block = documentState.blocks.backMain;
+    block.fit = "cover";
+    var effect = block.effect || defaultEffect();
+    effect.enabled = true;
+    effect.filmEnabled = true;
+    effect.filmTone = 55;
+    effect.readability = 45;
+    effect.grain = 42;
+    block.effect = effect;
+    var layout = documentState.layouts.back;
+    if (layout.quoteX === 31.5) layout.quoteX = 8.5;
+    if (layout.quoteW === 36.5) layout.quoteW = 55;
+    // Lift the stock reverse ink for the photo while retaining custom colors.
+    var colors = { "copy-label": ["#b9718d", "#f7bfd6"], quote: ["#754c5e", "#ffe4ee"], body: ["#886475", "#f3d5e2"] };
+    ["bot", "persona", "date"].forEach(function (key) {
+      colors["record-meta-" + key + "-label"] = ["#b9718d", "#f7bfd6"];
+      colors["record-meta-" + key] = ["#754c5e", "#ffe4ee"];
+    });
+    Object.keys(colors).forEach(function (key) {
+      var style = documentState.layerStyles.back[key];
+      if (style && style.color === colors[key][0]) style.color = colors[key][1];
+    });
+    documentState.layerOrders = createSideLayerOrders(documentState.layerOrder, documentState, documentState.layerOrders);
+    syncFlatLayerOrder(documentState);
+    documentState.springBackPanoramaVersion = 1;
+    return documentState;
+  }
+  function applySpringFrontReference(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springFrontReferenceVersion === 1) return documentState;
+    Object.assign(documentState.layouts.front, { quoteX: 11.2, quoteY: 66.5, quoteW: 46, quoteSize: 18.5 });
+    var styles = documentState.layerStyles.front;
+    styles.quote = Object.assign({}, styles.quote, { fontSize: 18.5, lineHeight: 1.5 });
+    styles.speaker = Object.assign({}, styles.speaker, { fontFamily: "gowun-batang", fontSize: 15, lineHeight: 1.2, letterSpacing: 0 });
+    styles.serial = Object.assign({}, styles.serial, { fontSize: 6 });
+    ["quote", "speaker", "serial-label", "serial", "title", "subtitle", "stub-topline", "admit-copy", "stub-title", "platform", "coach", "source", "serial-copy", "meta-bot-label", "meta-bot", "meta-persona-label", "meta-persona", "meta-date"].forEach(function (key) {
+      delete documentState.placements.front[key];
+    });
+    documentState.layerOrders = createSideLayerOrders(documentState.layerOrder, documentState, documentState.layerOrders);
+    syncFlatLayerOrder(documentState);
+    documentState.springFrontReferenceVersion = 1;
+    return documentState;
+  }
+  function applySpringCaptionLayout(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springCaptionLayoutVersion === 1) return documentState;
+    Object.assign(documentState.layouts.front, { quoteX: 7.4, quoteY: 70.8, quoteW: 58 });
+    ["quote", "speaker"].forEach(function (key) {
+      documentState.layerStyles.front[key] = Object.assign({}, documentState.layerStyles.front[key], { textAlign: "center" });
+    });
+    // The stock sample fits on one centered line; retain all custom wording.
+    if (documentState.quote === "우리가 지나온 모든 밤은\n사라진 게 아니라 길이 되었다.") {
+      documentState.quote = "우리가 지나온 모든 밤은 사라진 게 아니라 길이 되었다.";
+    }
+    ["quote", "speaker", "meta-bot-label", "meta-bot", "meta-persona-label", "meta-persona", "meta-date-label", "meta-date"].forEach(function (key) {
+      delete documentState.placements.front[key];
+    });
+    documentState.layerOrders = createSideLayerOrders(documentState.layerOrder, documentState, documentState.layerOrders);
+    syncFlatLayerOrder(documentState);
+    documentState.springCaptionLayoutVersion = 1;
+    return documentState;
+  }
+  function applySpringReverseDesign(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springReverseDesignVersion === 7) return documentState;
+    if (documentState.springReverseDesignVersion === 6) return applySpringReverseHorizontalShift(documentState);
+    if (documentState.springReverseDesignVersion === 5) return applySpringReverseRightEdge(documentState);
+    if (documentState.springReverseDesignVersion === 4) return applySpringReverseAlignment(documentState);
+    if (documentState.springReverseDesignVersion === 3) {
+      // Upgrade only the previous defaults, preserving later manual edits.
+      var approvedHeadingStyle = documentState.layerStyles.back["copy-label"] || {};
+      if (approvedHeadingStyle.fontFamily === "spring-flourish" && approvedHeadingStyle.fontSize === 164) approvedHeadingStyle.fontSize = 200;
+      var approvedBackLayout = documentState.layouts.back;
+      if (approvedBackLayout.quoteX === 35.5 && approvedBackLayout.quoteY === 19.5 && approvedBackLayout.quoteW === 29.5) {
+        Object.assign(approvedBackLayout, { quoteX: 46, quoteW: 21 });
+      }
+      documentState.springReverseDesignVersion = 4;
+      return applySpringReverseAlignment(documentState);
+    }
+    // Keep wording and color edits while migrating the spring reverse layout once.
+    if (documentState.springReverseDesignVersion === 1) {
+      var headingStyle = documentState.layerStyles.back["copy-label"] || {};
+      if (documentState.backCopyLabel === "Spring" && headingStyle.fontFamily === "italianno") headingStyle.fontFamily = "spring-flourish";
+    }
+    if (!documentState.springReverseDesignVersion) documentState.backCopyLabel = "Spring";
+    documentState.layerStyles.back["copy-label"] = Object.assign({}, documentState.layerStyles.back["copy-label"], {
+      fontFamily: "spring-flourish", fontSize: 200, fontWeight: "400", lineHeight: .9, letterSpacing: 0, textAlign: "left"
+    });
+    Object.assign(documentState.layouts.back, { quoteX: 46, quoteY: 19.5, quoteW: 21 });
+    documentState.layerStyles.back.quote = Object.assign({}, documentState.layerStyles.back.quote, { fontSize: 17, lineHeight: 1.55, textAlign: "left", fontWeight: "400" });
+    documentState.layerStyles.back.body = Object.assign({}, documentState.layerStyles.back.body, { fontSize: 11, lineHeight: 1.75, textAlign: "left" });
+    ["copy-label", "quote", "body", "record-meta-bot-label", "record-meta-bot", "record-meta-persona-label", "record-meta-persona", "record-meta-date-label", "record-meta-date"].forEach(function (key) { delete documentState.placements.back[key]; });
+    documentState.layerOrders = createSideLayerOrders(documentState.layerOrder, documentState, documentState.layerOrders);
+    syncFlatLayerOrder(documentState);
+    documentState.springReverseDesignVersion = 4;
+    return applySpringReverseAlignment(documentState);
+  }
+  function applySpringReverseAlignment(documentState) {
+    // Set the new editable caption defaults once; keep Spring's artwork,
+    // size, color and placement untouched.
+    Object.assign(documentState.layouts.back, { quoteX: 41.5, quoteY: 15.615, quoteW: 28.5 });
+    documentState.layerStyles.back.quote = Object.assign({}, documentState.layerStyles.back.quote, {
+      fontSize: 22, fontWeight: "700", textAlign: "right", lineHeight: 1.5
+    });
+    delete documentState.placements.back.quote;
+    documentState.springReverseDesignVersion = 5;
+    return applySpringReverseRightEdge(documentState);
+  }
+  function applySpringReverseRightEdge(documentState) {
+    // Move the previous caption default slightly left once; later edits remain editable.
+    if (documentState.layouts.back.quoteX === 41.5) documentState.layouts.back.quoteX = 40;
+    documentState.springReverseDesignVersion = 6;
+    return applySpringReverseHorizontalShift(documentState);
+  }
+  function applySpringReverseHorizontalShift(documentState) {
+    // Match the botanical panel's 0.4% shift without changing vertical placement or styling.
+    documentState.layouts.back.quoteX = Math.round((documentState.layouts.back.quoteX + .4) * 1000) / 1000;
+    documentState.springReverseDesignVersion = 7;
+    return documentState;
+  }
+  function springTextUsesPrimaryInk(key) {
+    return ["title", "copy-label", "quote", "admit-copy", "body", "meta-bot", "meta-persona", "meta-date",
+      "record-meta-bot", "record-meta-persona", "record-meta-date"].indexOf(key) >= 0;
+  }
+  function applySpringTextPalette(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springTextPaletteVersion === 1) return documentState;
+    documentState.quoteColor = "#ffe4ee";
+    documentState.muted = "#f7bfd6";
+    ["front", "back"].forEach(function (side) {
+      TEXT_LAYER_KEYS.forEach(function (key) {
+        var style = documentState.layerStyles[side][key];
+        if (style) delete style.color;
+        // Remove only the old inks; retain substring typography and positions.
+        var fields = documentState.inlineTextStyles && documentState.inlineTextStyles[side] && documentState.inlineTextStyles[side][key];
+        if (fields) Object.keys(fields).forEach(function (property) {
+          removeInlineStyleProperty(fields[property], "color", String(documentState[property] || "").length);
+        });
+        var typing = documentState.textTypingStyles && documentState.textTypingStyles[side] && documentState.textTypingStyles[side][key];
+        if (typing) Object.keys(typing).forEach(function (property) { delete typing[property].color; });
+      });
+      (documentState.customLayers && documentState.customLayers[side] || []).forEach(function (layer) {
+        if (layer.type !== "text") return;
+        layer.color = documentState.quoteColor;
+        removeCustomInlineStyleProperty(layer, "color");
+        (layer.styledRuns || []).forEach(function (run) { run.color = documentState.quoteColor; });
+      });
+    });
+    documentState.springTextPaletteVersion = 1;
+    return documentState;
+  }
+  function applySpringRefinement(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springRefinementVersion === 1) return documentState;
+  function springFilm(reverse) {
+    return { enabled: true, grain: reverse ? 20 : 26, blur: 0, brightness: 103, saturation: 88, contrast: 96, hue: -2,
+      sepia: 4, grayscale: 0, vignette: reverse ? -10 : -19, vignetteSignedVersion: 1,
+      overlay: reverse ? 16 : 23, overlayColor: "#edb1c6", overlayBlend: "soft-light" };
+  }
+  function springFront() {
+    return {
+      layout: { quoteX: 11.5, quoteY: 57, quoteW: 49.8, quoteSize: 25 }, placements: {},
+      styles: {
+        "main-frame": { color: "#f7bfd6" },
+        quote: { color: "#ffe4ee", fontFamily: "gowun-batang", fontWeight: "400", lineHeight: 1.5, letterSpacing: -.3 },
+        speaker: { color: "#ffe4ee", fontFamily: "cinzel", fontWeight: "400", fontSize: 23, letterSpacing: .5, lineHeight: 1.2 },
+        "handwritten-note": { color: "#ffe4ee", fontFamily: "italianno", fontSize: 19, lineHeight: 1.15, fontWeight: "400", letterSpacing: .1 },
+        "serial-label": { color: "#ffe4ee", fontFamily: "cinzel", fontSize: 6, fontWeight: "400", letterSpacing: 1.2 },
+        serial: { color: "#ffe4ee", fontFamily: "cinzel", fontSize: 8, fontWeight: "400", letterSpacing: .8 }
+      },
+      hidden: [], clipping: [], imageView: { fit: "cover", zoom: 1, panX: 0, panY: 0 }, imageEffect: springFilm(false)
+    };
+  }
+  function springBack() {
+    var styles = {
+      "back-image-frame": { color: "#b9718d" }, "record-divider-top": { color: "#b9718d" },
+      "copy-label": { color: "#b9718d", fontFamily: "cinzel", fontSize: 7, fontWeight: "400", letterSpacing: 1.4 },
+      quote: { color: "#754c5e", fontFamily: "gowun-batang", fontWeight: "700", lineHeight: 1.4, letterSpacing: -.4 },
+      body: { color: "#886475", fontFamily: "gowun-batang", fontSize: 11.5, fontWeight: "400", lineHeight: 1.8, letterSpacing: 0 }
+    };
+    ["bot", "persona", "date"].forEach(function (key) {
+      styles["record-meta-" + key + "-label"] = { color: "#b9718d", fontFamily: "cinzel", fontSize: 5.5, fontWeight: "400", letterSpacing: .8 };
+      styles["record-meta-" + key] = { color: "#754c5e", fontFamily: "cinzel", fontSize: 8, fontWeight: "400", letterSpacing: .3 };
+    });
+    return { layout: { quoteX: 31.5, quoteY: 20, quoteW: 36.5, quoteSize: 26 }, placements: {}, styles: styles, imageEffect: springFilm(true) };
+  }
+
+    var frontKeys = ["image-main", "main-frame", "quote", "speaker", "handwritten-note", "serial-label", "serial"];
+    var backKeys = ["image-main", "back-image-frame", "record-divider-top", "copy-label", "quote", "body", "record-meta-bot-label", "record-meta-bot", "record-meta-persona-label", "record-meta-persona", "record-meta-date-label", "record-meta-date"];
+    var designs = { front: springFront(), back: springBack() };
+    documentState.layerStyles = documentState.layerStyles || { front: {}, back: {} };
+    documentState.placements = documentState.placements || { front: {}, back: {} };
+    ["front", "back"].forEach(function (side) {
+      var keys = side === "front" ? frontKeys : backKeys;
+      var design = designs[side];
+      documentState.layerStyles[side] = documentState.layerStyles[side] || {};
+      documentState.placements[side] = documentState.placements[side] || {};
+      Object.assign(documentState.layouts[side], design.layout);
+      keys.forEach(function (key) {
+        delete documentState.placements[side][key];
+        delete documentState.layerStyles[side][key];
+        if (design.styles[key]) documentState.layerStyles[side][key] = clone(design.styles[key]);
+      });
+      ["hidden", "removedLayers", "clipping"].forEach(function (property) {
+        documentState[property] = (documentState[property] || []).filter(function (token) {
+          return keys.indexOf(String(token).replace(side + "::", "")) < 0 || String(token).indexOf(side + "::") !== 0;
+        });
+      });
+      var image = documentState.blocks[side + "Main"];
+      image.fit = "cover";
+      image.effect = clone(design.imageEffect);
+    });
+    documentState.accent = "#b9718d";
+    documentState.quoteColor = "#543d48";
+    documentState.muted = "#876973";
+    ["frontMain", "backMain"].forEach(function (key) { documentState.blocks[key].color = "#fff0f4"; });
+    ["frontStub", "backStub"].forEach(function (key) { documentState.blocks[key].color = "#f9dfe9"; });
+    documentState.layerOrders = createSideLayerOrders(documentState.layerOrder, documentState, documentState.layerOrders);
+    syncFlatLayerOrder(documentState);
+    documentState.springRefinementVersion = 1;
+    return documentState;
+  }
+
+  function winterFilm(effect) { return window.LOG_TICKET_WINTER_THEME.activeFilm(effect); }
+  function getWinterGrainTexture() {
+    if (!getWinterGrainTexture.image) {
+      var image=new Image();image.src=window.LOG_TICKET_WINTER_ASSETS.grain;
+      getWinterGrainTexture.image=image;
+      image.addEventListener('load',function(){if(state&&state.template==='train-winter')renderBlockImages();});
+    }
+    return getWinterGrainTexture.image;
+  }
+  function renderWinterFilm(host,effect) {
+    var film=winterFilm(effect);
+    [{name:'winter-blue',color:film?film.color:'#2936ff',amount:film?film.tone:0,blend:'screen'},
+      {name:'winter-veil',color:'#f9faff',amount:film?film.wash:0,blend:'normal'}].forEach(function(s){
+      var node=host.querySelector('[data-film-surface="'+s.name+'"]');
+      if(!node&&s.amount){node=document.createElement('div');node.className='image-film-surface winter-film-surface';node.dataset.filmSurface=s.name;node.setAttribute('aria-hidden','true');host.appendChild(node);}
+      if(node){node.style.display=s.amount?'block':'none';node.style.background=s.color;node.style.opacity=s.amount/100;node.style.mixBlendMode=s.blend;}
+    });
+  }
+  function drawWinterFilm(canvas,effect,unmasked) {
+    var film=winterFilm(effect);if(!film)return;
+    [[film.color,film.tone,'screen'],['#f9faff',film.wash,'source-over']].forEach(function(s){if(s[1])drawAlphaMaskedEffectLayer(canvas,function(ctx,w,h){ctx.fillStyle=s[0];ctx.fillRect(0,0,w,h);},s[2],s[1]/100,unmasked ? false : undefined);});
+  }
+  var filmSelection = null;
+  function isFilmSelection() { return Boolean(filmSelection&&filmSelection.key===state.selectedLayer&&filmSelection.side===state.side&&filmSelection.document===state); }
+  function renderWinterControls(effect) {
+    var isWinter=isFilmSelection()&&Boolean(effect.winterFilm);
+    $('#winterFilterControls').hidden=!isWinter;
+    $('#filmFilterControls').hidden=!isFilmSelection()||isWinter;
+    $('#springFilmBlurControl').hidden=!isSpringBackFilmSelection();
+    $('#springFilmBlurRange').value=effect.filmBlur||0;
+    setInputValue('#springFilmBlurOut',effect.filmBlur||0);
+    if(isWinter){var film=effect.winterFilm;$('#winterFilmToggle').checked=film.enabled!==false;
+      ['blur','grain','tone','wash'].forEach(function(k){$('#winter-'+k).value=film[k];$('#winter-'+k+'-out').value=film[k];});
+      $('#winter-color').value=film.color;
+    }
+    var item=customLayerById(state.selectedLayer);
+    var ink=['train-winter','train-autumn','train-summer'].indexOf(state.template)>=0&&item&&item.type==='image';
+    $('#winterInkControls').hidden=!ink;
+    if(ink)$('#winterInkColor').value=item.effect.overlayColor;
+  }
+  function isSpringBackFilmSelection() {
+    return state.template === "train-spring" && state.side === "back" && state.selectedLayer === "image-main" && isFilmSelection();
+  }
+  function syncWinterCoupon() {
+    if(['train-winter','train-autumn','train-summer'].indexOf(state.template)<0)return;
+    var season=state.template.slice(6),side=state.side,other=side==='front'?'back':'front';
+    var prefix='custom-'+season+'-'+side+'-coupon-',target='custom-'+season+'-'+other+'-coupon-';
+    (state.customLayers[side]||[]).forEach(function(item){
+      if(item.id.indexOf(prefix)!==0)return;
+      var peerId=target+item.id.slice(prefix.length),index=state.customLayers[other].findIndex(function(p){return p.id===peerId;});
+      if(index<0)return;
+      var peer=Object.assign({},clone(item),{id:peerId,side:other});
+      state.customLayers[other][index]=peer;
+      ['layerStyles','inlineTextStyles','placements','sideStrokes','sideShadows'].forEach(function(key){if(!state[key]||!state[key][side]||!state[key][other])return;var value=state[key][side][item.id];if(value)state[key][other][peerId]=clone(value);else delete state[key][other][peerId];});
+      ['hidden','locked'].forEach(function(key){var list=state[key];if(!Array.isArray(list))return;var enabled=list.indexOf(item.id)>=0,index=list.indexOf(peerId);if(enabled&&index<0)list.push(peerId);if(!enabled&&index>=0)list.splice(index,1);});
+    });
+  }
+
+  function applySeasonalPassageTitle(documentState, previousVersion) {
+    var season = { "train-spring": "SPRING", "train-autumn": "AUTUMN", "train-winter": "WINTER" }[documentState.template];
+    if (!season) return documentState;
+    var version = arguments.length > 1 ? previousVersion : documentState.seasonalPassageTitleVersion;
+    if (version !== 1) {
+      // Upgrade the old stock wording once; later title edits remain editable.
+      function replaceStockTitle(value) {
+        return typeof value === "string" && /^\s*MIDNIGHT\s+PASSAGE\s*$/i.test(value)
+          ? value.replace(/MIDNIGHT/i, season) : value;
+      }
+      documentState.title = replaceStockTitle(documentState.title);
+      documentState.backHeading = replaceStockTitle(documentState.backHeading);
+      ["front", "back"].forEach(function (side) {
+        var id = "custom-" + documentState.template.slice(6) + "-" + side + "-coupon-title";
+        (documentState.customLayers[side] || []).forEach(function (item) {
+          if (item.id !== id) return;
+          item.text = replaceStockTitle(item.text);
+          if (item.name === "Midnight Passage") item.name = season.charAt(0) + season.slice(1).toLowerCase() + " Passage";
+        });
+      });
+    }
+    documentState.seasonalPassageTitleVersion = 1;
+    return documentState;
+  }
+
+  function applySeasonLayoutRefinement(documentState, previousVersion) {
+    var version=arguments.length>1?previousVersion:documentState.seasonLayoutRefinementVersion;
+    if(version===1)return documentState;
+    if(documentState.template==='train-spring'){
+      ['quote'].forEach(function(key){var token=layerFlagToken(key,'back',documentState);if(documentState.hidden.indexOf(token)<0)documentState.hidden.push(token);});
+      ['copy-label','body','record-meta-bot-label','record-meta-bot','record-meta-persona-label','record-meta-persona','record-meta-date-label','record-meta-date'].forEach(function(key){delete documentState.placements.back[key];});
+      ['bot','persona','date'].forEach(function(key,index){['record-meta-'+key+'-label','record-meta-'+key].forEach(function(id){
+        documentState.layerStyles.back[id]=Object.assign({},documentState.layerStyles.back[id],{textAlign:['left','center','right'][index]});
+      });});
+    } else if(documentState.template==='train-autumn')window.LOG_TICKET_AUTUMN_THEME.refine(documentState);
+    else if(documentState.template==='train-winter'){
+      window.LOG_TICKET_WINTER_THEME.refine(documentState);
+      documentState.customLayers=normalizeCustomLayers(documentState.customLayers);
+    }
+    else return documentState;
+    documentState.seasonLayoutRefinementVersion=1;
+    return documentState;
+  }
+
   function createTemplateDefaults(template) {
     template = safeTemplateId(template);
     var next = clone(defaults);
     next.template = template;
     next.layerOrder = templateLayerOrder(template);
-    if (template === "ott") {
+    if (template === "train-spring") {
+      /* Spring is a separate train document, not a recolor of the saved
+         classic document. It inherits the reviewed train layout while its
+         paper and one ornamental ink color start from a quiet blush palette. */
+      next.theme = "light";
+      next.accent = "#a86f7e";
+      next.quoteColor = "#3d3034";
+      next.muted = "#765e65";
+      next.texture = true;
+      next.textureStrength = 72;
+      next.blocks.frontMain = defaultBlock("#f8eef1");
+      next.blocks.frontStub = defaultTrainLogoBlock("#f3e3e8", "train-spring");
+      next.blocks.backMain = defaultBlock("#f8eef1");
+      next.blocks.backStub = defaultBlock("#f3e3e8");
+    } else if (template === "ott") {
       next.theme = "dark";
       next.side = "front";
       next.postcardViewMode = "front";
@@ -897,10 +1375,21 @@
       next.layouts.front = { quoteX: 7.4, quoteY: 76.5, quoteW: 85, quoteSize: 34, detailsX: 70, detailsY: 95.5, detailsW: 22.6 };
       next.layouts.back = { quoteX: 10, quoteY: 40, quoteW: 80, quoteSize: 22, detailsX: 10, detailsY: 80, detailsW: 80 };
     }
+    if (template === "train-summer") window.LOG_TICKET_SUMMER_THEME.create(next, normalizeCustomLayers, defaultBlock);
+    if (template === "train-autumn") window.LOG_TICKET_AUTUMN_THEME.create(next, normalizeCustomLayers, defaultBlock);
+    if (template === "train-winter") window.LOG_TICKET_WINTER_THEME.create(next, normalizeCustomLayers, defaultBlock);
+    window.LOG_TICKET_SEASON_FONTS.apply(next);
+    applySeasonalPassageTitle(next);
+    window.LOG_TICKET_WINTER_THEME.alignOpticalType(next);
+    window.LOG_TICKET_WINTER_THEME.refineBackHeader(next);
     next.layerOrders = createSideLayerOrders(next.layerOrder, next);
     syncFlatLayerOrder(next);
     next.sideShadows = createSideShadows(null, next.shadows, next);
-    return next;
+    next = applySpringFrontInk(applySeasonLayoutRefinement(applySpringReverseDesign(applySpringCaptionLayout(applySpringTextPalette(applySpringFrontReference(applySpringBackPanorama(applySpringFlowerLogo(applySpringPanorama(applySpringFilmLayer(applySpringRefinement(next)))))))))));
+    if (["train-spring", "train-winter"].indexOf(template) >= 0) {
+      ["frontMain", "backMain"].forEach(function (key) { next.blocks[key].panMode = "bounded"; });
+    }
+    return removeRetiredSeasonAssets(next);
   }
 
   /* These bound every per-layer font size, including the ones the template
@@ -910,6 +1399,12 @@
      template quietly lost its designed type sizes. */
   var MAX_FONT_SIZE_PT = 200;
   var MAX_FONT_SIZE_PX = ptToPx(MAX_FONT_SIZE_PT);
+  var CUSTOM_SHAPE_KINDS = ["rectangle", "ellipse", "triangle", "star", "heart", "arch", "summer-foam-behind", "summer-foam-over", "summer-foam-letter"];
+  var STAR_POINT_MIN = 3;
+  var STAR_POINT_MAX = 20;
+  var MAX_OBJECT_SIZE_PERCENT = 10000;
+  var MAX_NATIVE_OBJECT_SCALE = 100;
+  var MAX_TEXT_BOX_SIZE_PX = 100000;
   var templateDocuments = {};
   TEMPLATE_IDS.forEach(function (template) { templateDocuments[template] = createTemplateDefaults(template); });
   var migratedLegacyStorageKey = "";
@@ -934,6 +1429,8 @@
   var animateFade = false;
   var trainFrameRenderPromise = Promise.resolve();
   var trainLogoRenderPromise = Promise.resolve();
+  var springWordmarkRenderPromise = Promise.resolve();
+  var springWordmarkTints = new Map();
   var imageAssetDbPromise = null;
   var imageAssetDbOpenError = null;
   var imageAssetHydrationPromise = Promise.resolve();
@@ -1001,6 +1498,7 @@
     }
   }
   function clearLayerSelection() {
+    filmSelection=null;
     finishInspectorEditBeforeSelectionChange("");
     state.selectedLayer = "";
     trackedTextSelection = null;
@@ -1009,6 +1507,7 @@
     multiSelectionStateRef = state;
   }
   function setPrimarySelection(key, additive) {
+    filmSelection=null;
     syncMultiSelectionToPrimary();
     var togglesPrimaryOff = Boolean(additive && key && key === state.selectedLayer && multiSelectedLayerKeys.indexOf(key) >= 0);
     if (key && (key !== state.selectedLayer || togglesPrimaryOff)) finishInspectorEditBeforeSelectionChange(togglesPrimaryOff ? "" : key);
@@ -1063,7 +1562,15 @@
   function customLayerCanStoreImage(item) { return Boolean(item && (item.type === "image" || item.type === "shape")); }
   function customLayerUsesRasterFill(item) { return Boolean(item && (item.type === "image" || item.type === "shape" && item.fillMode === "image")); }
   function customLayerHasImageAsset(item) { return customLayerCanStoreImage(item) && Boolean(item.imageData); }
-  function shapeCornerCount(kind) { return kind === "triangle" ? 3 : kind === "star" ? 10 : kind === "rectangle" ? 4 : 0; }
+
+
+
+  function normalizeStarPoints(value) {
+    return Math.round(clamp(finiteNumber(value, 5), STAR_POINT_MIN, STAR_POINT_MAX));
+  }
+  function shapeCornerCount(kind, starPoints) {
+    return kind === "triangle" ? 3 : kind === "star" ? normalizeStarPoints(starPoints) * 2 : kind === "rectangle" ? 4 : 0;
+  }
   function isCustomLayer(key, documentState) { return Boolean(customLayerById(key, documentState)); }
   function isMovableLayer(key, documentState) {
     return MOVABLE_LAYERS.indexOf(key) >= 0 || isCustomLayer(key, documentState);
@@ -1083,11 +1590,15 @@
     var source = documentState || state;
     var definition = layerDefinition(key, documentState);
     if (!definition) return false;
+    if (source.template === "train-spring" && side === "front" && ["stub-frame", "stub-divider", "handwritten-note", "kicker", "coupon-meta-rules"].indexOf(key) >= 0) return false;
+    if (source.template === "train-spring" && side === "back" && ["frame", "main-frame", "back-image-frame", "record-divider-top", "record-divider-middle", "stub-frame", "stub-divider", "kicker", "coupon-meta-rules"].indexOf(key) >= 0) return false;
     if (isProtectedLayer(key)) return side === "front" || side === "back";
     if (Array.isArray(source.removedLayers) && hasLayerFlag(source.removedLayers, key, side, source)) return false;
     if (definition.group === "CUSTOM") return !definition.sides || definition.sides.indexOf(side) >= 0;
+    if (source.template === "train-summer" && key === "image-main") return side === "front";
+    if (["train-winter", "train-autumn", "train-summer"].indexOf(source.template) >= 0) return templateLayerOrder(source.template).indexOf(key) >= 0;
     if (isTrainTemplate(source) && (key === "back-note" || (side === "back" && key === "serial"))) return false;
-    var templateLayers = TEMPLATE_LAYER_SIDES[source.template];
+    var templateLayers = TEMPLATE_LAYER_SIDES[source.template] || TEMPLATE_LAYER_SIDES[templateFamilyId(source)];
     if (templateLayers) {
       var templateSides = templateLayers[key];
       return Array.isArray(templateSides) && templateSides.indexOf(side) >= 0;
@@ -1166,13 +1677,17 @@
   function layerLabel(definition, side, documentState) {
     if (!definition) return null;
     var source = documentState || state;
+    if (source && source.template === "train-spring" && definition.key === "image-stub") return ["Flower Logo", "SPRING BOTANICAL"];
+    if (source && source.template === "train-summer" && definition.key === "image-main") return ["사진 프레임", "PHOTO FRAME"];
+    if (source && source.template === "train-spring" && definition.key === "image-main") return ["Full Image", "CONTINUOUS PHOTO"];
+    if (source && source.template === "train-spring" && side === "back" && definition.key === "copy-label") return ["Spring Title", usesSpringWordmark(source) ? "IMAGE TYPOGRAPHY" : "EDITABLE TEXT"];
     if (source && isTrainTemplate(source) && side === "back" && TRAIN_BACK_LAYER_LABELS[definition.key]) {
       return TRAIN_BACK_LAYER_LABELS[definition.key];
     }
     if (source && source.template === "cinema" && side === "back" && CINEMA_BACK_LAYER_LABELS[definition.key]) {
       return CINEMA_BACK_LAYER_LABELS[definition.key];
     }
-    var templateLabels = source && TEMPLATE_LAYER_LABELS[source.template];
+    var templateLabels = source && (TEMPLATE_LAYER_LABELS[source.template] || TEMPLATE_LAYER_LABELS[templateFamilyId(source)]);
     var nativeLabel = templateLabels && templateLabels[definition.key];
     if (nativeLabel) {
       if (Array.isArray(nativeLabel)) return nativeLabel;
@@ -1200,7 +1715,7 @@
     });
     var activeOrder = layerOrderFor(state.side, state);
     definitions.sort(function (a, b) { return activeOrder.indexOf(b.key) - activeOrder.indexOf(a.key); });
-    var signature = state.template + "|" + state.side + "|" + definitions.map(function (item) { return item.key; }).join("|");
+    var signature = state.template + "|" + state.side + "|" + definitions.map(function (item) { return item.key + ':' + filmLayerRowAvailable(item.key); }).join("|");
     if (list.dataset.signature === signature) return;
     var scrollTop = list.scrollTop;
     list.replaceChildren();
@@ -1262,6 +1777,7 @@
       if (!definition.protectedLayer && isMovableLayer(definition.key, state)) row.appendChild(lock);
       else row.classList.add("single-action");
       list.appendChild(row);
+      if(filmLayerRowAvailable(definition.key))appendFilmLayerRow(list,definition.key);
     });
     list.dataset.signature = signature;
     list.scrollTop = scrollTop;
@@ -1349,37 +1865,58 @@
     backStub: { node: $("#backStubImageSlot"), block: $("#backStubBlock"), frame: $("#backStubImageSlot .block-image-frame"), image: $("#backStubImage") }
   };
   var failedBlockImageSources = {};
-  var trainMainOpeningMaskPromise = null;
-  var trainBackOpeningMaskPromise = null;
+  var trainMainOpeningMaskPromises = Object.create(null);
+  var trainBackOpeningMaskPromises = Object.create(null);
   var TRAIN_MAIN_OPENING_MASK_SCALE_X = 1.0034;
   var TRAIN_MAIN_OPENING_MASK_SCALE_Y = 1.0068;
 
-  function loadTrainMainOpeningMask() {
-    var source = window.LOG_TICKET_TRAIN_MAIN_OPENING_MASK_ASSET || "";
-    if (!source) return Promise.resolve(null);
-    if (!trainMainOpeningMaskPromise) {
-      trainMainOpeningMaskPromise = new Promise(function (resolve) {
-        var image = new Image();
-        image.onload = function () { resolve(image); };
-        image.onerror = function () { resolve(null); };
-        image.src = source;
-      });
+  function trainOpeningMaskSource(side, documentState) {
+    var sourceState = documentState || state;
+    if (!isTrainTemplate(sourceState)) return "";
+    var template = safeTemplateId(sourceState && typeof sourceState === "object" ? sourceState.template : sourceState);
+    if (template === "train-spring") return "";
+    var registry = window.LOG_TICKET_TRAIN_OPENING_MASK_ASSETS || {};
+    var assets = registry[template] || {};
+    var familyAssets = registry[templateFamilyId(template)] || {};
+    var springAssets = window.LOG_TICKET_TRAIN_SPRING_FRAME_ASSETS || {};
+    if (side === "back") {
+      return assets.back
+        || (template === "train-spring" ? springAssets.backOpening : "")
+        || familyAssets.back
+        || window.LOG_TICKET_TRAIN_BACK_OPENING_MASK_ASSET || "";
     }
-    return trainMainOpeningMaskPromise;
+    return assets.main
+      || (template === "train-spring" ? springAssets.mainOpening : "")
+      || familyAssets.main
+      || window.LOG_TICKET_TRAIN_MAIN_OPENING_MASK_ASSET || "";
   }
 
-  function loadTrainBackOpeningMask() {
-    var source = window.LOG_TICKET_TRAIN_BACK_OPENING_MASK_ASSET || "";
+  function loadTrainMainOpeningMask(documentState) {
+    var source = trainOpeningMaskSource("main", documentState || state);
     if (!source) return Promise.resolve(null);
-    if (!trainBackOpeningMaskPromise) {
-      trainBackOpeningMaskPromise = new Promise(function (resolve) {
+    if (!trainMainOpeningMaskPromises[source]) {
+      trainMainOpeningMaskPromises[source] = new Promise(function (resolve) {
         var image = new Image();
         image.onload = function () { resolve(image); };
         image.onerror = function () { resolve(null); };
         image.src = source;
       });
     }
-    return trainBackOpeningMaskPromise;
+    return trainMainOpeningMaskPromises[source];
+  }
+
+  function loadTrainBackOpeningMask(documentState) {
+    var source = trainOpeningMaskSource("back", documentState || state);
+    if (!source) return Promise.resolve(null);
+    if (!trainBackOpeningMaskPromises[source]) {
+      trainBackOpeningMaskPromises[source] = new Promise(function (resolve) {
+        var image = new Image();
+        image.onload = function () { resolve(image); };
+        image.onerror = function () { resolve(null); };
+        image.src = source;
+      });
+    }
+    return trainBackOpeningMaskPromises[source];
   }
   var templateTotal = $$("[data-start-template]").length;
   $("#templateCount").textContent = String(templateTotal).padStart(2, "0") + " TEMPLATES";
@@ -1405,9 +1942,9 @@
   function ptToPx(value) { return finiteNumber(value, 0) * 4 / 3; }
   /* Inspector values are expressed in pt, while preview styles use CSS px. */
   /* These are corruption guards, not canvas-bound resize limits. */
-  var MAX_OBJECT_SIZE_PERCENT = 10000;
-  var MAX_NATIVE_OBJECT_SCALE = 100;
-  var MAX_TEXT_BOX_SIZE_PX = 100000;
+
+
+
   function syncFontSelectPreview(selector, fontKey) {
     var select = $(selector);
     if (!select) return;
@@ -1475,6 +2012,7 @@
 
   function normalizeBlock(saved, fallback, legacyEffect) {
     var next = Object.assign({}, fallback, saved && typeof saved === "object" ? saved : {});
+    if (fallback.panMode === "bounded") next.panMode = saved && saved.panMode === "free" ? "free" : "bounded";
     next.fit = next.fit === "cover" ? "cover" : "contain";
     next.zoom = clamp(finiteNumber(next.zoom, 1), 1, 3);
     next.panX = clamp(finiteNumber(next.panX, 0), -1, 1);
@@ -1616,6 +2154,11 @@
     var source = saved && typeof saved === "object" ? saved : {};
     var legacyGlass = clamp(finiteNumber(source.glass, 0), 0, 100);
     var next = Object.assign({}, fallback, source);
+    next.enabled = source.enabled !== false;
+    next.grain = clamp(finiteNumber(source.grain, 0), 0, 100);
+    next.filmEnabled = source.filmEnabled !== false;
+    next.filmTone = clamp(finiteNumber(source.filmTone, 0), 0, 100);
+    next.readability = clamp(finiteNumber(source.readability, 0), 0, 100);
     next.blur = clamp(finiteNumber(next.blur, fallback.blur) + legacyGlass * .08, 0, 24);
     next.brightness = clamp(finiteNumber(next.brightness, fallback.brightness), 0, 200);
     next.saturation = clamp(finiteNumber(next.saturation, fallback.saturation), 0, 200);
@@ -1643,21 +2186,26 @@
     if (["multiply", "soft-light", "screen", "overlay", "normal"].indexOf(next.overlayBlend) < 0) next.overlayBlend = "multiply";
     delete next.overlayType;
     delete next.overlayGradient;
+    if (source.winterFilm) next.winterFilm = window.LOG_TICKET_WINTER_THEME.normalizeFilm(source.winterFilm);
+    if (source.filmBlur != null) next.filmBlur = clamp(finiteNumber(source.filmBlur, 0), 0, 50);
     return next;
   }
   function safeStyleValue(value, fallback, maxLength) {
     var text = String(value == null ? "" : value).slice(0, maxLength || 180);
     return /[{};]/.test(text) ? fallback : text || fallback;
   }
-  function normalizeStyledRuns(saved) {
+  function normalizeStyledRuns(saved, preserveTrimmedGeometry) {
     if (!Array.isArray(saved)) return [];
+    var coordinateMin = preserveTrimmedGeometry ? -100000 : -50;
+    var coordinateMax = preserveTrimmedGeometry ? 100000 : 150;
+    var sizeMax = preserveTrimmedGeometry ? 100000 : 800;
     return saved.slice(0, 48).map(function (run) {
       return {
         text: String(run && run.text || "").slice(0, 2000),
-        x: clamp(finiteNumber(run && run.x, 0), -50, 150),
-        y: clamp(finiteNumber(run && run.y, 0), -50, 150),
-        w: clamp(finiteNumber(run && run.w, 100), 0, 800),
-        h: clamp(finiteNumber(run && run.h, 100), 0, 800),
+        x: clamp(finiteNumber(run && run.x, 0), coordinateMin, coordinateMax),
+        y: clamp(finiteNumber(run && run.y, 0), coordinateMin, coordinateMax),
+        w: clamp(finiteNumber(run && run.w, 100), 0, sizeMax),
+        h: clamp(finiteNumber(run && run.h, 100), 0, sizeMax),
         color: /^#[0-9a-f]{6}$/i.test(String(run && run.color || "")) ? run.color : "#684b47",
         background: safeStyleValue(run && run.background, "transparent", 1200),
         borderTop: safeStyleValue(run && run.borderTop, "0px none rgba(0, 0, 0, 0)", 160),
@@ -1685,14 +2233,17 @@
       };
     });
   }
-  function normalizeStyledShapes(saved) {
+  function normalizeStyledShapes(saved, preserveTrimmedGeometry) {
     if (!Array.isArray(saved)) return [];
+    var coordinateMin = preserveTrimmedGeometry ? -100000 : -50;
+    var coordinateMax = preserveTrimmedGeometry ? 100000 : 150;
+    var sizeMax = preserveTrimmedGeometry ? 100000 : 180;
     return saved.slice(0, 64).map(function (shape) {
       return {
-        x: clamp(finiteNumber(shape && shape.x, 0), -50, 150),
-        y: clamp(finiteNumber(shape && shape.y, 0), -50, 150),
-        w: clamp(finiteNumber(shape && shape.w, 0), 0, 180),
-        h: clamp(finiteNumber(shape && shape.h, 0), 0, 180),
+        x: clamp(finiteNumber(shape && shape.x, 0), coordinateMin, coordinateMax),
+        y: clamp(finiteNumber(shape && shape.y, 0), coordinateMin, coordinateMax),
+        w: clamp(finiteNumber(shape && shape.w, 0), 0, sizeMax),
+        h: clamp(finiteNumber(shape && shape.h, 0), 0, sizeMax),
         background: safeStyleValue(shape && shape.background, "transparent", 1200),
         borderTop: safeStyleValue(shape && shape.borderTop, "0px none rgba(0, 0, 0, 0)", 160),
         borderRight: safeStyleValue(shape && shape.borderRight, "0px none rgba(0, 0, 0, 0)", 160),
@@ -1729,6 +2280,8 @@
       var source = saved && Array.isArray(saved[side]) ? saved[side] : [];
       source.forEach(function (item, index) {
         if (!item || typeof item !== "object" || ["text", "image", "shape"].indexOf(item.type) < 0) return;
+        // Remove the reverted spring icon experiment from previously saved documents.
+        if (item.type === "image" && ["branch", "butterfly", "petals"].indexOf(item.springIcon) >= 0) return;
         var rawId = String(item.id || "");
         var id = /^custom-[a-z0-9-]+$/i.test(rawId) && !usedIds[rawId] ? rawId : "custom-" + side + "-import-" + index;
         while (usedIds[id]) id += "-copy";
@@ -1738,22 +2291,27 @@
         var imageEffect = item.type === "image" || item.type === "shape"
           ? normalizeEffect(item.effect || legacyEffects && legacyEffects[side], defaultEffect())
           : defaultEffect();
-        var styledRuns = normalizeStyledRuns(item.styledRuns);
-        var styledShapes = normalizeStyledShapes(item.styledShapes);
+        var boundsTrimmed = item.type === "text" && item.boundsTrimmed === true;
+        var alphaBoundsTrimmed = item.type === "image" && item.alphaBoundsTrimmed === true;
+        var trimmedCoordinateMinimum = boundsTrimmed || alphaBoundsTrimmed ? -100000 : -50;
+        var trimmedCoordinateMaximum = boundsTrimmed || alphaBoundsTrimmed ? 100000 : 100;
+        var styledRuns = normalizeStyledRuns(item.styledRuns, boundsTrimmed);
+        var styledShapes = normalizeStyledShapes(item.styledShapes, boundsTrimmed);
         var structuredText = item.type === "text" && (styledRuns.length || styledShapes.length);
         var boxStyle = normalizeBoxStyle(item.boxStyle);
         var colorMode = TEXT_COLOR_MODES.indexOf(item.colorMode) >= 0
           ? item.colorMode
           : (item.type === "text" && boxStyle.mixBlendMode === "difference" ? "difference" : "solid");
         if (item.type === "text" && boxStyle.mixBlendMode === "difference") boxStyle.mixBlendMode = "normal";
-        var shapeKind = ["rectangle", "ellipse", "triangle", "star"].indexOf(item.shapeKind) >= 0 ? item.shapeKind : "rectangle";
+        var shapeKind = CUSTOM_SHAPE_KINDS.indexOf(item.shapeKind) >= 0 ? item.shapeKind : "rectangle";
+        var starPoints = normalizeStarPoints(item.starPoints);
         var fillMode = ["image", "none"].indexOf(item.fillMode) >= 0 ? item.fillMode : "color";
         var legacyFillStops = item.fillGradient && Array.isArray(item.fillGradient.stops) ? item.fillGradient.stops : [];
         var legacyFillColor = legacyFillStops.reduce(function (color, stop) {
           return color || (/^#[0-9a-f]{6}$/i.test(String(stop && stop.color || "")) ? stop.color : "");
         }, "");
         var preferredFillColor = item.fillMode === "gradient" && legacyFillColor ? legacyFillColor : item.fillColor;
-        var cornerCount = shapeCornerCount(shapeKind);
+        var cornerCount = shapeCornerCount(shapeKind, starPoints);
         var cornerRadius = clamp(finiteNumber(item.cornerRadius, 0), 0, 50);
         var cornerRadii = Array.isArray(item.cornerRadii) ? item.cornerRadii.slice(0, cornerCount).map(function (value) {
           return clamp(finiteNumber(value, cornerRadius), 0, 50);
@@ -1769,23 +2327,25 @@
           imageName: String(item.imageName || "").slice(0, 180),
           imageType: String(item.imageType || "").slice(0, 80),
           imageAssetStored: typeof item.imageAssetStored === "boolean" ? item.imageAssetStored : undefined,
-          x: clamp(finiteNumber(item.x, 12), -50, 100),
-          y: clamp(finiteNumber(item.y, 12), -50, 100),
+          x: clamp(finiteNumber(item.x, 12), trimmedCoordinateMinimum, trimmedCoordinateMaximum),
+          y: clamp(finiteNumber(item.y, 12), trimmedCoordinateMinimum, trimmedCoordinateMaximum),
           w: item.type === "shape"
             ? clamp(finiteNumber(item.w, 30), 3, MAX_OBJECT_SIZE_PERCENT)
             : item.type === "image"
               ? clamp(finiteNumber(item.w, 30), .01, MAX_OBJECT_SIZE_PERCENT)
-              : clamp(finiteNumber(item.w, 34), structuredText ? .25 : 3, MAX_OBJECT_SIZE_PERCENT),
+              : clamp(finiteNumber(item.w, 34), boundsTrimmed ? .01 : structuredText ? .25 : 3, MAX_OBJECT_SIZE_PERCENT),
           h: item.type === "shape"
             ? clamp(finiteNumber(item.h, 30), 3, MAX_OBJECT_SIZE_PERCENT)
             : item.type === "image"
               ? clamp(finiteNumber(item.h, 30), .01, MAX_OBJECT_SIZE_PERCENT)
-              : clamp(finiteNumber(item.h, 12), structuredText ? .25 : 3, MAX_OBJECT_SIZE_PERCENT),
+              : clamp(finiteNumber(item.h, 12), boundsTrimmed ? .01 : structuredText ? .25 : 3, MAX_OBJECT_SIZE_PERCENT),
           rotation: clamp(finiteNumber(item.rotation, 0), -360, 360),
           skewX: clamp(finiteNumber(item.skewX, 0), -70, 70),
           scaleX: item.type === "text" ? clamp(finiteNumber(item.scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE) : 1,
           scaleY: item.type === "text" ? clamp(finiteNumber(item.scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE) : 1,
           autoHeight: item.type === "text" ? item.autoHeight !== false : false,
+          boundsTrimmed: boundsTrimmed,
+          alphaBoundsTrimmed: alphaBoundsTrimmed,
           font: fontKeyAllowed(item.font) ? item.font : "noto-serif",
           fontSize: clamp(finiteNumber(item.fontSize, 28), 8, MAX_FONT_SIZE_PX),
           fontWeight: safeStyleValue(item.fontWeight, "400", 40),
@@ -1803,8 +2363,11 @@
           zoom: clamp(finiteNumber(item.zoom, 1), 1, 3),
           panX: clamp(finiteNumber(item.panX, 0), -1, 1),
           panY: clamp(finiteNumber(item.panY, 0), -1, 1),
+          imageFrameW: item.type === "shape" ? clamp(finiteNumber(item.imageFrameW, finiteNumber(item.w, 30)), 3, MAX_OBJECT_SIZE_PERCENT) : 0,
+          imageFrameH: item.type === "shape" ? clamp(finiteNumber(item.imageFrameH, finiteNumber(item.h, 30)), 3, MAX_OBJECT_SIZE_PERCENT) : 0,
           effect: imageEffect,
           shapeKind: shapeKind,
+          starPoints: starPoints,
           fillMode: fillMode,
           fillColor: validHexColor(preferredFillColor, "#b87977"),
           stroke: normalizeStroke(item.stroke),
@@ -2056,8 +2619,12 @@
     function push(value) {
       if (normalized.indexOf(value) < 0) normalized.push(value);
     }
-    function addForSide(key, side) {
-      var members = key === "frame" && isTrainTemplate(documentState)
+    function addForSide(key, side, scoped) {
+      // Spring's reverse heading is independent of its wordmark and body.
+      // Do not expand an explicit heading flag into the legacy quote group.
+      var members = scoped && documentState.template === "train-spring" && key === "quote" && side === "back"
+        ? [key]
+        : key === "frame" && isTrainTemplate(documentState)
         ? ["main-frame", "stub-frame", "stub-divider"]
         : (LEGACY_LAYER_MEMBERS[key] || [key]);
       members.forEach(function (member) {
@@ -2075,7 +2642,7 @@
         return;
       }
       var scoped = /^(front|back)::(.+)$/.exec(String(rawKey));
-      if (scoped) addForSide(scoped[2], scoped[1]);
+      if (scoped) addForSide(scoped[2], scoped[1], true);
       else ["front", "back"].forEach(function (side) { addForSide(String(rawKey), side); });
     });
     return normalized;
@@ -2616,10 +3183,12 @@
       });
       next.ottScreenFillVersion = OTT_SCREEN_FILL_VERSION;
     }
-    if (template === "train") {
+    if (isTrainTemplate(template)) {
       next.handwrittenNote = String(next.handwrittenNote || fallback.handwrittenNote).slice(0, 600);
       next.backNote = "";
       var shouldSeedDefaultLogo = !saved || (!savedLogoData && !savedLogoReferencesExternalAsset) || savedLogoWasLegacy || savedLogoWasBundled;
+      // After the spring logo migration, preserve the user's logo and placement.
+      if (template === "train-spring" && saved && saved.springFlowerLogoVersion === 1) shouldSeedDefaultLogo = false;
       if (shouldSeedDefaultLogo) {
         next.blocks.frontStub.imageData = fallback.blocks.frontStub.imageData;
         next.blocks.frontStub.imageName = fallback.blocks.frontStub.imageName;
@@ -2635,7 +3204,7 @@
       next.trainLogoVersion = TRAIN_LOGO_VERSION;
       next.trainGeometryVersion = TRAIN_GEOMETRY_VERSION;
       next.trainHandwritingVersion = TRAIN_HANDWRITING_VERSION;
-      if (saved && saved.kicker === "THE GRAND NIGHT RAILWAY · PASSENGER DEPT.") next.kicker = fallback.kicker;
+      if (template === "train" && saved && saved.kicker === "THE GRAND NIGHT RAILWAY · PASSENGER DEPT.") next.kicker = fallback.kicker;
     }
     if (template === "cinema" && saved) {
       if (saved.botLabel === "BOT") next.botLabel = fallback.botLabel;
@@ -2926,8 +3495,9 @@
       if (saved.platformText === "CLASS A · VALID 07") next.platformText = fallback.platformText;
       if (saved.validationText === "07\nVALID") next.validationText = fallback.validationText;
     }
-    if (!saved || typeof saved.backHeading !== "string") next.backHeading = TEMPLATE_LAYER_SIDES[template] ? fallback.backHeading : next.title;
-    if (!saved || typeof saved.stubTitle !== "string") next.stubTitle = TEMPLATE_LAYER_SIDES[template] ? fallback.stubTitle : (template === "train" ? (next.title.split(" ")[0] || "PASSAGE") : "SCREEN 02");
+    var nativeTemplateLayers = TEMPLATE_LAYER_SIDES[template] || TEMPLATE_LAYER_SIDES[templateFamilyId(template)];
+    if (!saved || typeof saved.backHeading !== "string") next.backHeading = nativeTemplateLayers ? fallback.backHeading : next.title;
+    if (!saved || typeof saved.stubTitle !== "string") next.stubTitle = nativeTemplateLayers ? fallback.stubTitle : (isTrainTemplate(template) ? (next.title.split(" ")[0] || "PASSAGE") : "SCREEN 02");
     var customIds = next.customLayers.front.concat(next.customLayers.back).map(function (item) { return item.id; });
     var expandedOrder = expandLegacyLayers(next.layerOrder, customIds);
     var savedMainFrameIndex = expandedOrder.indexOf("main-frame");
@@ -2942,12 +3512,12 @@
       var mainSerialIndex = next.layerOrder.indexOf("serial");
       next.layerOrder.splice(mainSerialIndex >= 0 ? mainSerialIndex + 1 : next.layerOrder.length, 0, "serial-copy");
     }
-    if (template === "train" && (expandedOrder.indexOf("image-stub") < 0 || resetTrainLogoState)) {
+    if (isTrainTemplate(template) && (expandedOrder.indexOf("image-stub") < 0 || resetTrainLogoState)) {
       next.layerOrder = next.layerOrder.filter(function (key) { return key !== "image-stub"; });
       var mainImageIndex = next.layerOrder.indexOf("image-main");
       next.layerOrder.splice(mainImageIndex >= 0 ? mainImageIndex + 1 : 0, 0, "image-stub");
     }
-    if (template === "train") {
+    if (isTrainTemplate(template)) {
       if (savedMainFrameIndex >= 0 && savedStubFrameIndex >= 0) {
         next.layerOrder = next.layerOrder.filter(function (key) { return key !== "frame"; });
       } else {
@@ -3055,7 +3625,7 @@
     });
     if (!saved || finiteNumber(saved.shadowPresetVersion, 0) < 2) {
       if (!(saved && saved.shadows && saved.shadows.title && saved.shadows.title.enabled)) {
-        next.shadows.title = template === "cinema" ? cinemaTitleShadow() : (template === "train" ? trainTitleShadow() : defaultShadow());
+        next.shadows.title = template === "cinema" ? cinemaTitleShadow() : (isTrainTemplate(template) ? trainTitleShadow() : defaultShadow());
       }
       next.shadowPresetVersion = 2;
     }
@@ -3081,9 +3651,9 @@
     var legacySelection = { heading: "title", metadata: "meta-bot", route: "route-art", "stub-print": "admit-copy", "stub-copy": "admit-copy", details: "source" };
     if (legacySelection[next.selectedLayer]) next.selectedLayer = legacySelection[next.selectedLayer];
     if (migrateTrainGeometry && template === "train" && next.side === "back" && next.selectedLayer === "source") next.selectedLayer = "back-note";
-    if (template === "train" && next.selectedLayer === "frame") next.selectedLayer = "main-frame";
+    if (isTrainTemplate(template) && next.selectedLayer === "frame") next.selectedLayer = "main-frame";
     if (layerOrderFor(next.side, next).indexOf(next.selectedLayer) < 0 || !layerAvailableOnSide(next.selectedLayer, next.side, next)) next.selectedLayer = "";
-    if (template === "train") {
+    if (isTrainTemplate(template)) {
       /* The two faces keep independent image/crop/effect records, but their
          paper colors are one shared stock. Normalize legacy/imported documents
          after every migration so stale reverse-only colors cannot reappear. */
@@ -3091,6 +3661,37 @@
       setBlockColorForKey("backStub", blockColorForKey("frontStub", next), next);
     }
     delete next.reducedMotion;
+    if (template === "train-spring") {
+      next.springRefinementVersion = saved && saved.springRefinementVersion === 1 ? 1 : 0;
+      applySpringRefinement(next);
+      next.springFilmLayerVersion = saved && saved.springFilmLayerVersion === 1 ? 1 : 0;
+      applySpringFilmLayer(next);
+      next.springPanoramaVersion = saved && saved.springPanoramaVersion === 1 ? 1 : 0;
+      applySpringPanorama(next);
+      next.springFlowerLogoVersion = saved && saved.springFlowerLogoVersion === 1 ? 1 : 0;
+      applySpringFlowerLogo(next);
+      next.springBackPanoramaVersion = saved && saved.springBackPanoramaVersion === 1 ? 1 : 0;
+      applySpringBackPanorama(next);
+      next.springFrontReferenceVersion = saved && saved.springFrontReferenceVersion === 1 ? 1 : 0;
+      applySpringFrontReference(next);
+      next.springTextPaletteVersion = saved && saved.springTextPaletteVersion === 1 ? 1 : 0;
+      applySpringTextPalette(next);
+      next.springCaptionLayoutVersion = saved && saved.springCaptionLayoutVersion === 1 ? 1 : 0;
+      applySpringCaptionLayout(next);
+      next.springReverseDesignVersion = saved && [1, 2, 3, 4, 5, 6, 7].indexOf(saved.springReverseDesignVersion) >= 0 ? saved.springReverseDesignVersion : 0;
+      applySpringReverseDesign(next);
+    }
+    applySeasonalPassageTitle(next, saved && saved.seasonalPassageTitleVersion);
+    applySeasonLayoutRefinement(next, saved && saved.seasonLayoutRefinementVersion);
+    window.LOG_TICKET_WINTER_THEME.alignFrontSnow(next, saved && saved.winterSnowLayoutVersion);
+    window.LOG_TICKET_WINTER_THEME.correctTypography(next, saved && saved.winterTypographyVersion);
+    window.LOG_TICKET_AUTUMN_THEME.restoreTypography(next, saved && saved.autumnTypographyRollbackVersion);
+    window.LOG_TICKET_SEASON_FONTS.apply(next, saved && saved.seasonDisplayFontVersion);
+    window.LOG_TICKET_WINTER_THEME.alignOpticalType(next, saved && saved.winterOpticalLayoutVersion);
+    window.LOG_TICKET_WINTER_THEME.refineBackHeader(next, saved && saved.winterBackHeaderVersion);
+    window.LOG_TICKET_SUMMER_THEME.refine(next, saved && saved.summerFrameVersion);
+    applySpringFrontInk(next, saved && saved.springFrontInkVersion);
+    removeRetiredSeasonAssets(next, saved && saved.seasonAssetCleanupVersion);
     next.designVersion = DESIGN_VERSION;
     return enforceProtectedAttribution(next);
   }
@@ -3245,10 +3846,10 @@
           if (blockReferencesImageAsset(template, key, block)) missingAssetData = true;
           return;
         }
-        var bundledTrainLogo = template === "train" && key === "frontStub"
-          && block.imageData === window.LOG_TICKET_TRAIN_LOGO_ASSET
+        var bundledTrainLogo = isTrainTemplate(template) && key === "frontStub"
+          && block.imageData === bundledTrainLogoSource(template)
           && block.imageAssetStored !== true
-          && block.imageName === "train-travel-logo-v4.png";
+          && block.imageName === bundledTrainLogoName(template);
         if (bundledTrainLogo) return;
         tasks.push(writeImageAssetRecord({
           id: imageBlockAssetId(template, key), data: block.imageData,
@@ -3286,8 +3887,8 @@
     return Boolean(item.imageName || item.imageType);
   }
   function blockReferencesImageAsset(template, key, block) {
-    if (template === "train" && key === "frontStub" && block && block.imageAssetStored !== true
-      && block.imageName === "train-travel-logo-v4.png") return false;
+    if ((template === "train" || template === "train-spring") && key === "frontStub" && block && block.imageAssetStored !== true
+      && block.imageName === bundledTrainLogoName(template)) return false;
     return metadataReferencesImageAsset(block);
   }
   function collectActiveImageAssetIds(documents) {
@@ -3297,8 +3898,8 @@
       Object.keys(documentState.blocks || {}).forEach(function (key) {
         var block = documentState.blocks[key];
         if (!block) return;
-        var bundledTrainLogo = template === "train" && key === "frontStub"
-          && block.imageData === window.LOG_TICKET_TRAIN_LOGO_ASSET
+        var bundledTrainLogo = (template === "train" || template === "train-spring") && key === "frontStub"
+          && block.imageData === bundledTrainLogoSource(template)
           && block.imageAssetStored !== true;
         if (!bundledTrainLogo && (block.imageData || blockReferencesImageAsset(template, key, block))) {
           activeIds[imageBlockAssetId(template, key)] = true;
@@ -3368,6 +3969,7 @@
     Object.keys(documentState.blocks || {}).forEach(function (key) {
       var block = documentState.blocks[key];
       var record = records[imageBlockAssetId(template, key)];
+      if (!record && template === "train-summer" && key === "frontMain") record = records[imageCustomAssetId(template, "front", "custom-summer-front-photo")];
       if (!record && template === "postcard" && key === "backStub") record = records[imageBlockAssetId(template, "frontStub")];
       if (!block || block.imageData || !blockReferencesImageAsset(template, key, block) || !record || !record.data) return;
       block.imageData = record.data;
@@ -3389,6 +3991,7 @@
         restored++;
       });
     });
+    removeRetiredSeasonAssets(documentState);
     return restored;
   }
   function hydrateImageAssets() {
@@ -3672,10 +4275,10 @@
       var documentState = documents[template];
       Object.keys(documentState.blocks || {}).forEach(function (key) {
         var block = documentState.blocks[key];
-        var bundledTrainLogo = template === "train" && key === "frontStub"
-          && block.imageData === window.LOG_TICKET_TRAIN_LOGO_ASSET
+        var bundledTrainLogo = (template === "train" || template === "train-spring") && key === "frontStub"
+          && block.imageData === bundledTrainLogoSource(template)
           && block.imageAssetStored !== true
-          && block.imageName === "train-travel-logo-v4.png";
+          && block.imageName === bundledTrainLogoName(template);
         block.imageAssetStored = Boolean(!bundledTrainLogo && (block.imageData
           || block.imageAssetStored === true && (block.imageName || block.imageType)));
         delete block.imageData;
@@ -4074,22 +4677,23 @@
       name: type === "image" ? "사용자 이미지 " + (count + 1) : type === "shape" ? "사용자 도형 " + (count + 1) : "사용자 텍스트 " + (count + 1),
       text: type === "text" ? "새 텍스트" : "", imageData: "", imageName: "", imageType: "",
       x: 12 + offset, y: 12 + offset, w: type === "text" ? 34 : 30, h: type === "text" ? 12 : 30,
-      rotation: 0, skewX: 0, scaleX: 1, scaleY: 1, autoHeight: type === "text",
+      rotation: 0, skewX: 0, scaleX: 1, scaleY: 1, autoHeight: type === "text", boundsTrimmed: false, alphaBoundsTrimmed: false,
       font: state.font || "noto-serif", fontSize: 28, fontWeight: "400", fontStyle: "normal",
       lineHeight: "1.35", letterSpacing: "normal", textTransform: "none", whiteSpace: "pre-wrap",
       color: state.quoteColor || "#684b47", colorMode: "solid", opacity: 100, align: "left", writingMode: "horizontal-tb", fit: "contain",
-      zoom: 1, panX: 0, panY: 0, effect: defaultEffect(), stroke: defaultStroke(), inlineTextStyles: [], typingStyle: {}, styledRuns: [], styledShapes: [], boxStyle: normalizeBoxStyle()
+      zoom: 1, panX: 0, panY: 0, imageFrameW: 0, imageFrameH: 0, effect: defaultEffect(), stroke: defaultStroke(), inlineTextStyles: [], typingStyle: {}, styledRuns: [], styledShapes: [], boxStyle: normalizeBoxStyle()
     };
   }
   function defaultCustomShape(kind) {
     var layer = defaultCustomLayer("shape");
-    layer.shapeKind = ["rectangle", "ellipse", "triangle", "star"].indexOf(kind) >= 0 ? kind : "rectangle";
+    layer.shapeKind = CUSTOM_SHAPE_KINDS.indexOf(kind) >= 0 ? kind : "rectangle";
+    layer.starPoints = 5;
     layer.fillMode = "color";
     layer.fillColor = "#b87977";
     layer.cornerMode = "all";
     layer.cornerRadius = 0;
-    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind)).fill(0);
-    var names = { rectangle: "사각형", ellipse: "원 · 타원", triangle: "삼각형", star: "별" };
+    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind, layer.starPoints)).fill(0);
+    var names = { rectangle: "사각형", ellipse: "원 · 타원", triangle: "삼각형", star: "별", heart: "하트" };
     layer.name = (names[layer.shapeKind] || "도형") + " " + ((state.customLayers[state.side] || []).length + 1);
     return layer;
   }
@@ -4105,7 +4709,11 @@
     state.sideShadows[layer.side][layer.id] = copiedShadow ? normalizeShadow(copiedShadow) : defaultShadow();
     state.selectedLayer = layer.id;
   }
-  function purgeCustomLayer(id) {
+  function purgeCustomLayer(id, skipWinterPeer) {
+    if (!skipWinterPeer && ["train-winter", "train-autumn", "train-summer"].indexOf(state.template) >= 0 && /^custom-(winter|autumn|summer)-(front|back)-coupon-/.test(id)) {
+      var peerId = id.replace(/^custom-(winter|autumn|summer)-(front|back)-/, function(_,season,side){return "custom-"+season+"-"+(side === "front" ? "back" : "front")+"-";});
+      if (customLayerById(peerId)) purgeCustomLayer(peerId, true);
+    }
     var layer = customLayerById(id);
     if (!layer) return false;
     if (customLayerCanStoreImage(layer)) deleteImageAsset(imageCustomAssetId(state.template, layer.side, layer.id));
@@ -4142,10 +4750,484 @@
     reader.readAsDataURL(file);
   }
 
+  function customImageIsGif(layer) {
+    if (!layer) return false;
+    return /^image\/gif(?:$|;)/i.test(String(layer.imageType || ""))
+      || /\.gif$/i.test(String(layer.imageName || "").trim())
+      || /^data:image\/gif(?:;|,)/i.test(String(layer.imageData || ""));
+  }
+
+  function exactCustomImageAlphaBounds(canvas) {
+    var width = canvas.width;
+    var height = canvas.height;
+    if (!width || !height) return null;
+    var context = canvas.getContext("2d", { alpha: true, willReadFrequently: true });
+    if (!context) throw new Error("이미지 픽셀을 확인할 수 없습니다.");
+    var scanRows = Math.min(64, height);
+    var minX = width;
+    var minY = height;
+    var maxX = -1;
+    var maxY = -1;
+    for (var tileY = 0; tileY < height; tileY += scanRows) {
+      var tileHeight = Math.min(scanRows, height - tileY);
+      var pixels = context.getImageData(0, tileY, width, tileHeight).data;
+      for (var localY = 0; localY < tileHeight; localY++) {
+        var y = tileY + localY;
+        var alphaOffset = localY * width * 4 + 3;
+        for (var x = 0; x < width; x++, alphaOffset += 4) {
+          if (pixels[alphaOffset] <= 0) continue;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < minX || maxY < minY) return null;
+    return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+  }
+
+  function cropCustomImageToAlphaBounds(image) {
+    var sourceWidth = Math.max(1, image && image.naturalWidth || 0);
+    var sourceHeight = Math.max(1, image && image.naturalHeight || 0);
+    if (!image || !image.naturalWidth || !image.naturalHeight) throw new Error("이미지 크기를 확인할 수 없습니다.");
+    var sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = sourceWidth;
+    sourceCanvas.height = sourceHeight;
+    var sourceContext = sourceCanvas.getContext("2d", { alpha: true, willReadFrequently: true });
+    if (!sourceContext) throw new Error("이미지를 처리할 수 없습니다.");
+    sourceContext.clearRect(0, 0, sourceWidth, sourceHeight);
+    sourceContext.drawImage(image, 0, 0, sourceWidth, sourceHeight);
+    var bounds = exactCustomImageAlphaBounds(sourceCanvas);
+    if (!bounds) {
+      sourceCanvas.width = sourceCanvas.height = 1;
+      return { empty: true };
+    }
+    if (bounds.x === 0 && bounds.y === 0 && bounds.width === sourceWidth && bounds.height === sourceHeight) {
+      sourceCanvas.width = sourceCanvas.height = 1;
+      return { unchanged: true };
+    }
+    var croppedCanvas = document.createElement("canvas");
+    croppedCanvas.width = bounds.width;
+    croppedCanvas.height = bounds.height;
+    var croppedContext = croppedCanvas.getContext("2d", { alpha: true });
+    if (!croppedContext) throw new Error("잘라낸 이미지를 만들 수 없습니다.");
+    croppedContext.clearRect(0, 0, bounds.width, bounds.height);
+    croppedContext.drawImage(
+      sourceCanvas,
+      bounds.x, bounds.y, bounds.width, bounds.height,
+      0, 0, bounds.width, bounds.height
+    );
+    var dataUrl = croppedCanvas.toDataURL("image/png");
+    sourceCanvas.width = sourceCanvas.height = 1;
+    croppedCanvas.width = croppedCanvas.height = 1;
+    return {
+      dataUrl: dataUrl,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      bounds: bounds
+    };
+  }
+
+  function alphaTrimmedCustomImageName(name) {
+    var base = String(name || "custom-image").replace(/\.[^.]+$/, "") || "custom-image";
+    return base + "-trimmed.png";
+  }
+
+  function applyCustomImageAlphaCrop(layer, cropResult, template) {
+    if (!layer || !cropResult || !cropResult.bounds) return;
+    var preview = templatePreviewSize(template);
+    var faceWidth = Math.max(1, preview.width);
+    var faceHeight = Math.max(1, preview.height);
+    var oldWidth = finiteNumber(layer.w, 0) / 100 * faceWidth;
+    var oldHeight = finiteNumber(layer.h, 0) / 100 * faceHeight;
+    var oldCenterX = finiteNumber(layer.x, 0) / 100 * faceWidth + oldWidth / 2;
+    var oldCenterY = finiteNumber(layer.y, 0) / 100 * faceHeight + oldHeight / 2;
+    var bounds = cropResult.bounds;
+    var fractionX = bounds.x / cropResult.sourceWidth;
+    var fractionY = bounds.y / cropResult.sourceHeight;
+    var fractionWidth = bounds.width / cropResult.sourceWidth;
+    var fractionHeight = bounds.height / cropResult.sourceHeight;
+    var localDeltaX = (fractionX + fractionWidth / 2 - .5) * oldWidth;
+    var localDeltaY = (fractionY + fractionHeight / 2 - .5) * oldHeight;
+    var rotation = finiteNumber(layer.rotation, 0) * Math.PI / 180;
+    var skew = Math.tan(clamp(finiteNumber(layer.skewX, 0), -70, 70) * Math.PI / 180);
+    var cos = Math.cos(rotation);
+    var sin = Math.sin(rotation);
+    /* CSS applies the custom layer's individual rotate before its skewX()
+       transform. Move the shrunken box centre through that same R * K matrix
+       so trimming never shifts the visible pixels, even on transformed art. */
+    var transformedDeltaX = cos * localDeltaX + (cos * skew - sin) * localDeltaY;
+    var transformedDeltaY = sin * localDeltaX + (sin * skew + cos) * localDeltaY;
+    var newWidth = Math.max(.0001, oldWidth * fractionWidth);
+    var newHeight = Math.max(.0001, oldHeight * fractionHeight);
+    var roundPercent = function (value) { return Math.round(value * 1000000) / 1000000; };
+    layer.x = roundPercent((oldCenterX + transformedDeltaX - newWidth / 2) / faceWidth * 100);
+    layer.y = roundPercent((oldCenterY + transformedDeltaY - newHeight / 2) / faceHeight * 100);
+    layer.w = roundPercent(newWidth / faceWidth * 100);
+    layer.h = roundPercent(newHeight / faceHeight * 100);
+    layer.imageData = cropResult.dataUrl;
+    layer.imageAssetStored = true;
+    layer.imageName = alphaTrimmedCustomImageName(layer.imageName);
+    layer.imageType = "image/png";
+    layer.alphaBoundsTrimmed = true;
+  }
+
+  function customTextHasInkContent(layer) {
+    if (!layer || layer.type !== "text") return false;
+    if (String(layer.text || "").trim()) return true;
+    return (layer.styledRuns || []).some(function (run) { return String(run && run.text || "").trim(); });
+  }
+
+  function measureCustomTextInkBounds(sourceNode) {
+    if (!sourceNode) throw new Error("선택한 텍스트를 찾을 수 없습니다.");
+    var sourceWidth = sourceNode.offsetWidth;
+    var sourceHeight = sourceNode.offsetHeight;
+    if (!(sourceWidth > 0) || !(sourceHeight > 0)) throw new Error("숨긴 텍스트는 표시한 뒤 다시 시도해 주세요.");
+    var host = document.createElement("div");
+    host.setAttribute("aria-hidden", "true");
+    host.style.cssText = "position:fixed;left:-100000px;top:0;width:1px;height:1px;overflow:visible;visibility:hidden;pointer-events:none;z-index:-2147483648;";
+    var clone = sourceNode.cloneNode(true);
+    clone.removeAttribute("id");
+    clone.removeAttribute("data-canvas-layer");
+    clone.classList.remove("canvas-selected", "hidden-layer");
+    Array.prototype.forEach.call(clone.querySelectorAll("[id]"), function (node) { node.removeAttribute("id"); });
+    clone.style.setProperty("position", "absolute", "important");
+    clone.style.setProperty("display", "block", "important");
+    clone.style.setProperty("box-sizing", "border-box", "important");
+    clone.style.setProperty("left", "0px", "important");
+    clone.style.setProperty("top", "0px", "important");
+    clone.style.setProperty("width", sourceWidth + "px", "important");
+    clone.style.setProperty("height", sourceHeight + "px", "important");
+    clone.style.setProperty("min-height", "0px", "important");
+    clone.style.setProperty("transform", "none", "important");
+    clone.style.setProperty("rotate", "none", "important");
+    clone.style.setProperty("scale", "none", "important");
+    clone.style.setProperty("translate", "none", "important");
+    clone.style.setProperty("transform-origin", "0 0", "important");
+    clone.style.setProperty("visibility", "visible", "important");
+    var rich = clone.classList.contains("rich-text-clone");
+    var wrappers = rich
+      ? clone.querySelectorAll(".rich-text-outline-ink")
+      : clone.querySelectorAll(".text-outline-ink:not(.rich-text-outline-ink)");
+    Array.prototype.forEach.call(wrappers, function (wrapper) {
+      wrapper.style.setProperty("display", "block", "important");
+      wrapper.style.setProperty("visibility", "visible", "important");
+      wrapper.style.setProperty("filter", "none", "important");
+    });
+    host.appendChild(clone);
+    document.body.appendChild(host);
+    try {
+      var rootRect = clone.getBoundingClientRect();
+      var minX = sourceWidth;
+      var minY = sourceHeight;
+      var maxX = 0;
+      var maxY = 0;
+      var found = false;
+      Array.prototype.forEach.call(wrappers, function (wrapper) {
+        var walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT);
+        var textNode;
+        while ((textNode = walker.nextNode())) {
+          var value = String(textNode.nodeValue || "");
+          var first = value.search(/\S/);
+          if (first < 0) continue;
+          var last = value.length;
+          while (last > first && /\s/.test(value.charAt(last - 1))) last--;
+          var range = document.createRange();
+          range.setStart(textNode, first);
+          range.setEnd(textNode, last);
+          Array.prototype.forEach.call(range.getClientRects(), function (rect) {
+            var left = Math.max(0, rect.left - rootRect.left);
+            var top = Math.max(0, rect.top - rootRect.top);
+            var right = Math.min(sourceWidth, rect.right - rootRect.left);
+            var bottom = Math.min(sourceHeight, rect.bottom - rootRect.top);
+            if (!(right > left) || !(bottom > top)) return;
+            minX = Math.min(minX, left);
+            minY = Math.min(minY, top);
+            maxX = Math.max(maxX, right);
+            maxY = Math.max(maxY, bottom);
+            found = true;
+          });
+          if (range.detach) range.detach();
+        }
+      });
+      if (rich) {
+        Array.prototype.forEach.call(clone.querySelectorAll(".rich-text-visual:not(.rich-text-outline-ink) .styled-clone-shape"), function (shape) {
+          var style = window.getComputedStyle(shape);
+          if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse"
+            || finiteNumber(style.opacity, 1) <= 0) return;
+          var rect = shape.getBoundingClientRect();
+          var left = Math.max(0, rect.left - rootRect.left);
+          var top = Math.max(0, rect.top - rootRect.top);
+          var right = Math.min(sourceWidth, rect.right - rootRect.left);
+          var bottom = Math.min(sourceHeight, rect.bottom - rootRect.top);
+          if (!(right > left) || !(bottom > top)) return;
+          minX = Math.min(minX, left);
+          minY = Math.min(minY, top);
+          maxX = Math.max(maxX, right);
+          maxY = Math.max(maxY, bottom);
+          found = true;
+        });
+      }
+      if (!found) return null;
+      /* Leave half a CSS pixel around the measured line boxes. This absorbs
+         sub-pixel font rounding so a tight width does not create a new wrap. */
+      var guard = .5;
+      minX = Math.max(0, minX - guard);
+      minY = Math.max(0, minY - guard);
+      maxX = Math.min(sourceWidth, maxX + guard);
+      maxY = Math.min(sourceHeight, maxY + guard);
+      return {
+        x: minX,
+        y: minY,
+        width: Math.max(.01, maxX - minX),
+        height: Math.max(.01, maxY - minY),
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight
+      };
+    } finally {
+      host.remove();
+    }
+  }
+
+  function cssColorHasVisibleAlpha(value) {
+    var color = String(value || "").trim().toLowerCase();
+    if (!color || color === "transparent") return false;
+    var rgba = /^rgba\(\s*[-+\d.]+\s*[, ]\s*[-+\d.]+\s*[, ]\s*[-+\d.]+(?:\s*[,/]\s*([-+\d.]+%?))?\s*\)$/.exec(color);
+    if (!rgba) return true;
+    if (rgba[1] == null) return true;
+    return rgba[1].endsWith("%") ? parseFloat(rgba[1]) > 0 : parseFloat(rgba[1]) > 0;
+  }
+
+  function customTextBoxPaintsFullBounds(sourceNode) {
+    if (!sourceNode) return false;
+    var target = sourceNode.classList.contains("rich-text-clone")
+      ? sourceNode.querySelector(".rich-text-visual:not(.rich-text-outline-ink)") || sourceNode
+      : sourceNode;
+    var style = window.getComputedStyle(target);
+    if (style.backgroundImage && style.backgroundImage !== "none") return true;
+    if (cssColorHasVisibleAlpha(style.backgroundColor)) return true;
+    if (style.boxShadow && style.boxShadow !== "none") return true;
+    return ["Top", "Right", "Bottom", "Left"].some(function (side) {
+      return parseFloat(style["border" + side + "Width"]) > 0
+        && ["none", "hidden"].indexOf(style["border" + side + "Style"]) < 0
+        && cssColorHasVisibleAlpha(style["border" + side + "Color"]);
+    });
+  }
+
+  function rebaseStyledGeometryForTextCrop(items, fractionX, fractionY, fractionWidth, fractionHeight) {
+    if (!Array.isArray(items)) return [];
+    var round = function (value) { return Math.round(value * 1000000) / 1000000; };
+    return items.map(function (item) {
+      var next = Object.assign({}, item);
+      next.x = round((finiteNumber(item && item.x, 0) / 100 - fractionX) / fractionWidth * 100);
+      next.y = round((finiteNumber(item && item.y, 0) / 100 - fractionY) / fractionHeight * 100);
+      next.w = round(finiteNumber(item && item.w, 0) / fractionWidth);
+      next.h = round(finiteNumber(item && item.h, 0) / fractionHeight);
+      return next;
+    });
+  }
+
+  function applyCustomTextBoundsCrop(layer, bounds, template, faceNode) {
+    if (!layer || !bounds || !faceNode) return;
+    var preview = templatePreviewSize(template);
+    var facePixelWidth = Math.max(1, faceNode.offsetWidth);
+    var facePixelHeight = Math.max(1, faceNode.offsetHeight);
+    var pixelToDesignX = preview.width / facePixelWidth;
+    var pixelToDesignY = preview.height / facePixelHeight;
+    var oldWidth = bounds.sourceWidth * pixelToDesignX;
+    var oldHeight = bounds.sourceHeight * pixelToDesignY;
+    var oldCenterX = finiteNumber(layer.x, 0) / 100 * preview.width + oldWidth / 2;
+    var oldCenterY = finiteNumber(layer.y, 0) / 100 * preview.height + oldHeight / 2;
+    var cropX = bounds.x * pixelToDesignX;
+    var cropY = bounds.y * pixelToDesignY;
+    var newWidth = Math.max(.0001, bounds.width * pixelToDesignX);
+    var newHeight = Math.max(.0001, bounds.height * pixelToDesignY);
+    var localDeltaX = cropX + newWidth / 2 - oldWidth / 2;
+    var localDeltaY = cropY + newHeight / 2 - oldHeight / 2;
+    var scaleX = clamp(finiteNumber(layer.scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE);
+    var scaleY = clamp(finiteNumber(layer.scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE);
+    var skew = Math.tan(clamp(finiteNumber(layer.skewX, 0), -70, 70) * Math.PI / 180);
+    var rotation = finiteNumber(layer.rotation, 0) * Math.PI / 180;
+    var cos = Math.cos(rotation);
+    var sin = Math.sin(rotation);
+    /* Match the editor's R * K * S transform order. The box centre moves by
+       the transformed local crop offset while its displayed glyphs stay put. */
+    var scaledX = localDeltaX * scaleX;
+    var scaledY = localDeltaY * scaleY;
+    var skewedX = scaledX + skew * scaledY;
+    var transformedDeltaX = cos * skewedX - sin * scaledY;
+    var transformedDeltaY = sin * skewedX + cos * scaledY;
+    var fractionX = bounds.x / bounds.sourceWidth;
+    var fractionY = bounds.y / bounds.sourceHeight;
+    var fractionWidth = bounds.width / bounds.sourceWidth;
+    var fractionHeight = bounds.height / bounds.sourceHeight;
+    var roundPercent = function (value) { return Math.round(value * 1000000) / 1000000; };
+    layer.x = roundPercent((oldCenterX + transformedDeltaX - newWidth / 2) / preview.width * 100);
+    layer.y = roundPercent((oldCenterY + transformedDeltaY - newHeight / 2) / preview.height * 100);
+    layer.w = roundPercent(newWidth / preview.width * 100);
+    layer.h = roundPercent(newHeight / preview.height * 100);
+    layer.styledRuns = rebaseStyledGeometryForTextCrop(layer.styledRuns, fractionX, fractionY, fractionWidth, fractionHeight);
+    layer.styledShapes = rebaseStyledGeometryForTextCrop(layer.styledShapes, fractionX, fractionY, fractionWidth, fractionHeight);
+    layer.autoHeight = false;
+    layer.boundsTrimmed = true;
+  }
+
+  function filmLayerAmount(effect, key) {
+    return !effect || effect.enabled === false || effect.filmEnabled === false
+      ? 0 : clamp(finiteNumber(effect[key], 0), 0, 100) / 100;
+  }
+  function filmShadeStops(vertical) {
+    return vertical ? [[0, 0], [.35, 0], [.7, .12], [1, .46]]
+      : [[0, .9], [.32, .8], [.64, .5], [1, .12]];
+  }
+  function filmShadeColor(alpha) { return "rgba(30,25,39," + alpha + ")"; }
+  function filmShadeCss(vertical) {
+    return "linear-gradient(to " + (vertical ? "bottom" : "right") + "," + filmShadeStops(vertical).map(function (stop) {
+      return filmShadeColor(stop[1]) + " " + stop[0] * 100 + "%";
+    }).join(",") + ")";
+  }
+  function renderImageFilm(host, effect) {
+    renderWinterFilm(host, effect);
+    var tone = filmLayerAmount(effect, "filmTone");
+    var shade = filmLayerAmount(effect, "readability");
+    var surfaces = [
+      { name: "wash", background: "#8e849c", opacity: tone * .26, blend: "soft-light" },
+      { name: "matte", background: "#b8aabb", opacity: tone * .035, blend: "normal" },
+      { name: "shade-x", background: filmShadeCss(false), opacity: shade, blend: "normal" },
+      { name: "shade-y", background: filmShadeCss(true), opacity: shade, blend: "normal" }
+    ];
+    surfaces.forEach(function (surface) {
+      var node = host.querySelector(':scope > [data-film-surface="' + surface.name + '"]');
+      if (!surface.opacity) { if (node) node.style.display = "none"; return; }
+      if (!node) {
+        node = document.createElement("div");
+        node.className = "image-film-surface";
+        node.dataset.filmSurface = surface.name;
+        node.setAttribute("aria-hidden", "true");
+        host.appendChild(node);
+      }
+      node.style.display = "block";
+      node.style.background = surface.background;
+      node.style.opacity = surface.opacity;
+      node.style.mixBlendMode = surface.blend;
+    });
+  }
+  function drawImageFilm(canvas, effect, alphaMask, unmaskedWinter) {
+    drawWinterFilm(canvas, effect, unmaskedWinter);
+    var tone = filmLayerAmount(effect, "filmTone");
+    var shade = filmLayerAmount(effect, "readability");
+    if (tone) {
+      drawAlphaMaskedEffectLayer(canvas, function (context, width, height) {
+        context.fillStyle = "#8e849c"; context.fillRect(0, 0, width, height);
+      }, "soft-light", tone * .26, alphaMask);
+      drawAlphaMaskedEffectLayer(canvas, function (context, width, height) {
+        context.fillStyle = "#b8aabb"; context.fillRect(0, 0, width, height);
+      }, "source-over", tone * .035, alphaMask);
+    }
+    if (shade) [false, true].forEach(function (vertical) {
+      drawAlphaMaskedEffectLayer(canvas, function (context, width, height) {
+        var gradient = context.createLinearGradient(0, 0, vertical ? 0 : width, vertical ? height : 0);
+        filmShadeStops(vertical).forEach(function (stop) { gradient.addColorStop(stop[0], filmShadeColor(stop[1])); });
+        context.fillStyle = gradient; context.fillRect(0, 0, width, height);
+      }, "source-over", shade, alphaMask);
+    });
+  }
+  function applySpringFilmLayer(documentState) {
+    if (documentState.template !== "train-spring" || documentState.springFilmLayerVersion === 1) return documentState;
+    ["frontMain", "backMain"].forEach(function (key) {
+      var effect = documentState.blocks[key].effect || defaultEffect();
+      effect.enabled = true;
+      effect.filmEnabled = true;
+      effect.filmTone = key === "frontMain" ? 55 : 45;
+      effect.readability = key === "frontMain" ? 36 : 10;
+      effect.grain = key === "frontMain" ? 42 : 34;
+      documentState.blocks[key].effect = effect;
+    });
+    documentState.springFilmLayerVersion = 1;
+    return documentState;
+  }
+  function filmLayerRowAvailable(key) {
+    var owner=customLayerById(key);
+    return ['image-main','image-stub'].indexOf(key)>=0 || Boolean(customLayerUsesRasterFill(owner)&&owner.w>=3&&owner.h>=3);
+  }
+  function filmEffectForLayer(key) {
+    var custom=customLayerById(key);
+    var owner=customLayerUsesRasterFill(custom)?custom:(['image-main','image-stub'].indexOf(key)>=0?state.blocks[blockKey(state.side,key)]:null);
+    return owner&&(owner.effect||(owner.effect=defaultEffect()));
+  }
+  function appendFilmLayerRow(list,key) {
+    var row=document.createElement('div'),effect=filmEffectForLayer(key);
+    if(!effect)return;
+    row.className='layer-row film-effect-row single-action';row.dataset.filmEffectRow=key;
+    row.innerHTML='<span class="film-effect-branch" aria-hidden="true">↳</span><button type="button" class="layer-select" data-film-select><i>◌</i><span><strong>필름 필터</strong><small>그레인 · 색감 · 어두움</small></span></button><button type="button" class="film-effect-toggle" data-film-toggle aria-label="필름 필터 끄기">ON</button>';
+    if(effect.winterFilm){row.querySelector('strong').textContent='겨울 필터';row.querySelector('small').textContent='블러 · 그레인 · 색감 · 베일';}
+    else if(state.template==='train-spring'&&state.side==='back'&&key==='image-main'){row.querySelector('small').textContent='블러 · 그레인 · 색감 · 어두움';}
+    list.appendChild(row);
+  }
+  function renderFilmLayerRow() {
+    $$('[data-film-effect-row]').forEach(function(row){
+      var key=row.dataset.filmEffectRow,effect=filmEffectForLayer(key);if(!effect)return;
+      var enabled=effect.enabled!==false&&(effect.winterFilm?effect.winterFilm.enabled!==false:effect.filmEnabled!==false);
+      row.classList.toggle('layer-hidden',!enabled);
+      row.classList.toggle('selected',isFilmSelection()&&state.selectedLayer===key);
+      var toggle=row.querySelector('[data-film-toggle]');toggle.textContent=enabled?'ON':'OFF';
+      toggle.setAttribute('aria-pressed',String(enabled));toggle.setAttribute('aria-label',enabled?'필름 필터 끄기':'필름 필터 켜기');
+    });
+  }
+
+  function visibleImageEffect(config) {
+    return config.effect && config.effect.enabled !== false ? config.effect : defaultEffect();
+  }
+  var filmGrainTexture;
+  function getFilmGrainTexture() {
+    if (filmGrainTexture) return filmGrainTexture;
+    var canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 192;
+    var context = canvas.getContext("2d"), pixels = context.createImageData(192, 192), seed = 138031;
+    function random() { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }
+    for (var i = 0; i < pixels.data.length; i += 4) {
+      var ink = Math.round(128 + (random() + random() + random() - 1.5) * 105);
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = clamp(ink, 0, 255);
+      pixels.data[i + 3] = 255;
+    }
+    context.putImageData(pixels, 0, 0);
+    filmGrainTexture = { canvas: canvas, url: canvas.toDataURL("image/png") };
+    return filmGrainTexture;
+  }
+  function renderImageGrain(host, effect) {
+    var grain = host.querySelector(":scope > .image-film-grain");
+    var film = winterFilm(effect);
+    var amount = film ? film.grain : filmLayerAmount(effect, "grain") * 100;
+    if (!amount) { if (grain) grain.style.display = "none"; return; }
+    if (!grain) { grain = document.createElement("div"); grain.className = "image-film-grain"; grain.setAttribute("aria-hidden", "true"); host.appendChild(grain); }
+    grain.style.display = "block";
+    grain.classList.toggle("winter-grain", Boolean(film));
+    grain.style.backgroundSize = film ? "415.603px 415.603px" : "";
+    grain.style.backgroundImage = 'url("' + (film ? getWinterGrainTexture().src : getFilmGrainTexture().url) + '")';
+    grain.style.opacity = amount / 100;
+  }
+  function drawImageGrain(canvas, effect, scale, alphaMask) {
+    var film = winterFilm(effect);
+    var amount = film ? film.grain : filmLayerAmount(effect, "grain") * 100;
+    if (!amount) return;
+    drawAlphaMaskedEffectLayer(canvas, function (context, width, height) {
+      var texture = film ? getWinterGrainTexture() : getFilmGrainTexture().canvas;
+      var pattern = context.createPattern(texture, "repeat");
+      pattern.setTransform(new DOMMatrix().scale(Math.max(.1, finiteNumber(scale, 1)) * (film ? 415.603 / texture.naturalWidth : 1.2)));
+      context.fillStyle = pattern;
+      context.fillRect(0, 0, width, height);
+    }, "soft-light", amount / 100, alphaMask);
+  }
   function effectFilterString(effect, visible, pixelScale) {
-    if (!visible || !effect) return "none";
+    if (!visible || !effect || effect.enabled === false) return "none";
     var scale = Math.max(.1, finiteNumber(pixelScale, 1));
     var filters = [];
+    var winter = winterFilm(effect);
+    if (winter && (winter.blur || winter.tone)) filters.push("grayscale(1) contrast(1.18) brightness(1.02)");
+    if (winter && winter.blur) filters.push("blur(" + winter.blur * 960 / 1774 * scale + "px)");
+    var filmBlur = filmLayerAmount(effect, "filmBlur") * 100;
+    if (filmBlur) filters.push("blur(" + filmBlur * 960 / 1774 * scale + "px)");
     if (effect.blur) filters.push("blur(" + effect.blur * scale + "px)");
     if (effect.brightness !== 100) filters.push("brightness(" + effect.brightness + "%)");
     if (effect.saturation !== 100) filters.push("saturate(" + effect.saturation + "%)");
@@ -4153,6 +5235,8 @@
     if (effect.hue) filters.push("hue-rotate(" + effect.hue + "deg)");
     if (effect.sepia) filters.push("sepia(" + effect.sepia + "%)");
     if (effect.grayscale) filters.push("grayscale(" + effect.grayscale + "%)");
+    var film = filmLayerAmount(effect, "filmTone");
+    if (film) filters.push("saturate(" + (1 - film * .28) + ") contrast(" + (1 - film * .06) + ") brightness(" + (1 - film * .08) + ")");
     return filters.join(" ") || "none";
   }
 
@@ -4182,14 +5266,14 @@
     layerContext.restore();
   }
 
-  function drawImageVignette(canvas, effect) {
+  function drawImageVignette(canvas, effect, alphaMask) {
     var amount = clamp(finiteNumber(effect && effect.vignette, 0), -100, 100);
     var strength = Math.abs(amount) / 100;
     if (!strength) return;
     var edgeColor = amount > 0 ? "rgba(255,255,255,1)" : "rgba(20,13,10,1)";
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
       paintCanvasVignetteLayer(layerContext, width, height, edgeColor);
-    }, "source-over", strength);
+    }, "source-over", strength, alphaMask);
   }
 
   function applySnapshotBoxStyle(node, boxStyle) {
@@ -4376,7 +5460,7 @@
     var valueNode = document.createElement("span");
     valueNode.className = "speaker-inline-value";
     appendInlineText(valueNode, visibleValue, textValue ? runs : [], suppressColor);
-    content.appendChild(document.createTextNode("— "));
+    if (state.template !== "train-spring") content.appendChild(document.createTextNode("— "));
     content.appendChild(valueNode);
     node.replaceChildren(content);
   }
@@ -4437,13 +5521,15 @@
     span.style.opacity = shape.opacity;
     node.appendChild(span);
   }
-  function shapeVertices(kind, width, height) {
+  function shapeVertices(kind, width, height, starPoints) {
     if (kind === "rectangle") return [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     if (kind === "triangle") return [{ x: width / 2, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
     if (kind === "star") {
       var points = [];
-      for (var index = 0; index < 10; index++) {
-        var angle = -Math.PI / 2 + index * Math.PI / 5;
+      var spikes = normalizeStarPoints(starPoints);
+      var vertexCount = spikes * 2;
+      for (var index = 0; index < vertexCount; index++) {
+        var angle = -Math.PI / 2 + index * Math.PI / spikes;
         var inner = index % 2 === 1;
         points.push({ x: width / 2 + Math.cos(angle) * width / 2 * (inner ? .45 : 1), y: height / 2 + Math.sin(angle) * height / 2 * (inner ? .45 : 1) });
       }
@@ -4453,12 +5539,36 @@
   }
   function traceShapePath(context, item, width, height) {
     context.beginPath();
+    if (window.LOG_TICKET_SUMMER_THEME.kinds.indexOf(item.shapeKind) >= 0) {
+      window.LOG_TICKET_SUMMER_THEME.trace(context, item.shapeKind, width, height);
+      return;
+    }
+    if (item.shapeKind === "arch") {
+      var archRise = Math.min(width / 2, height);
+      context.moveTo(0, height);
+      context.lineTo(0, archRise);
+      context.ellipse(width / 2, archRise, width / 2, archRise, 0, Math.PI, Math.PI * 2);
+      context.lineTo(width, height);
+      context.closePath();
+      return;
+    }
     if (item.shapeKind === "ellipse") {
       context.ellipse(width / 2, height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
       context.closePath();
       return;
     }
-    var vertices = shapeVertices(item.shapeKind, width, height);
+    if (item.shapeKind === "heart") {
+      context.moveTo(width / 2, height);
+      context.bezierCurveTo(width * .42, height * .9, 0, height * .64, 0, height * .3);
+      context.bezierCurveTo(0, height * .12, width * .12, 0, width * .3, 0);
+      context.bezierCurveTo(width * .4, 0, width * .48, height * .06, width * .5, height * .16);
+      context.bezierCurveTo(width * .52, height * .06, width * .6, 0, width * .7, 0);
+      context.bezierCurveTo(width * .88, 0, width, height * .12, width, height * .3);
+      context.bezierCurveTo(width, height * .64, width * .58, height * .9, width / 2, height);
+      context.closePath();
+      return;
+    }
+    var vertices = shapeVertices(item.shapeKind, width, height, item.starPoints);
     if (!vertices.length) return;
     var radii = item.cornerMode === "individual" ? item.cornerRadii || [] : vertices.map(function () { return item.cornerRadius; });
     var entries = [];
@@ -4708,20 +5818,22 @@
     traceShapePath(context, item, contentWidth, contentHeight);
     context.clip();
     if (item.fillMode === "image" && image && image.complete && image.naturalWidth) {
-      var crop = calculateCrop(item, image.naturalWidth, image.naturalHeight, contentWidth, contentHeight, scale);
+      var crop = calculateResizedShapeCrop(item, image.naturalWidth, image.naturalHeight, contentWidth, contentHeight, scale);
       var imageCanvas = document.createElement("canvas");
       imageCanvas.width = Math.max(1, Math.round(contentWidth));
       imageCanvas.height = Math.max(1, Math.round(contentHeight));
       var imageContext = imageCanvas.getContext("2d", { alpha: true });
       imageContext.imageSmoothingEnabled = true;
       imageContext.imageSmoothingQuality = "high";
-      imageContext.filter = effectFilterString(item.effect || defaultEffect(), true, scale);
+      imageContext.filter = effectFilterString(visibleImageEffect(item), true, scale);
       imageContext.drawImage(image, crop.x, crop.y, crop.width, crop.height);
-      var effect = item.effect || defaultEffect();
+      var effect = visibleImageEffect(item);
       drawAlphaMaskedEffectLayer(imageCanvas, function (layerContext, layerWidth, layerHeight) {
         paintEffectOverlay(layerContext, layerWidth, layerHeight, effect);
       }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
       drawImageVignette(imageCanvas, effect);
+      drawImageFilm(imageCanvas, effect);
+      drawImageGrain(imageCanvas, effect, scale);
         context.drawImage(imageCanvas, 0, 0, contentWidth, contentHeight);
       imageCanvas.width = 1;
       imageCanvas.height = 1;
@@ -4782,6 +5894,11 @@
             var visual = document.createElement("div");
             visual.className = "rich-text-visual";
             applySnapshotBoxStyle(visual, item.boxStyle);
+            /* Trimming can rebase preserved runs and decorative shapes beyond
+               the new, tighter wrapper. The original snapshot overflow still
+               belongs to ordinary area text, but it must not crop those saved
+               pixels after the user explicitly trims the bounds. */
+            if (item.boundsTrimmed) visual.style.setProperty("overflow", "visible", "important");
             visual.style.mixBlendMode = "normal";
             (item.styledShapes || []).forEach(function (shape) { appendStyledShape(visual, shape); });
             item.styledRuns.forEach(function (run) { appendStyledRun(visual, run); });
@@ -4809,7 +5926,7 @@
           }
           /* Snapshot box styles can carry their original overflow value, so
              enforce the editor's point/area mode after applying the snapshot. */
-          node.style.overflow = item.autoHeight ? "visible" : "hidden";
+          node.style.overflow = item.autoHeight || item.boundsTrimmed ? "visible" : "hidden";
           node.style.textOverflow = "clip";
         } else if (item.type === "image") {
           applySnapshotBoxStyle(node, item.boxStyle);
@@ -4827,7 +5944,7 @@
           } else {
             image.removeAttribute("src");
           }
-          var effect = item.effect || defaultEffect();
+          var effect = visibleImageEffect(item);
           var customOutline = imageOutlineFilter(strokeFor(item.id, side));
           var customShadow = imageShadowFilter(shadowFor(item.id, side));
           var customEffectFilter = effectFilterString(effect, true);
@@ -4849,6 +5966,9 @@
           node.style.setProperty("--image-overlay-color", effect.overlayColor);
           node.style.setProperty("--image-overlay-blend", effect.overlayBlend);
           setImageVignetteProperties(node, effect.vignette);
+          renderImageFilm(node, item.imageData ? effect : defaultEffect());
+          renderImageGrain(node, item.imageData ? effect : defaultEffect());
+          if (state.template === "train-summer") window.LOG_TICKET_SUMMER_THEME.mountOutlineHitTarget(node, item);
         } else {
           applySnapshotBoxStyle(node, item.boxStyle);
           node.style.background = "transparent";
@@ -4912,6 +6032,66 @@
     };
   }
 
+  function calculateResizedShapeCrop(config, imageW, imageH, frameW, frameH, renderPixelScale) {
+    var currentW = Math.max(3, finiteNumber(config && config.w, 30));
+    var currentH = Math.max(3, finiteNumber(config && config.h, 30));
+    var referenceW = frameW * Math.max(1, Math.max(3, finiteNumber(config && config.imageFrameW, currentW)) / currentW);
+    var referenceH = frameH * Math.max(1, Math.max(3, finiteNumber(config && config.imageFrameH, currentH)) / currentH);
+    var neutral = Object.assign({}, config || {}, { panX: 0, panY: 0 });
+    var fitted = calculateCrop(neutral, imageW, imageH, referenceW, referenceH, renderPixelScale);
+    var maxX = Math.max(0, (fitted.width - frameW) / 2);
+    var maxY = Math.max(0, (fitted.height - frameH) / 2);
+    return {
+      width: fitted.width,
+      height: fitted.height,
+      x: (frameW - fitted.width) / 2 + clamp(finiteNumber(config && config.panX, 0), -1, 1) * maxX,
+      y: (frameH - fitted.height) / 2 + clamp(finiteNumber(config && config.panY, 0), -1, 1) * maxY
+    };
+  }
+
+  function calculateShrunkSlotCrop(config, imageW, imageH, frameW, frameH, scaleX, scaleY) {
+    var slotScaleX = Math.min(1, clamp(finiteNumber(scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE));
+    var slotScaleY = Math.min(1, clamp(finiteNumber(scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE));
+    var neutral = Object.assign({}, config || {}, { panX: 0, panY: 0 });
+    var fitted = calculateCrop(neutral, imageW, imageH, frameW, frameH);
+    var visualFrameW = frameW * slotScaleX;
+    var visualFrameH = frameH * slotScaleY;
+    var maxX = Math.max(0, (fitted.width - visualFrameW) / 2);
+    var maxY = Math.max(0, (fitted.height - visualFrameH) / 2);
+    // Keep saved free-pan offsets where possible, but never pan beyond the
+    // image overflow. An axis with no overflow stays centered.
+    var rangeX = config && config.panMode === "free" ? Math.max(visualFrameW / 2, maxX) : maxX;
+    var rangeY = config && config.panMode === "free" ? Math.max(visualFrameH / 2, maxY) : maxY;
+    var offsetX = clamp(clamp(finiteNumber(config && config.panX, 0), -1, 1) * rangeX, -maxX, maxX);
+    var offsetY = clamp(clamp(finiteNumber(config && config.panY, 0), -1, 1) * rangeY, -maxY, maxY);
+    var visualX = (visualFrameW - fitted.width) / 2 + offsetX;
+    var visualY = (visualFrameH - fitted.height) / 2 + offsetY;
+    return {
+      width: fitted.width / slotScaleX,
+      height: fitted.height / slotScaleY,
+      x: frameW / 2 + (visualX - visualFrameW / 2) / slotScaleX,
+      y: frameH / 2 + (visualY - visualFrameH / 2) / slotScaleY,
+      visualWidth: fitted.width,
+      visualHeight: fitted.height,
+      visualX: visualX,
+      visualY: visualY,
+      visualFrameWidth: visualFrameW,
+      visualFrameHeight: visualFrameH
+    };
+  }
+  function constrainSeasonalPhotoPan(config, imageW, imageH, frameW, frameH, scaleX, scaleY) {
+    if (config.panMode === "legacy") config.panMode = "bounded";
+    if (config.panMode !== "free") return;
+    var crop = calculateShrunkSlotCrop(config, imageW, imageH, frameW, frameH, scaleX, scaleY);
+    var centerX = (crop.visualFrameWidth - crop.visualWidth) / 2;
+    var centerY = (crop.visualFrameHeight - crop.visualHeight) / 2;
+    var rangeX = Math.max(0, -centerX);
+    var rangeY = Math.max(0, -centerY);
+    config.panX = rangeX ? clamp((crop.visualX - centerX) / rangeX, -1, 1) : 0;
+    config.panY = rangeY ? clamp((crop.visualY - centerY) / rangeY, -1, 1) : 0;
+    config.panMode = "bounded";
+  }
+
   function shadowFor(layer, side) {
     side = side || state.side;
     if (!layer) return defaultShadow();
@@ -4940,6 +6120,10 @@
     if (custom) return ["text", "image", "shape"].indexOf(custom.type) >= 0;
     return (TEXT_LAYER_KEYS.indexOf(layer) >= 0 || layer === "image-main" || layer === "image-stub")
       && layerAvailableOnSide(layer, side, state);
+  }
+  function imagePixelStroke(layer, side) {
+    // Summer outlines the rectangular slot in CSS, not the photo's alpha pixels.
+    return state.template === "train-summer" && layer === "image-main" ? defaultStroke() : strokeFor(layer, side);
   }
   function layerSupportsRoundedStroke(layer, side) {
     side = side || state.side;
@@ -5028,6 +6212,7 @@
       if (!layerAvailableOnSide(layer, side, state)) return;
       var layerStyle = !custom && layerStyleEntry(side, layer, false) || {};
       var textBox = TEXT_LAYER_KEYS.indexOf(layer) >= 0 || Boolean(custom && custom.type === "text");
+      var areaTextBox = textBox && !isSpringWordmarkLayer(layer, side, state);
       var textColorMode = custom && custom.type === "text"
         ? customTextColorMode(custom)
         : (TEXT_LAYER_KEYS.indexOf(layer) >= 0 ? nativeTextColorMode(layer, side) : "solid");
@@ -5069,9 +6254,13 @@
          exactly the colour that was picked. */
       node.style.setProperty("--layer-stroke-color", strokeDisplayColor);
       node.classList.toggle("layer-stroke-on", Boolean(stroke.enabled && stroke.width > 0));
+      node.classList.toggle("custom-image-effects-outset", Boolean(custom && custom.type === "image"
+        && (shadow.enabled || stroke.enabled && stroke.width > 0 || finiteNumber(custom.effect && custom.effect.blur, 0) > 0)));
       node.classList.toggle("layer-stroke-rounded", stroke.join === "round");
       node.classList.toggle("freeform-movable", isMovableLayer(layer));
-      node.classList.toggle("layer-color-override", Boolean(layerStyle.color));
+      var springTextInk = state.template === "train-spring" && TEXT_LAYER_KEYS.indexOf(layer) >= 0
+        ? effectiveLayerColor(layer, side) : "";
+      node.classList.toggle("layer-color-override", Boolean(layerStyle.color || springTextInk));
       node.classList.toggle("layer-text-difference", textBox && textColorMode === "difference");
       node.classList.toggle("layer-text-transparent", textBox && textColorMode === "none");
       node.classList.toggle("layer-font-size-override", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && layerStyle.fontSize != null);
@@ -5081,9 +6270,9 @@
       node.classList.toggle("layer-spacing-override", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && (layerStyle.letterSpacing != null || layerStyle.lineHeight != null));
       node.classList.toggle("layer-text-align-override", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && Boolean(layerStyle.textAlign));
       node.classList.toggle("layer-writing-vertical", TEXT_LAYER_KEYS.indexOf(layer) >= 0 && layerStyle.writingMode === "vertical-rl");
-      node.classList.toggle("text-box-layer", textBox);
-      node.classList.toggle("text-box-resized", Boolean(!custom && textBox && nativePlacement.boxW));
-      if (layerStyle.color) node.style.setProperty("--layer-custom-color", layerStyle.color);
+      node.classList.toggle("text-box-layer", areaTextBox);
+      node.classList.toggle("text-box-resized", Boolean(!custom && areaTextBox && nativePlacement.boxW));
+      if (layerStyle.color || springTextInk) node.style.setProperty("--layer-custom-color", layerStyle.color || springTextInk);
       else node.style.removeProperty("--layer-custom-color");
       if (isCinemaFrontFrameColor(layer, side, state)) {
         var cinemaFrontFrameColor = effectiveLayerColor(layer, side);
@@ -5111,7 +6300,7 @@
         node.style.setProperty("writing-mode", layerStyle.writingMode === "vertical-rl" ? "vertical-rl" : "horizontal-tb", "important");
         node.style.setProperty("text-orientation", "mixed", "important");
       }
-      if (!custom && textBox && nativePlacement.boxW) {
+      if (!custom && areaTextBox && nativePlacement.boxW) {
         node.style.setProperty("--text-box-width", nativePlacement.boxW + "px");
         node.style.setProperty("--text-box-height", nativePlacement.boxH ? nativePlacement.boxH + "px" : "auto");
         node.style.setProperty("width", nativePlacement.boxW + "px", "important");
@@ -5784,11 +6973,11 @@
   function rawBlockImageSource(key, config) {
     if (!config) return "";
     if (config.imageData) return config.imageData;
-    if (state.template === "train" && (key === "frontStub" || key === "backStub")) return window.LOG_TICKET_TRAIN_LOGO_ASSET || "";
+    if (isTrainTemplate(state) && (key === "frontStub" || key === "backStub")) return bundledTrainLogoSource(state.template);
     return "";
   }
   function blockUsesAccentTint(key, config) {
-    return state.template === "train" && (key === "frontStub" || key === "backStub") && Boolean(rawBlockImageSource(key, config)) && config.tintMode === "accent";
+    return isTrainTemplate(state) && (key === "frontStub" || key === "backStub") && Boolean(rawBlockImageSource(key, config)) && config.tintMode === "accent";
   }
   function effectiveBlockImageSource(key, config) {
     var source = rawBlockImageSource(key, config);
@@ -5804,13 +6993,21 @@
   function blockConfigForDomKey(key) {
     return isTrainTemplate(state) && key === "backStub" ? state.blocks.frontStub : state.blocks[key];
   }
+  function applyBlockImageFilter(key, effect) {
+    var side = key.indexOf("back") === 0 ? "back" : "front";
+    var imageLayer = key.endsWith("Main") ? "image-main" : "image-stub";
+    var effectFilter = effectFilterString(effect, true);
+    var imageOutline = imageOutlineFilter(imagePixelStroke(imageLayer, side));
+    var shapeShadow = imageShadowFilter(shadowFor(imageLayer, side));
+    blockDom[key].image.style.filter = ((effectFilter === "none" ? "" : effectFilter + " ") + imageOutline + " " + shapeShadow).trim() || "none";
+  }
   function renderBlockImages() {
     Object.keys(blockDom).forEach(function (key) {
       var dom = blockDom[key];
       var config = blockConfigForDomKey(key);
       var imageSource = effectiveBlockImageSource(key, config);
       if (imageSource && failedBlockImageSources[key] === imageSource) imageSource = "";
-      var effect = config.effect || defaultEffect();
+      var effect = visibleImageEffect(config);
       var surfaceColor = blockColorForKey(key, state);
       dom.block.style.setProperty("--block-color", surfaceColor);
       dom.node.style.setProperty("--block-color", surfaceColor);
@@ -5819,6 +7016,8 @@
       dom.node.style.setProperty("--image-overlay-blend", effect.overlayBlend);
       setImageVignetteProperties(dom.node, effect.vignette);
       dom.node.classList.toggle("has-image", Boolean(imageSource));
+      renderImageFilm(dom.frame, imageSource ? effect : defaultEffect());
+      renderImageGrain(dom.frame, imageSource ? effect : defaultEffect());
       if (!imageSource) {
         setLayerAlphaMask(dom.node, "");
         dom.image.style.display = "none";
@@ -5831,7 +7030,14 @@
       var frameWidth = dom.frame.clientWidth;
       var frameHeight = dom.frame.clientHeight;
       if (!frameWidth || !frameHeight) return;
-      var crop = calculateCrop(config, dom.image.naturalWidth, dom.image.naturalHeight, frameWidth, frameHeight);
+      var side = key.indexOf("back") === 0 ? "back" : "front";
+      var imageLayer = key.endsWith("Main") ? "image-main" : "image-stub";
+      var imagePlacement = placementFor(side, imageLayer);
+      constrainSeasonalPhotoPan(config, dom.image.naturalWidth, dom.image.naturalHeight, frameWidth, frameHeight, imagePlacement.scaleX, imagePlacement.scaleY);
+      var crop = calculateShrunkSlotCrop(
+        config, dom.image.naturalWidth, dom.image.naturalHeight, frameWidth, frameHeight,
+        imagePlacement.scaleX, imagePlacement.scaleY
+      );
       // Fitted image geometry must override protected stock-template geometry.
       // Otherwise cover/contain is replaced by a distorted 100% x 100% box.
       dom.image.style.setProperty("width", crop.width + "px", "important");
@@ -5844,11 +7050,7 @@
       setLayerAlphaMask(dom.node, imageSource);
       dom.node.style.setProperty("--image-alpha-mask-size", crop.width + "px " + crop.height + "px");
       dom.node.style.setProperty("--image-alpha-mask-position", crop.x + "px " + crop.y + "px");
-      var effectFilter = effectFilterString(effect, true);
-      var imageLayer = key.endsWith("Main") ? "image-main" : "image-stub";
-      var imageOutline = imageOutlineFilter(strokeFor(imageLayer, key.indexOf("back") === 0 ? "back" : "front"));
-      var shapeShadow = imageShadowFilter(shadowFor(imageLayer, key.indexOf("back") === 0 ? "back" : "front"));
-      dom.image.style.filter = ((effectFilter === "none" ? "" : effectFilter + " ") + imageOutline + " " + shapeShadow).trim() || "none";
+      applyBlockImageFilter(key, effect);
     });
   }
 
@@ -5881,6 +7083,7 @@
     backQuote.style.setProperty("left", back.quoteX + "%", "important");
     backQuote.style.setProperty("top", back.quoteY + "%", "important");
     backQuote.style.setProperty("width", back.quoteW + "%", "important");
+    backQuote.style.setProperty("--spring-back-quote-width", back.quoteW + "%");
     $("#backTitlePreview").style.fontSize = Math.max(17, back.quoteSize * trainScale) + "px";
     backDetails.style.setProperty("left", back.detailsX + "%", "important");
     /* The OTT info column is balanced around the face centre, so its episode
@@ -6484,6 +7687,9 @@
     if (isCinemaFrontFrameColor(key, side || source.side, source)) return CINEMA_FRONT_FRAME_DEFAULT_COLOR;
     if (isPostcardStampBorderColor(key, side || source.side, source)) return POSTCARD_STAMP_BORDER_DEFAULT_COLOR;
     if (isOttProgressColor(key, side || source.side, source)) return OTT_PROGRESS_DEFAULT_COLOR;
+    if (source.template === "train-spring" && TEXT_LAYER_KEYS.indexOf(key) >= 0) {
+      return springTextUsesPrimaryInk(key) ? source.quoteColor : source.muted;
+    }
     return FRAME_COLOR_LAYER_KEYS.indexOf(key) >= 0 ? source.accent : source.quoteColor;
   }
   function ottProgressValue(documentState) {
@@ -6569,6 +7775,9 @@
       if (textarea.value !== nextValue) textarea.value = nextValue;
     });
     renderPartialTextStatus("layer");
+    var wordmark = state.side === "back" && state.selectedLayer === "copy-label" && usesSpringWordmark(state);
+    $("#layerPartialTextTools").hidden = wordmark;
+    if (wordmark) $("#layerTextFieldA .field-label").textContent = "Spring 이미지 · 문구 변경 시 일반 텍스트로 전환";
   }
   function renderLayerStyleInspector() {
     var key = state.selectedLayer;
@@ -6598,7 +7807,8 @@
     var computedNode = inlineComputedNode || node;
     var computed = computedNode ? window.getComputedStyle(computedNode) : null;
     var independentFrameColor = !customText && isIndependentFrameColor(key, state.side, state);
-    var fallbackColor = customText ? custom.color : independentFrameColor
+    var frameColor = !customText && FRAME_COLOR_LAYER_KEYS.indexOf(key) >= 0;
+    var fallbackColor = customText ? custom.color : frameColor
       ? selectedLayerBaseColor(key, state.side, state)
       : (computed ? rgbToHex(computed.color, selectedLayerBaseColor(key, state.side, state)) : selectedLayerBaseColor(key, state.side, state));
     var baseColor = style.color || fallbackColor;
@@ -6627,6 +7837,19 @@
     var displayedFontFamily = trackedInlineStyleValue(textKind, "fontFamily", baseFontFamily);
     var displayedWeight = trackedInlineStyleValue(textKind, "fontWeight", style.fontWeight || String(computedWeight));
     var displayedFontStyle = trackedInlineStyleValue(textKind, "fontStyle", style.fontStyle || computedStyle);
+    var wordmarkTitle = state.template === "train-spring" && state.side === "back" && key === "copy-label";
+    var wordmarkOption = $('#layerFontFamily option[value="spring-flourish"]');
+    if (!wordmarkOption && wordmarkTitle) {
+      wordmarkOption = document.createElement("option");
+      wordmarkOption.value = "spring-flourish";
+      wordmarkOption.textContent = "Spring Flourish · 이미지 타이포";
+      $("#layerFontFamily").appendChild(wordmarkOption);
+    }
+    if (wordmarkOption) { wordmarkOption.hidden = !wordmarkTitle; wordmarkOption.disabled = !wordmarkTitle; }
+    var wordmarkActive = wordmarkTitle && usesSpringWordmark(state);
+    ["#layerBoldToggle", "#layerItalicToggle", "#layerWritingMode", "#layerLetterSpacing", "#layerLineHeight"].forEach(function (selector) {
+      $(selector).disabled = wordmarkActive;
+    });
     setInputValue("#layerFontSize", pxToPt(displayedFontSize));
     setInputValue("#layerFontFamily", displayedFontFamily);
     syncFontSelectPreview("#layerFontFamily", displayedFontFamily);
@@ -6654,7 +7877,6 @@
     $("#layerLetterSpacingOut").textContent = $("#layerLetterSpacing").value + "px";
     setInputValue("#layerLineHeight", displayedLineHeight);
     $("#layerLineHeightOut").textContent = $("#layerLineHeight").value;
-    var frameColor = !customText && FRAME_COLOR_LAYER_KEYS.indexOf(key) >= 0;
     $("#commonFrameColorFields").hidden = !frameColor || independentFrameColor;
     $("#layerColorModeRow").hidden = !frameColor || independentFrameColor;
     $("#layerColorMode").checked = independentFrameColor || Boolean(style.color);
@@ -6671,12 +7893,13 @@
 
   function renderShapeCornerControls(shape) {
     var container = $("#customShapeCornerIndividual");
-    var count = shapeCornerCount(shape.shapeKind);
+    var count = shapeCornerCount(shape.shapeKind, shape.starPoints);
+    var geometryKey = shape.shapeKind + ":" + count;
     var rectangleLabels = ["왼쪽 위", "오른쪽 위", "오른쪽 아래", "왼쪽 아래"];
     var labels = shape.shapeKind === "triangle" ? ["위", "오른쪽 아래", "왼쪽 아래"]
-      : shape.shapeKind === "star" ? Array.from({ length: 10 }, function (_, index) { return "꼭짓점 " + (index + 1); })
-        : rectangleLabels;
-    if (container.dataset.shapeKind !== shape.shapeKind) {
+      : shape.shapeKind === "star" ? Array.from({ length: count }, function (_, index) { return "꼭짓점 " + (index + 1); })
+        : shape.shapeKind === "rectangle" ? rectangleLabels : [];
+    if (container.dataset.shapeGeometry !== geometryKey) {
       container.replaceChildren();
       labels.forEach(function (label, index) {
         var wrapper = document.createElement("div");
@@ -6711,7 +7934,7 @@
         wrapper.appendChild(controls);
         container.appendChild(wrapper);
       });
-      container.dataset.shapeKind = shape.shapeKind;
+      container.dataset.shapeGeometry = geometryKey;
     }
     var radii = shape.cornerRadii || [];
     while (radii.length < count) radii.push(shape.cornerRadius || 0);
@@ -6745,7 +7968,8 @@
        the same single layer-style surface. */
     $$("[data-inspector]").forEach(function (group) {
       var keys = group.dataset.inspector.split(" ");
-      group.classList.toggle("active", hasSelection && activeInspectors.some(function (key) { return keys.indexOf(key) >= 0; }));
+      group.classList.toggle("active", isFilmSelection() ? group===imageEffectsInspector : hasSelection && activeInspectors.some(function (key) { return keys.indexOf(key) >= 0; }));
+      if(group===imageEffectsInspector)group.classList.toggle("film-only",isFilmSelection());
     });
     $$("[data-face-fields]").forEach(function (group) {
       var active = group.dataset.faceFields === state.side;
@@ -6865,6 +8089,9 @@
       $("#customImageName").textContent = custom.imageName || "선택한 파일 없음";
       if (custom.type === "shape") {
         setInputValue("#customShapeType", custom.shapeKind);
+        var starShape = custom.shapeKind === "star";
+        $("#customShapeStarPointsFields").hidden = !starShape;
+        setInputValue("#customShapeStarPoints", normalizeStarPoints(custom.starPoints));
         setInputValue("#customShapeFillMode", custom.fillMode);
         $("#customShapeFillColor").value = custom.fillColor;
         $("#customShapeFillColorCode").textContent = custom.fillColor.toUpperCase();
@@ -6882,7 +8109,7 @@
         $("#customShapePanXOut").textContent = Math.round(custom.panX * 100);
         $("#customShapePanYRange").value = Math.round(custom.panY * 100);
         $("#customShapePanYOut").textContent = Math.round(custom.panY * 100);
-        $("#customShapeCornerFields").hidden = custom.shapeKind === "ellipse";
+        $("#customShapeCornerFields").hidden = shapeCornerCount(custom.shapeKind, custom.starPoints) === 0;
         $("#customShapeCornerMode").checked = custom.cornerMode === "individual";
         setInputValue("#customShapeCornerAll", custom.cornerRadius);
         setInputValue("#customShapeCornerAllNumber", Math.round(custom.cornerRadius));
@@ -6892,6 +8119,31 @@
       $("#customOpacityRange").value = custom.opacity;
       $("#customOpacityOut").textContent = Math.round(custom.opacity) + "%";
     }
+    var trimCustomTextButton = $("#trimCustomTextBoundsBtn");
+    var trimCustomTextTarget = Boolean(custom && custom.type === "text");
+    var trimCustomTextHidden = trimCustomTextTarget && isLayerHidden(custom.id, custom.side);
+    trimCustomTextButton.hidden = !trimCustomTextTarget;
+    trimCustomTextButton.disabled = !trimCustomTextTarget || !customTextHasInkContent(custom)
+      || trimCustomTextHidden || isLayerLocked(custom.id, custom.side);
+    trimCustomTextButton.title = !trimCustomTextTarget
+      ? ""
+      : trimCustomTextHidden
+        ? "숨긴 텍스트는 표시한 뒤 여백을 줄일 수 있습니다."
+        : customTextHasInkContent(custom)
+          ? "실제 글자 영역에 맞추되 화면에서 보이는 글자 위치는 유지합니다."
+          : "먼저 텍스트를 입력해 주세요.";
+    var trimCustomImageButton = $("#trimCustomImageAlphaBtn");
+    var trimCustomImageTarget = Boolean(custom && custom.type === "image");
+    var trimCustomImageGif = trimCustomImageTarget && customImageIsGif(custom);
+    trimCustomImageButton.hidden = !trimCustomImageTarget;
+    trimCustomImageButton.disabled = !trimCustomImageTarget || !custom.imageData || trimCustomImageGif || isLayerLocked(custom.id, custom.side);
+    trimCustomImageButton.title = trimCustomImageGif
+      ? "GIF는 애니메이션 보존을 위해 투명 여백 줄이기를 지원하지 않습니다."
+      : !trimCustomImageTarget
+        ? ""
+        : custom.imageData
+          ? "투명 픽셀만 잘라내고 보이는 이미지의 위치와 크기는 유지합니다."
+          : "먼저 이미지를 넣어 주세요.";
     if (!custom && inspectorKey === "layer-text") renderLayerTextInspector();
     if (custom && custom.type === "text" || !custom && COLOR_LAYER_KEYS.indexOf(state.selectedLayer) >= 0) renderLayerStyleInspector();
 
@@ -6915,11 +8167,13 @@
         $("#imageHelp").textContent = state.selectedLayer === "image-stub"
           ? (state.template === "postcard" ? "BACK / POSTAGE ILLUSTRATION" : (state.side === "front" ? "FRONT / RAILWAY LOGO" : "BACK / RAILWAY LOGO"))
           : (state.side === "front" ? "FRONT / MAIN IMAGE" : "BACK / MAIN IMAGE");
-        $("#logoTintControl").hidden = state.template !== "train" || state.selectedLayer !== "image-stub";
+        $("#logoTintControl").hidden = !isTrainTemplate(state) || state.selectedLayer !== "image-stub";
         $("#logoAccentControl").hidden = true;
         $("#logoTintToggle").checked = block.tintMode === "accent";
         $("#logoAccentColor").value = effectiveLayerColor("image-stub", state.side);
         $("#logoAccentCode").textContent = effectiveLayerColor("image-stub", state.side).toUpperCase();
+        var logoStyle = layerStyleEntry(state.side, "image-stub", false);
+        $("#logoAccentControl > span").textContent = logoStyle && logoStyle.color ? "로고 개별 색상" : "로고·프레임·장식 색상";
         $$("[data-fit]").forEach(function (button) { button.classList.toggle("active", button.dataset.fit === block.fit); });
       }
     }
@@ -6991,6 +8245,7 @@
   }
 
   function renderLayerState() {
+    renderFilmLayerRow();
     var layerList = $("#layerList");
     $$("[data-layer-row]").forEach(function (row) {
       var definition = layerDefinition(row.dataset.layerRow);
@@ -7001,7 +8256,7 @@
         var folder = layerFolderFor(definition);
         row.querySelector("small").textContent = label[1] + " · " + (LAYER_FOLDER_LABELS[folder] || folder);
       }
-      row.classList.toggle("selected", isLayerSelected(row.dataset.layerRow, state.side));
+      row.classList.toggle("selected", !isFilmSelection() && isLayerSelected(row.dataset.layerRow, state.side));
       row.classList.toggle("layer-clipped", isLayerClipped(row.dataset.layerRow, state.side));
     });
     $$("[data-visible]").forEach(function (button) {
@@ -7117,7 +8372,8 @@
     if (custom) {
       var percent = customShapeSizeFromDesignPx(axis, value, template);
       var minimum = custom.type === "shape" ? 3 : custom.type === "image" ? .01
-        : ((custom.styledRuns || []).length || (custom.styledShapes || []).length) ? .25 : 3;
+        : custom.boundsTrimmed ? .01
+          : ((custom.styledRuns || []).length || (custom.styledShapes || []).length) ? .25 : 3;
       custom[axis === "width" ? "w" : "h"] = clamp(percent, minimum, MAX_OBJECT_SIZE_PERCENT);
       if (custom.type === "text") custom.autoHeight = false;
       return;
@@ -7125,7 +8381,7 @@
     if (!node || !face) return;
     var preview = templatePreviewSize(template);
     var dimension = axis === "width" ? "offsetWidth" : "offsetHeight";
-    if (TEXT_LAYER_KEYS.indexOf(layer) >= 0) {
+    if (TEXT_LAYER_KEYS.indexOf(layer) >= 0 && !isSpringWordmarkLayer(layer, side, state)) {
       var textPlacement = writablePlacementFor(side, layer);
       textPlacement.boxW = textPlacement.boxW || Math.max(16, node.offsetWidth || 16);
       textPlacement.boxH = textPlacement.boxH || Math.max(12, node.offsetHeight || 12);
@@ -7221,7 +8477,8 @@
         var textObject = TEXT_LAYER_KEYS.indexOf(key) >= 0 || Boolean(custom && custom.type === "text");
         node.classList.add("object-transform-active");
         var handles = [
-          { mode: "resize", title: textObject ? "드래그: 텍스트 칸 재배치 · Alt+드래그: 글자와 칸 함께 확대" : "모서리를 드래그하여 크기 조절" },
+          { mode: "resize", corner: "br", title: textObject ? "드래그: 텍스트 칸 재배치 · Alt+드래그: 글자와 칸 함께 확대" : "모서리를 드래그하여 크기 조절" },
+          { mode: "resize", corner: "bl", title: textObject ? "드래그: 텍스트 칸 재배치 · Alt+드래그: 글자와 칸 함께 확대" : "모서리를 드래그하여 크기 조절" },
           { mode: "rotate", title: "드래그하여 오브젝트 회전" },
           { mode: "skew", title: "Alt+가로 드래그: 오브젝트 평행사변형 기울기" }
         ];
@@ -7230,6 +8487,7 @@
           var handle = document.createElement("i");
           handle.className = "object-transform-handle object-" + config.mode + "-handle";
           handle.dataset.objectHandle = config.mode;
+          if (config.corner) handle.dataset.objectCorner = config.corner;
           handle.dataset.objectLayer = key;
           handle.dataset.objectSide = state.side;
           handle.title = config.title;
@@ -7253,7 +8511,7 @@
   }
 
   function refreshTrainFrameArtwork() {
-    if (state.template !== "train") {
+    if (!isTrainTemplate(state)) {
       trainFrameRenderPromise = Promise.resolve();
       return;
     }
@@ -7267,7 +8525,8 @@
       stubBack: effectiveLayerColor("stub-frame", "back"),
       dividerFront: effectiveLayerColor("stub-divider", "front"),
       dividerBack: effectiveLayerColor("stub-divider", "back"),
-      backImageFrame: effectiveLayerColor("back-image-frame", "back")
+      backImageFrame: effectiveLayerColor("back-image-frame", "back"),
+      theme: state.template
     });
     trainFrameRenderPromise = Promise.resolve(framePromise).catch(function (error) {
       console.warn("Train frame color rendering failed", error);
@@ -7275,7 +8534,7 @@
   }
   function refreshTrainLogoArtwork() {
     var renderer = window.LOG_TICKET_TRAIN_LOGO_RENDERER;
-    var config = state.template === "train" && state.blocks && state.blocks.frontStub;
+    var config = isTrainTemplate(state) && state.blocks && state.blocks.frontStub;
     if (!renderer || typeof renderer.tint !== "function" || !blockUsesAccentTint("frontStub", config)) {
       trainLogoRenderPromise = Promise.resolve();
       return;
@@ -7284,7 +8543,7 @@
     trainLogoRenderPromise = Promise.all(["front", "back"].map(function (side) {
       var color = effectiveLayerColor("image-stub", side);
       return renderer.tint(source, color).then(function (dataUrl) {
-        var current = state.template === "train" && state.blocks && state.blocks.frontStub;
+        var current = isTrainTemplate(state) && state.blocks && state.blocks.frontStub;
         if (!current || rawBlockImageSource("frontStub", current) !== source || current.tintMode !== "accent" || effectiveLayerColor("image-stub", side) !== color) return;
         renderedTrainLogos[side] = { base: source, color: color, source: dataUrl };
       });
@@ -7292,6 +8551,50 @@
       requestAnimationFrame(renderBlockImages);
     }).catch(function (error) {
       console.warn("Train logo color rendering failed", error);
+    });
+  }
+
+  function usesSpringWordmark(documentState) {
+    var source = documentState || state;
+    var style = source.layerStyles && source.layerStyles.back && source.layerStyles.back["copy-label"];
+    return source.template === "train-spring" && source.backCopyLabel === "Spring"
+      && (!style || !style.fontFamily || style.fontFamily === "spring-flourish") && Boolean(window.LOG_TICKET_SPRING_WORDMARK_ASSET);
+  }
+  function isSpringWordmarkLayer(key, side, documentState) {
+    return key === "copy-label" && side === "back" && usesSpringWordmark(documentState);
+  }
+  function renderSpringWordmark() {
+    var node = $("#backCopyLabelPreview");
+    var active = usesSpringWordmark(state);
+    node.classList.toggle("spring-wordmark", Boolean(active));
+    node.removeAttribute("aria-label");
+    springWordmarkRenderPromise = Promise.resolve();
+    if (!active) return;
+    var source = window.LOG_TICKET_SPRING_WORDMARK_ASSET;
+    var color = nativeTextColorMode("copy-label", "back") === "difference" ? "#ffffff" : effectiveLayerColor("copy-label", "back");
+    var image = document.createElement("img");
+    image.className = "spring-wordmark-image text-outline-ink";
+    image.alt = "Spring";
+    image.draggable = false;
+    node.textContent = "";
+    node.setAttribute("aria-label", "Spring");
+    node.appendChild(image);
+    var renderer = window.LOG_TICKET_TRAIN_LOGO_RENDERER;
+    if (!renderer || typeof renderer.tint !== "function") { image.src = source; return; }
+    var tint = springWordmarkTints.get(color);
+    if (!tint) {
+      // Keep the generated alpha intact, using the existing PNG logo tint pipeline.
+      tint = { data: "", promise: null };
+      tint.promise = renderer.tint(source, color).then(function (data) { tint.data = data; return data; });
+      if (springWordmarkTints.size >= 4) springWordmarkTints.delete(springWordmarkTints.keys().next().value);
+      springWordmarkTints.set(color, tint);
+    }
+    image.src = tint.data || source;
+    springWordmarkRenderPromise = tint.promise.then(function (data) {
+      if (image.isConnected) image.src = data;
+    }).catch(function (error) {
+      springWordmarkTints.delete(color);
+      console.warn("Spring wordmark color rendering failed", error);
     });
   }
 
@@ -7450,6 +8753,7 @@
   }
 
   function render() {
+    syncWinterCoupon();
     enforceProtectedAttribution(state);
     var postcardStatic = state.template === "postcard";
     if (!templateSupportsBoth(state) && state.postcardViewMode === "both") {
@@ -7511,10 +8815,10 @@
     document.body.dataset.template = state.template;
     document.body.dataset.side = state.side;
     ticket.style.setProperty("--ticket-accent", state.accent);
-    var trainMainOpeningMaskSource = window.LOG_TICKET_TRAIN_MAIN_OPENING_MASK_ASSET || "";
+    var trainMainOpeningMaskSource = trainOpeningMaskSource("main", state);
     if (trainMainOpeningMaskSource) blockDom.frontMain.node.style.setProperty("--train-main-opening-mask", 'url("' + trainMainOpeningMaskSource + '")');
     else blockDom.frontMain.node.style.removeProperty("--train-main-opening-mask");
-    var trainBackOpeningMaskSource = window.LOG_TICKET_TRAIN_BACK_OPENING_MASK_ASSET || "";
+    var trainBackOpeningMaskSource = trainOpeningMaskSource("back", state);
     if (trainBackOpeningMaskSource) blockDom.backMain.node.style.setProperty("--train-back-opening-mask", 'url("' + trainBackOpeningMaskSource + '")');
     else blockDom.backMain.node.style.removeProperty("--train-back-opening-mask");
     ticket.style.setProperty("--ticket-quote", state.quoteColor);
@@ -7543,7 +8847,7 @@
     $("#ottTagPreview").textContent = state.ottTag;
     $("#speakerPreview").className = "speaker-layer runtime-font" + runtimeFontClass;
     $("#speakerPreview").style.setProperty("--runtime-font-family", runtimeFontFamily);
-    $("#speakerPreview").textContent = "— " + (state.speaker || "이름 없음");
+    $("#speakerPreview").textContent = (state.template === "train-spring" ? "" : "— ") + (state.speaker || "이름 없음");
     $("#trainHandwrittenNotePreview").textContent = state.handwrittenNote;
     $("#templateKicker").textContent = state.kicker;
     $("#ticketTitleText").textContent = resolvedFrontTitle();
@@ -7636,6 +8940,7 @@
     $("#backSerialCopyLabelPreview").textContent = state.serialCopyLabel;
     $("#backSerialCopyValue").textContent = state.serial;
     renderNativeInlineTextStyles();
+    renderSpringWordmark();
 
     setInputValue("#quoteInput", state.quote);
     setInputValue("#speakerInput", state.speaker);
@@ -7683,6 +8988,15 @@
     $("#textureStrengthOut").textContent = state.textureStrength + "%";
 
     var effect = activeEffect() || defaultEffect();
+    renderWinterControls(effect);
+    $("#imageEffectsToggle").checked = effect.enabled !== false;
+    $("#filmLayerToggle").checked = effect.filmEnabled !== false;
+    $("#filmToneRange").value = effect.filmTone || 0;
+    $("#filmShadeRange").value = effect.readability || 0;
+    setInputValue("#filmToneOut", effect.filmTone || 0);
+    setInputValue("#filmShadeOut", effect.readability || 0);
+    $("#grainRange").value = effect.grain || 0;
+    setInputValue("#grainOut", effect.grain || 0);
     var uiBrightness = clamp(effect.brightness - 100, -100, 100);
     var uiSaturation = clamp(effect.saturation - 100, -100, 100);
     var uiContrast = clamp(effect.contrast - 100, -100, 100);
@@ -7740,6 +9054,10 @@
     $("#faceStatus").textContent = faceViewActive ? activeTemplateConfig.sideLabels[state.postcardViewMode] : sideLabel;
     $("#layerFaceTitle").textContent = sideLabel + " LAYERS";
     $("#documentName").textContent = activeTemplateConfig.documentName;
+    var trainThemeControl = $("#trainThemeControl");
+    if (trainThemeControl) trainThemeControl.hidden = !isTrainTemplate(state);
+    var trainThemeSelect = $("#trainThemeSelect");
+    if (trainThemeSelect) trainThemeSelect.value = state.template;
     var ottAspectControl = $("#ottAspectControl");
     ottAspectControl.hidden = state.template !== "ott";
     setInputValue("#ottAspectSelect", ottAspectId(state));
@@ -7957,7 +9275,7 @@
     showToast("‘" + preset.name + "’ 배치로 현재 작업을 교체했어요. Ctrl+Z로 되돌릴 수 있어요.");
   }
 
-  function bindInput(selector, apply, parser) {
+  function bindInput(selector, apply, parser, preview) {
     var node = $(selector);
     node.addEventListener("focus", startEdit);
     node.addEventListener("pointerdown", startEdit);
@@ -7965,7 +9283,8 @@
       if (parser === Number && node.type === "number" && !Number.isFinite(node.valueAsNumber)) return;
       var value = parser ? parser(node.value) : node.value;
       apply(value);
-      render();
+      if (preview) preview();
+      else render();
     });
     node.addEventListener("change", function () {
       if (parser === Number && node.type === "number" && !Number.isFinite(node.valueAsNumber)) render();
@@ -8022,6 +9341,14 @@
       render();
       requestAnimationFrame(fitPreview);
     });
+  });
+  var trainThemePicker = $("#trainThemeSelect");
+  if (trainThemePicker) trainThemePicker.addEventListener("change", function () {
+    var template = trainThemePicker.value;
+    if (["train", "train-spring", "train-summer", "train-autumn", "train-winter"].indexOf(template) < 0 || template === state.template) return;
+    applyTemplate(template);
+    render();
+    requestAnimationFrame(fitPreview);
   });
   $("#ottAspectSelect").addEventListener("change", function () {
     if (state.template !== "ott") return;
@@ -8173,6 +9500,8 @@
     if (event.key !== "Escape") return;
     $("#exportHelp").setAttribute("hidden", "");
     $("#exportHelpBtn").setAttribute("aria-expanded", "false");
+    $("#shapeAddMenu").setAttribute("hidden", "");
+    $("#addShapeLayerBtn").setAttribute("aria-expanded", "false");
   });
 
   var panelMedia = window.matchMedia("(max-width: 900px)");
@@ -8241,6 +9570,26 @@
   });
 
   $("#layerList").addEventListener("click", function (event) {
+    var filmToggle = event.target.closest("[data-film-toggle]");
+    if (filmToggle) {
+      commit(function () {
+        var effect = filmEffectForLayer(filmToggle.closest("[data-film-effect-row]").dataset.filmEffectRow);
+        if(!effect)return;
+        var enabled = !(effect.enabled !== false && (effect.winterFilm ? effect.winterFilm.enabled !== false : effect.filmEnabled !== false));
+        if (effect.winterFilm) effect.winterFilm.enabled = enabled;
+        else effect.filmEnabled = enabled;
+        if (enabled) effect.enabled = true;
+      });
+      return;
+    }
+    if (event.target.closest("[data-film-select]")) {
+      var filmKey=event.target.closest('[data-film-effect-row]').dataset.filmEffectRow;
+      setPrimarySelection(filmKey, false);
+      filmSelection={key:filmKey,side:state.side,document:state};
+      render();
+      $(activeEffect().winterFilm ? "#winterFilterControls" : "#filmFilterControls").scrollIntoView({ block: "nearest" });
+      return;
+    }
     var select = event.target.closest("[data-layer-select]");
     if (select) {
       setPrimarySelection(select.dataset.layerSelect, event.ctrlKey || event.metaKey);
@@ -9056,6 +10405,9 @@
       }
       var side = canonicalTrainCouponSide(state.side, state.selectedLayer, state);
       if (state.layerStyles && state.layerStyles[side]) delete state.layerStyles[side][state.selectedLayer];
+      if (state.template === "train-spring" && side === "back" && state.selectedLayer === "copy-label") {
+        state.layerStyles.back["copy-label"] = clone(createTemplateDefaults("train-spring").layerStyles.back["copy-label"]);
+      }
       if (state.inlineTextStyles && state.inlineTextStyles[side]) delete state.inlineTextStyles[side][state.selectedLayer];
       if (state.textTypingStyles && state.textTypingStyles[side]) delete state.textTypingStyles[side][state.selectedLayer];
       if (state.selectedLayer === "quote" && state.side === "front") state.quoteEffect = createTemplateDefaults(state.template).quoteEffect;
@@ -9208,19 +10560,36 @@
   bindInput("#customImageFit", function (value) { var layer = activeCustomLayer(); if (layer && layer.type === "image") layer.fit = value === "cover" ? "cover" : "contain"; });
   bindInput("#customShapeType", function (value) {
     var layer = activeCustomLayer();
-    if (!isCustomShapeLayer(layer) || ["rectangle", "ellipse", "triangle", "star"].indexOf(value) < 0) return;
+    if (!isCustomShapeLayer(layer) || CUSTOM_SHAPE_KINDS.indexOf(value) < 0) return;
     layer.shapeKind = value;
-    layer.cornerRadii = Array(shapeCornerCount(value)).fill(layer.cornerRadius || 0);
+    layer.starPoints = normalizeStarPoints(layer.starPoints);
+    layer.cornerRadii = Array(shapeCornerCount(value, layer.starPoints)).fill(layer.cornerRadius || 0);
   });
+  bindInput("#customShapeStarPoints", function (value) {
+    var layer = activeCustomLayer();
+    if (!isCustomShapeLayer(layer) || layer.shapeKind !== "star") return;
+    layer.starPoints = normalizeStarPoints(value);
+    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind, layer.starPoints)).fill(layer.cornerRadius || 0);
+  }, Number);
   $("#customShapeFillMode").addEventListener("change", function (event) {
     var fillMode = ["color", "image", "none"].indexOf(event.currentTarget.value) >= 0 ? event.currentTarget.value : "color";
     commit(function () {
       var layer = activeCustomLayer();
-      if (isCustomShapeLayer(layer)) layer.fillMode = fillMode;
+      if (isCustomShapeLayer(layer)) {
+        layer.fillMode = fillMode;
+        if (fillMode === "image") { layer.imageFrameW = layer.w; layer.imageFrameH = layer.h; }
+      }
     });
   });
   bindInput("#customShapeFillColor", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) layer.fillColor = value; });
-  bindInput("#customShapeImageFit", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) layer.fit = value === "contain" ? "contain" : "cover"; });
+  bindInput("#customShapeImageFit", function (value) {
+    var layer = activeCustomLayer();
+    if (isCustomShapeLayer(layer)) {
+      layer.fit = value === "contain" ? "contain" : "cover";
+      layer.imageFrameW = layer.w;
+      layer.imageFrameH = layer.h;
+    }
+  });
   bindInput("#customShapeZoomRange", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) layer.zoom = clamp(value / 100, 1, 3); }, Number);
   bindInput("#customShapePanXRange", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) layer.panX = clamp(value / 100, -1, 1); }, Number);
   bindInput("#customShapePanYRange", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) layer.panY = clamp(value / 100, -1, 1); }, Number);
@@ -9228,13 +10597,13 @@
     var layer = activeCustomLayer();
     if (!isCustomShapeLayer(layer)) return;
     layer.cornerRadius = clamp(value, 0, 50);
-    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind)).fill(layer.cornerRadius);
+    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind, layer.starPoints)).fill(layer.cornerRadius);
   }, Number);
   bindInput("#customShapeCornerAllNumber", function (value) {
     var layer = activeCustomLayer();
     if (!isCustomShapeLayer(layer) || !Number.isFinite(value)) return;
     layer.cornerRadius = clamp(value, 0, 50);
-    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind)).fill(layer.cornerRadius);
+    layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind, layer.starPoints)).fill(layer.cornerRadius);
   }, Number);
   $("#customShapeCornerMode").addEventListener("change", function () {
     var individual = $("#customShapeCornerMode").checked;
@@ -9242,7 +10611,7 @@
       var layer = activeCustomLayer();
       if (!isCustomShapeLayer(layer)) return;
       layer.cornerMode = individual ? "individual" : "all";
-      if (individual) layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind)).fill(layer.cornerRadius || 0);
+      if (individual) layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind, layer.starPoints)).fill(layer.cornerRadius || 0);
     });
   });
   $("#customShapeCornerIndividual").addEventListener("input", function (event) {
@@ -9255,6 +10624,147 @@
   });
   $("#customShapeCornerIndividual").addEventListener("change", finishEdit);
   bindInput("#customOpacityRange", function (value) { var layer = activeCustomLayer(); if (layer) layer.opacity = clamp(value, 0, 100); }, Number);
+
+  $("#trimCustomTextBoundsBtn").addEventListener("click", async function (event) {
+    var button = event.currentTarget;
+    var layerId = state.selectedLayer;
+    var layer = customLayerById(layerId);
+    if (!layer || layer.type !== "text") {
+      showToast("여백을 줄일 사용자 텍스트를 선택해 주세요.");
+      return;
+    }
+    if (!customTextHasInkContent(layer)) {
+      showToast("먼저 텍스트를 입력해 주세요.");
+      return;
+    }
+    if (isLayerLocked(layer.id, layer.side)) {
+      showToast("잠긴 레이어는 수정할 수 없어요.");
+      return;
+    }
+    if (isLayerHidden(layer.id, layer.side)) {
+      showToast("숨긴 텍스트는 표시한 뒤 다시 시도해 주세요.");
+      return;
+    }
+    var sourceSide = layer.side;
+    var sourceTemplate = state.template;
+    var sourceSnapshot = JSON.stringify(layer);
+    button.disabled = true;
+    try {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      await new Promise(function (resolve) { requestAnimationFrame(resolve); });
+      var current = customLayerById(layerId);
+      if (!current || current.type !== "text" || current.side !== sourceSide
+        || state.selectedLayer !== layerId || state.side !== sourceSide
+        || state.template !== sourceTemplate || JSON.stringify(current) !== sourceSnapshot) {
+        showToast("선택한 텍스트가 바뀌었어요. 다시 시도해 주세요.");
+        return;
+      }
+      if (isLayerLocked(current.id, current.side)) {
+        showToast("잠긴 레이어는 수정할 수 없어요.");
+        return;
+      }
+      if (isLayerHidden(current.id, current.side)) {
+        showToast("숨긴 텍스트는 표시한 뒤 다시 시도해 주세요.");
+        return;
+      }
+      var face = sourceSide === "front" ? frontFace : backFace;
+      var sourceNode = face.querySelector('[data-canvas-layer="' + layerId + '"]');
+      if (customTextBoxPaintsFullBounds(sourceNode)) {
+        showToast("배경·테두리·박스 그림자가 있는 텍스트는 상자 전체가 디자인 영역이라 여백을 줄이지 않았어요.");
+        return;
+      }
+      var bounds = measureCustomTextInkBounds(sourceNode);
+      if (!bounds) {
+        showToast("측정할 수 있는 글자가 없어요.");
+        return;
+      }
+      var unchanged = bounds.x <= .01 && bounds.y <= .01
+        && bounds.x + bounds.width >= bounds.sourceWidth - .01
+        && bounds.y + bounds.height >= bounds.sourceHeight - .01;
+      if (unchanged) {
+        showToast("줄일 텍스트 여백이 없어요.");
+        return;
+      }
+      if (state.selectedLayer !== layerId || customLayerById(layerId) !== current) {
+        showToast("선택한 텍스트가 바뀌었어요. 다시 시도해 주세요.");
+        return;
+      }
+      commit(function () {
+        applyCustomTextBoundsCrop(current, bounds, sourceTemplate, face);
+      });
+      showToast("텍스트 여백을 줄였어요. 화면에서 보이는 글자 위치는 그대로 유지됩니다.");
+    } catch (error) {
+      showToast("텍스트 여백을 줄이지 못했어요: " + (error && error.message ? error.message : String(error)));
+    } finally {
+      var active = customLayerById(state.selectedLayer);
+      button.disabled = !active || active.type !== "text" || !customTextHasInkContent(active)
+        || isLayerHidden(active.id, active.side) || isLayerLocked(active.id, active.side);
+    }
+  });
+
+  $("#trimCustomImageAlphaBtn").addEventListener("click", async function (event) {
+    var button = event.currentTarget;
+    var layerId = state.selectedLayer;
+    var layer = customLayerById(layerId);
+    if (!layer || layer.type !== "image" || !layer.imageData) {
+      showToast("투명 여백을 줄일 사용자 이미지를 선택해 주세요.");
+      return;
+    }
+    if (customImageIsGif(layer)) {
+      showToast("GIF는 애니메이션 보존을 위해 투명 여백을 줄일 수 없어요.");
+      return;
+    }
+    if (isLayerLocked(layer.id, layer.side)) {
+      showToast("잠긴 레이어는 수정할 수 없어요.");
+      return;
+    }
+    var sourceData = layer.imageData;
+    var sourceSide = layer.side;
+    var sourceTemplate = state.template;
+    button.disabled = true;
+    try {
+      var image = await loadDataImage(sourceData);
+      var cropResult = cropCustomImageToAlphaBounds(image);
+      if (cropResult.empty) {
+        showToast("보이는 픽셀이 없는 완전 투명 이미지예요.");
+        return;
+      }
+      if (cropResult.unchanged) {
+        showToast("줄일 투명 여백이 없어요.");
+        return;
+      }
+      var current = customLayerById(layerId);
+      if (!current || current.type !== "image" || current.side !== sourceSide
+        || current.imageData !== sourceData || state.template !== sourceTemplate
+        || state.selectedLayer !== layerId || state.side !== sourceSide) {
+        showToast("이미지가 바뀌었어요. 다시 시도해 주세요.");
+        return;
+      }
+      if (isLayerLocked(current.id, current.side)) {
+        showToast("잠긴 레이어는 수정할 수 없어요.");
+        return;
+      }
+      commit(function () {
+        applyCustomImageAlphaCrop(current, cropResult, sourceTemplate);
+      });
+      button.disabled = true;
+      var saved = await putImageAsset({
+        id: imageCustomAssetId(sourceTemplate, current.side, current.id),
+        data: current.imageData,
+        name: current.imageName || "",
+        type: current.imageType || "image/png"
+      });
+      showToast(saved
+        ? "투명 여백을 줄였어요. 보이는 이미지 위치는 그대로 유지됩니다."
+        : "여백은 줄였지만 이미지 저장소에 저장하지 못했어요.");
+    } catch (error) {
+      showToast("투명 여백을 줄이지 못했어요: " + (error && error.message ? error.message : String(error)));
+    } finally {
+      var active = customLayerById(state.selectedLayer);
+      button.disabled = !active || active.type !== "image" || !active.imageData
+        || customImageIsGif(active) || isLayerLocked(active.id, active.side);
+    }
+  });
 
   $("#customImageReplaceInput").addEventListener("change", function (event) {
     var input = event.currentTarget;
@@ -9269,6 +10779,7 @@
         layer.imageAssetStored = true;
         layer.imageName = file.name;
         layer.imageType = file.type;
+        layer.alphaBoundsTrimmed = false;
         fitCustomImageFrameToSource(layer, image.naturalWidth, image.naturalHeight, state.template, true);
       });
       var replacedLayer = customLayerById(layerId);
@@ -9294,6 +10805,8 @@
         layer.imageName = file.name;
         layer.imageType = file.type;
         layer.fillMode = "image";
+        layer.imageFrameW = layer.w;
+        layer.imageFrameH = layer.h;
         resetImagePlacementToOriginal(layer);
       });
       var savedLayer = customLayerById(layerId);
@@ -9389,9 +10902,9 @@
     var removedBlockKey = activeBlockKey();
     commit(function () {
       block.imageAssetStored = false;
-      if (state.template === "train" && state.selectedLayer === "image-stub") {
-        block.imageData = window.LOG_TICKET_TRAIN_LOGO_ASSET || "";
-        block.imageName = "train-travel-logo-v4.png";
+      if (isTrainTemplate(state) && state.selectedLayer === "image-stub") {
+        block.imageData = bundledTrainLogoSource(state.template);
+        block.imageName = bundledTrainLogoName(state.template);
         block.imageType = "image/png";
         block.fit = "contain";
         block.tintMode = "accent";
@@ -9413,10 +10926,14 @@
 
   $("#logoTintToggle").addEventListener("change", function () {
     var block = activeBlock();
-    if (!block || state.template !== "train" || state.selectedLayer !== "image-stub") return;
+    if (!block || !isTrainTemplate(state) || state.selectedLayer !== "image-stub") return;
     commit(function () { block.tintMode = $("#logoTintToggle").checked ? "accent" : "none"; });
   });
-  bindInput("#logoAccentColor", function (value) { state.accent = value; });
+  bindInput("#logoAccentColor", function (value) {
+    var style = layerStyleEntry(state.side, "image-stub", false);
+    if (style && style.color) style.color = value;
+    else state.accent = value;
+  });
 
   $$("[data-fit]").forEach(function (button) {
     button.addEventListener("click", function () {
@@ -9433,19 +10950,65 @@
     var effect = activeEffect();
     if (effect) apply(effect);
   }
-  bindInput("#blurRange", function (value) { mutateActiveEffect(function (effect) { effect.blur = value; }); }, Number);
+  function mutateFilmEffect(apply) { if(isFilmSelection())mutateActiveEffect(apply); }
+  function renderBlurPreview() {
+    // Native photo blur only changes its CSS filter. Rebuilding the complete
+    // ticket and inspector for every input stalls the native slider drag.
+    // Keep the ordinary renderer for raster shapes and layer-clipped images.
+    if (!selectedImageLayer() || (state.clipping || []).length) { render(); return; }
+    var block = activeBlock();
+    var effect = activeEffect();
+    if (!block || !effect) return;
+    setInputValue("#blurRange", effect.blur);
+    setInputValue("#blurOut", effect.blur);
+    setInputValue("#springFilmBlurRange", effect.filmBlur || 0);
+    setInputValue("#springFilmBlurOut", effect.filmBlur || 0);
+    if (effect.winterFilm) {
+      setInputValue("#winter-blur", effect.winterFilm.blur);
+      setInputValue("#winter-blur-out", effect.winterFilm.blur);
+    }
+    Object.keys(blockDom).forEach(function (key) {
+      if (blockConfigForDomKey(key) === block) applyBlockImageFilter(key, visibleImageEffect(block));
+    });
+    scheduleSave();
+  }
+  function changeSpringFilmBlur(value) {
+    if (isSpringBackFilmSelection()) mutateFilmEffect(function (effect) { effect.filmBlur = clamp(value, 0, 50); });
+  }
+  bindInput("#springFilmBlurRange", changeSpringFilmBlur, Number, renderBlurPreview);
+  ["blur", "grain", "tone", "wash"].forEach(function(key){
+    function change(value){mutateFilmEffect(function(effect){if(effect.winterFilm)effect.winterFilm[key]=clamp(value,0,key==="blur"?50:100);});}
+    bindInput("#winter-"+key,change,Number,key === "blur" ? renderBlurPreview : null);
+    bindInput("#winter-"+key+"-out",change,Number,key === "blur" ? renderBlurPreview : null);
+  });
+  bindInput("#winter-color",function(value){mutateFilmEffect(function(effect){if(effect.winterFilm)effect.winterFilm.color=validHexColor(value,"#2936ff");});});
+  $("#winterFilmToggle").addEventListener("change",function(){var checked=this.checked;commit(function(){var effect=activeEffect();if(isFilmSelection()&&effect&&effect.winterFilm){effect.winterFilm.enabled=checked;if(checked)effect.enabled=true;}});});
+  bindInput("#winterInkColor",function(value){var item=customLayerById(state.selectedLayer);if(item&&item.type==="image"){item.effect.overlayColor=validHexColor(value,"#2024f4");item.effect.overlay=100;item.effect.overlayBlend=item.imageData===window.LOG_TICKET_AUTUMN_ASSETS.bough?"multiply":"normal";item.effect.enabled=true;}});
+  $("#filmLayerToggle").addEventListener("change", function () {
+    var enabled = this.checked;
+    if (isFilmSelection() && activeEffectTarget()) commit(function () { activeEffect().filmEnabled = enabled; if (enabled) activeEffect().enabled = true; });
+  });
+  bindInput("#filmToneRange", function (value) { mutateFilmEffect(function (effect) { effect.filmTone = value; }); }, Number);
+  bindInput("#filmShadeRange", function (value) { mutateFilmEffect(function (effect) { effect.readability = value; }); }, Number);
+  $("#imageEffectsToggle").addEventListener("change", function () {
+    var enabled = this.checked;
+    if (activeEffectTarget()) commit(function () { activeEffect().enabled = enabled; });
+  });
+  bindInput("#grainRange", function (value) { mutateFilmEffect(function (effect) { effect.grain = clamp(value, 0, 100); }); }, Number);
+  bindInput("#blurRange", function (value) { mutateActiveEffect(function (effect) { effect.blur = value; }); }, Number, renderBlurPreview);
   bindInput("#brightRange", function (value) { mutateActiveEffect(function (effect) { effect.brightness = clamp(value, -100, 100) + 100; }); }, Number);
   bindInput("#satRange", function (value) { mutateActiveEffect(function (effect) { effect.saturation = clamp(value, -100, 100) + 100; }); }, Number);
   bindInput("#contrastRange", function (value) { mutateActiveEffect(function (effect) { effect.contrast = clamp(value, -100, 100) + 100; }); }, Number);
   bindInput("#hueRange", function (value) { mutateActiveEffect(function (effect) { effect.hue = value; }); }, Number);
-  function bindEffectNumber(selector, min, max, apply) {
+  function bindEffectNumber(selector, min, max, apply, preview) {
     var node = $(selector);
     node.addEventListener("focus", startEdit);
     node.addEventListener("pointerdown", startEdit);
     node.addEventListener("input", function () {
       if (!Number.isFinite(node.valueAsNumber)) return;
       apply(clamp(node.valueAsNumber, min, max));
-      render();
+      if (preview) preview();
+      else render();
     });
     node.addEventListener("change", function () {
       if (Number.isFinite(node.valueAsNumber)) node.value = clamp(node.valueAsNumber, min, max);
@@ -9458,7 +11021,11 @@
     });
     node.addEventListener("keydown", function (event) { if (event.key === "Enter") node.blur(); });
   }
-  bindEffectNumber("#blurOut", 0, 12, function (value) { mutateActiveEffect(function (effect) { effect.blur = value; }); });
+  bindEffectNumber("#filmToneOut", 0, 100, function (value) { mutateFilmEffect(function (effect) { effect.filmTone = value; }); });
+  bindEffectNumber("#springFilmBlurOut", 0, 50, changeSpringFilmBlur, renderBlurPreview);
+  bindEffectNumber("#filmShadeOut", 0, 100, function (value) { mutateFilmEffect(function (effect) { effect.readability = value; }); });
+  bindEffectNumber("#grainOut", 0, 100, function (value) { mutateFilmEffect(function (effect) { effect.grain = value; }); });
+  bindEffectNumber("#blurOut", 0, 12, function (value) { mutateActiveEffect(function (effect) { effect.blur = value; }); }, renderBlurPreview);
   bindEffectNumber("#brightOut", -100, 100, function (value) { mutateActiveEffect(function (effect) { effect.brightness = value + 100; }); });
   bindEffectNumber("#satOut", -100, 100, function (value) { mutateActiveEffect(function (effect) { effect.saturation = value + 100; }); });
   bindEffectNumber("#contrastOut", -100, 100, function (value) { mutateActiveEffect(function (effect) { effect.contrast = value + 100; }); });
@@ -9476,7 +11043,19 @@
   bindInput("#overlayBlendInput", function (value) { mutateActiveEffect(function (effect) { effect.overlayBlend = value; }); });
   $("#resetEffectsBtn").addEventListener("click", function () {
     if (!activeEffectTarget()) return;
-    commit(function () { activeEffectTarget().effect = defaultEffect(); });
+    commit(function () {
+      var effect = defaultEffect();
+      if (state.template === "train-winter" && state.selectedLayer === "image-main") effect.winterFilm = window.LOG_TICKET_WINTER_THEME.normalizeFilm(state.side === "back" ? {} : {blur:0,grain:0,tone:0,wash:12});
+      var target=activeEffectTarget(),previous=target.effect||defaultEffect();
+      var filmKeys=['grain','filmTone','readability','filmEnabled','winterFilm','filmBlur'];
+      if(isFilmSelection()){
+        filmKeys.forEach(function(key){if(key in effect)previous[key]=effect[key];else delete previous[key];});
+        previous.enabled=true;
+      }else{
+        filmKeys.forEach(function(key){if(key in previous)effect[key]=previous[key];});
+        target.effect=effect;
+      }
+    });
   });
 
   function bindMetric(selector, keyQuote, keyDetails) {
@@ -9508,7 +11087,8 @@
             ? clamp(widthValue, 3, MAX_OBJECT_SIZE_PERCENT)
             : custom.type === "image"
               ? clamp(widthValue, .01, MAX_OBJECT_SIZE_PERCENT)
-              : clamp(widthValue, ((custom.styledRuns || []).length || (custom.styledShapes || []).length) ? .25 : 3, MAX_OBJECT_SIZE_PERCENT);
+              : clamp(widthValue, custom.boundsTrimmed ? .01
+                : ((custom.styledRuns || []).length || (custom.styledShapes || []).length) ? .25 : 3, MAX_OBJECT_SIZE_PERCENT);
           if (custom.type === "text") custom.autoHeight = false;
         }
         if (selector === "#inspectH") {
@@ -9517,7 +11097,8 @@
             ? clamp(heightValue, 3, MAX_OBJECT_SIZE_PERCENT)
             : custom.type === "image"
               ? clamp(heightValue, .01, MAX_OBJECT_SIZE_PERCENT)
-              : clamp(heightValue, ((custom.styledRuns || []).length || (custom.styledShapes || []).length) ? .25 : 3, MAX_OBJECT_SIZE_PERCENT);
+              : clamp(heightValue, custom.boundsTrimmed ? .01
+                : ((custom.styledRuns || []).length || (custom.styledShapes || []).length) ? .25 : 3, MAX_OBJECT_SIZE_PERCENT);
           if (custom.type === "text") custom.autoHeight = false;
         }
         if (selector === "#inspectRotate") custom.rotation = clamp(value, -360, 360);
@@ -9873,11 +11454,15 @@
           custom.scaleX = 1;
           custom.scaleY = 1;
           custom.autoHeight = true;
+          custom.boundsTrimmed = false;
         }
+        if (custom.type === "image") custom.alphaBoundsTrimmed = false;
         if (custom.type === "shape") {
+          custom.imageFrameW = 30;
+          custom.imageFrameH = 30;
           custom.cornerMode = "all";
           custom.cornerRadius = 0;
-          custom.cornerRadii = Array(shapeCornerCount(custom.shapeKind)).fill(0);
+          custom.cornerRadii = Array(shapeCornerCount(custom.shapeKind, custom.starPoints)).fill(0);
         }
         return;
       }
@@ -10352,6 +11937,7 @@
     }
     var objectHandleNode = event.target.closest && event.target.closest("[data-object-handle]");
     var objectHandle = objectHandleNode ? objectHandleNode.dataset.objectHandle : "";
+    var objectCorner = objectHandleNode ? objectHandleNode.dataset.objectCorner || "" : "";
     if (event.altKey && state.selectedLayer && layerAvailableOnSide(state.selectedLayer, state.side)) {
       var activeFace = state.side === "front" ? frontFace : backFace;
       var selectedTarget = activeFace.querySelector('[data-canvas-layer="' + state.selectedLayer + '"]');
@@ -10407,7 +11993,8 @@
       var objectRect = target.getBoundingClientRect();
       var objectPlacement = custom ? null : placementFor(state.side, layer);
       var startRotation = custom ? finiteNumber(custom.rotation, 0) : finiteNumber(objectPlacement.rotation, 0);
-      var textObject = TEXT_LAYER_KEYS.indexOf(layer) >= 0 || Boolean(custom && custom.type === "text");
+      var rasterWordmark = isSpringWordmarkLayer(layer, targetSide, state);
+      var textObject = !rasterWordmark && (TEXT_LAYER_KEYS.indexOf(layer) >= 0 || Boolean(custom && custom.type === "text"));
       if (objectHandle === "skew") {
         if (!event.altKey) {
           showToast("기울기 핸들은 Alt를 누른 채 가로로 드래그해 주세요.");
@@ -10424,7 +12011,10 @@
         var resizeProxy = objectHandleNode.closest(".selection-proxy");
         drag = {
           mode: textObject && !event.altKey ? "resize-text-box" : "resize-object", layer: layer, pointerId: event.pointerId, target: target,
+          rasterWordmark: rasterWordmark,
           proxy: resizeProxy,
+          resizeCorner: objectCorner === "bl" ? "bl" : "br",
+          selfCentering: !custom && usesOttCaptionCentering(layer, targetSide, state),
           startX: event.clientX, startY: event.clientY, custom: Boolean(custom),
           startW: custom ? custom.w : Math.max(1, target.offsetWidth * finiteNumber(objectPlacement.scaleX, 1)),
           startH: custom ? custom.h : Math.max(1, target.offsetHeight * finiteNumber(objectPlacement.scaleY, 1)),
@@ -10522,15 +12112,32 @@
     event.preventDefault();
   }
 
-  function textBoxAnchorOffset(deltaWidth, deltaHeight, scaleX, scaleY, rotation, skewX) {
+  function textBoxAnchorOffset(deltaWidth, deltaHeight, scaleX, scaleY, rotation, skewX, corner, selfCentering) {
     var halfWidth = finiteNumber(deltaWidth, 0) / 2;
     var halfHeight = finiteNumber(deltaHeight, 0) / 2;
+    /* translateX(-50%) makes a width change move the box's layout origin by
+       -deltaWidth / 2 before R*K*S is applied. Offset both resize corners by
+       the opposite amount so their existing transformed anchor math remains
+       valid for the centered OTT caption as well. */
+    var centeringOffsetX = selfCentering ? halfWidth : 0;
     var safeScaleX = clamp(finiteNumber(scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE);
     var safeScaleY = clamp(finiteNumber(scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE);
     var skew = Math.tan(clamp(finiteNumber(skewX, 0), -70, 70) * Math.PI / 180);
     var radians = finiteNumber(rotation, 0) * Math.PI / 180;
     var cos = Math.cos(radians);
     var sin = Math.sin(radians);
+    if (corner === "bl") {
+      /* A bottom-left resize keeps the transformed top-right corner fixed.
+         Width grows toward the left, while height still grows downward. */
+      var leftScaledX = halfWidth * safeScaleX;
+      var leftScaledY = -halfHeight * safeScaleY;
+      var leftSkewedX = leftScaledX + skew * leftScaledY;
+      var leftOffsetX = -halfWidth - (cos * leftSkewedX - sin * leftScaledY) + centeringOffsetX;
+      return {
+        x: leftOffsetX,
+        y: -halfHeight - (sin * leftSkewedX + cos * leftScaledY)
+      };
+    }
     /* CSS uses a centered R*K*S transform. Resizing the untransformed area
        changes that center, so translate by (R*K*S - I) * deltaSize / 2 to
        keep the transformed top-left (the opposite handle) motionless. */
@@ -10538,9 +12145,30 @@
     var scaledY = halfHeight * safeScaleY;
     var skewedX = scaledX + skew * scaledY;
     return {
-      x: cos * skewedX - sin * scaledY - halfWidth,
+      x: cos * skewedX - sin * scaledY - halfWidth + centeringOffsetX,
       y: sin * skewedX + cos * scaledY - halfHeight
     };
+  }
+
+  function scaleResizeAnchorOffset(width, height, startScaleX, startScaleY, nextScaleX, nextScaleY, rotation, skewX) {
+    var halfWidth = Math.max(1, finiteNumber(width, 1)) / 2;
+    var topRightY = -Math.max(1, finiteNumber(height, 1)) / 2;
+    var skew = Math.tan(clamp(finiteNumber(skewX, 0), -70, 70) * Math.PI / 180);
+    var radians = finiteNumber(rotation, 0) * Math.PI / 180;
+    var cos = Math.cos(radians);
+    var sin = Math.sin(radians);
+    function projectedTopRight(scaleX, scaleY) {
+      var scaledX = halfWidth * clamp(finiteNumber(scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE);
+      var scaledY = topRightY * clamp(finiteNumber(scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE);
+      var skewedX = scaledX + skew * scaledY;
+      return {
+        x: cos * skewedX - sin * scaledY,
+        y: sin * skewedX + cos * scaledY
+      };
+    }
+    var before = projectedTopRight(startScaleX, startScaleY);
+    var after = projectedTopRight(nextScaleX, nextScaleY);
+    return { x: before.x - after.x, y: before.y - after.y };
   }
 
   function updateTextBoxDragPreview(activeDrag) {
@@ -10554,7 +12182,7 @@
       node.style.left = custom.x + "%";
       node.style.top = custom.y + "%";
       node.style.minHeight = "0";
-      node.style.overflow = "hidden";
+      node.style.overflow = custom.boundsTrimmed ? "visible" : "hidden";
     } else {
       var placement = placementFor(state.side, activeDrag.layer);
       node.classList.add("text-box-layer", "text-box-resized");
@@ -10564,7 +12192,9 @@
       node.style.setProperty("width", placement.boxW + "px", "important");
       node.style.setProperty("height", placement.boxH + "px", "important");
       node.style.setProperty("overflow", "hidden", "important");
-      node.style.transform = "translate(" + (finiteNumber(placement.x, 0) * activeDrag.ticketW / 100).toFixed(2) + "px," + (finiteNumber(placement.y, 0) * activeDrag.ticketH / 100).toFixed(2) + "px) rotate(" + finiteNumber(placement.rotation, 0) + "deg) skewX(" + clamp(finiteNumber(placement.skewX, 0), -70, 70) + "deg) scale(" + clamp(finiteNumber(placement.scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE) + "," + clamp(finiteNumber(placement.scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE) + ")";
+      node.style.transformOrigin = "center center";
+      var selfCentering = activeDrag.selfCentering ? "translateX(-50%) " : "";
+      node.style.transform = selfCentering + "translate(" + (finiteNumber(placement.x, 0) * activeDrag.ticketW / 100).toFixed(2) + "px," + (finiteNumber(placement.y, 0) * activeDrag.ticketH / 100).toFixed(2) + "px) rotate(" + finiteNumber(placement.rotation, 0) + "deg) skewX(" + clamp(finiteNumber(placement.skewX, 0), -70, 70) + "deg) scale(" + clamp(finiteNumber(placement.scaleX, 1), .1, MAX_NATIVE_OBJECT_SCALE) + "," + clamp(finiteNumber(placement.scaleY, 1), .1, MAX_NATIVE_OBJECT_SCALE) + ")";
     }
     if (activeDrag.proxy) {
       activeDrag.proxy.style.width = activeDrag.previewWidth + "px";
@@ -10628,7 +12258,7 @@
       var textSkew = Math.tan(clamp(finiteNumber(drag.skewX, 0), -70, 70) * Math.PI / 180);
       var baseTextDy = textDy / textScaleY;
       var baseTextDx = (textDx - textSkew * textDy) / textScaleX;
-      var desiredWidth = clamp(drag.startPixelW + baseTextDx, 16, MAX_TEXT_BOX_SIZE_PX);
+      var desiredWidth = clamp(drag.startPixelW + (drag.resizeCorner === "bl" ? -baseTextDx : baseTextDx), 16, MAX_TEXT_BOX_SIZE_PX);
       var desiredHeight = clamp(drag.startPixelH + baseTextDy, 12, MAX_TEXT_BOX_SIZE_PX);
       if (drag.custom) {
         var textCustom = customLayerById(drag.layer);
@@ -10638,7 +12268,7 @@
           textCustom.autoHeight = false;
           drag.previewWidth = textCustom.w / 100 * drag.ticketW;
           drag.previewHeight = textCustom.h / 100 * drag.ticketH;
-          var customAnchorOffset = textBoxAnchorOffset(drag.previewWidth - drag.startPixelW, drag.previewHeight - drag.startPixelH, drag.scaleX, drag.scaleY, drag.rotation, drag.skewX);
+          var customAnchorOffset = textBoxAnchorOffset(drag.previewWidth - drag.startPixelW, drag.previewHeight - drag.startPixelH, drag.scaleX, drag.scaleY, drag.rotation, drag.skewX, drag.resizeCorner, false);
           drag.anchorOffsetX = customAnchorOffset.x;
           drag.anchorOffsetY = customAnchorOffset.y;
           textCustom.x = drag.customX + customAnchorOffset.x / Math.max(1, drag.ticketW) * 100;
@@ -10651,7 +12281,7 @@
         textPlacement.boxMode = "area";
         drag.previewWidth = textPlacement.boxW;
         drag.previewHeight = textPlacement.boxH;
-        var nativeAnchorOffset = textBoxAnchorOffset(textPlacement.boxW - drag.startPixelW, textPlacement.boxH - drag.startPixelH, drag.scaleX, drag.scaleY, drag.rotation, drag.skewX);
+        var nativeAnchorOffset = textBoxAnchorOffset(textPlacement.boxW - drag.startPixelW, textPlacement.boxH - drag.startPixelH, drag.scaleX, drag.scaleY, drag.rotation, drag.skewX, drag.resizeCorner, drag.selfCentering);
         drag.anchorOffsetX = nativeAnchorOffset.x;
         drag.anchorOffsetY = nativeAnchorOffset.y;
         textPlacement.x = drag.placementX + nativeAnchorOffset.x / Math.max(1, drag.ticketW) * 100;
@@ -10663,13 +12293,14 @@
       var objectDy = -dx * Math.sin(rotationRadians) + dy * Math.cos(rotationRadians);
       var objectSkew = Math.tan(clamp(finiteNumber(drag.skewX, 0), -70, 70) * Math.PI / 180);
       objectDx -= objectSkew * objectDy;
+      var resizeObjectDx = drag.resizeCorner === "bl" ? -objectDx : objectDx;
       if (drag.custom) {
         var resizeCustom = customLayerById(drag.layer);
         if (resizeCustom) {
           if (drag.transformCustomText && resizeCustom.type === "text") {
             var customTextBaseWidth = Math.max(1, drag.startPixelW);
             var customTextBaseHeight = Math.max(1, drag.startPixelH);
-            var nextTextScaleX = clamp(drag.customScaleX + objectDx / customTextBaseWidth, .1, MAX_NATIVE_OBJECT_SCALE);
+            var nextTextScaleX = clamp(drag.customScaleX + resizeObjectDx / customTextBaseWidth, .1, MAX_NATIVE_OBJECT_SCALE);
             var nextTextScaleY = clamp(drag.customScaleY + objectDy / customTextBaseHeight, .1, MAX_NATIVE_OBJECT_SCALE);
             if (event.shiftKey) {
               var customTextRatio = Math.abs(nextTextScaleX / drag.customScaleX - 1) >= Math.abs(nextTextScaleY / drag.customScaleY - 1)
@@ -10679,10 +12310,16 @@
             }
             resizeCustom.scaleX = Math.round(nextTextScaleX * 1000) / 1000;
             resizeCustom.scaleY = Math.round(nextTextScaleY * 1000) / 1000;
+            if (drag.resizeCorner === "bl") {
+              var customTextScaleOffset = scaleResizeAnchorOffset(customTextBaseWidth, customTextBaseHeight, drag.customScaleX, drag.customScaleY, resizeCustom.scaleX, resizeCustom.scaleY, drag.rotation, drag.skewX);
+              resizeCustom.x = drag.customX + customTextScaleOffset.x / Math.max(1, drag.ticketW) * 100;
+              resizeCustom.y = drag.customY + customTextScaleOffset.y / Math.max(1, drag.ticketH) * 100;
+            }
           } else {
-          var customResizeMinimum = resizeCustom.type === "image" ? .01 : 2;
+          var customResizeMinimum = resizeCustom.type === "image"
+            || resizeCustom.type === "text" && resizeCustom.boundsTrimmed ? .01 : 2;
           var customResizeMaximum = MAX_OBJECT_SIZE_PERCENT;
-          var rawCustomW = drag.customW + objectDx / drag.ticketW * 100;
+          var rawCustomW = drag.customW + resizeObjectDx / drag.ticketW * 100;
           var rawCustomH = drag.customH + objectDy / drag.ticketH * 100;
           var nextCustomW = clamp(rawCustomW, customResizeMinimum, customResizeMaximum);
           var nextCustomH = clamp(rawCustomH, customResizeMinimum, customResizeMaximum);
@@ -10707,6 +12344,11 @@
           resizeCustom.w = nextCustomW;
           resizeCustom.h = nextCustomH;
           resizeCustom.autoHeight = false;
+          if (drag.resizeCorner === "bl") {
+            var customSizeOffset = textBoxAnchorOffset((nextCustomW - drag.customW) / 100 * drag.ticketW, (nextCustomH - drag.customH) / 100 * drag.ticketH, 1, 1, drag.rotation, drag.skewX, "bl", false);
+            resizeCustom.x = drag.customX + customSizeOffset.x / Math.max(1, drag.ticketW) * 100;
+            resizeCustom.y = drag.customY + customSizeOffset.y / Math.max(1, drag.ticketH) * 100;
+          }
           if (resizeCustom.type === "text") {
             var fontScale = Math.max(nextCustomW / Math.max(1, drag.customW), nextCustomH / Math.max(1, drag.customH));
             resizeCustom.fontSize = clamp(drag.customFontSize * fontScale, 8, MAX_FONT_SIZE_PX);
@@ -10718,9 +12360,9 @@
         }
       } else {
         var resizePlacement = writablePlacementFor(state.side, drag.layer);
-        var nextScaleX = clamp((drag.startW + objectDx) / drag.baseW, .1, MAX_NATIVE_OBJECT_SCALE);
+        var nextScaleX = clamp((drag.startW + resizeObjectDx) / drag.baseW, .1, MAX_NATIVE_OBJECT_SCALE);
         var nextScaleY = clamp((drag.startH + objectDy) / drag.baseH, .1, MAX_NATIVE_OBJECT_SCALE);
-        if (event.shiftKey) {
+        if (event.shiftKey || drag.rasterWordmark) {
           var nativeRatioX = nextScaleX / Math.max(.1, drag.scaleX);
           var nativeRatioY = nextScaleY / Math.max(.1, drag.scaleY);
           var scaleRatio = Math.abs(nativeRatioX - 1) >= Math.abs(nativeRatioY - 1) ? nativeRatioX : nativeRatioY;
@@ -10729,6 +12371,11 @@
         }
         resizePlacement.scaleX = Math.round(nextScaleX * 1000) / 1000;
         resizePlacement.scaleY = Math.round(nextScaleY * 1000) / 1000;
+        if (drag.resizeCorner === "bl") {
+          var nativeScaleOffset = scaleResizeAnchorOffset(drag.baseW, drag.baseH, drag.scaleX, drag.scaleY, resizePlacement.scaleX, resizePlacement.scaleY, drag.rotation, drag.skewX);
+          resizePlacement.x = drag.placementX + nativeScaleOffset.x / Math.max(1, drag.ticketW) * 100;
+          resizePlacement.y = drag.placementY + nativeScaleOffset.y / Math.max(1, drag.ticketH) * 100;
+        }
       }
     } else if (drag.mode === "skew-object") {
       var nextSkew = clamp(drag.skewX + dx / Math.max(18, drag.target.offsetHeight) * 45, -70, 70);
@@ -10916,6 +12563,7 @@
       zoom: block.zoom,
       panX: block.panX,
       panY: block.panY,
+      panMode: block.panMode,
       effect: clone(block.effect || defaultEffect())
     };
   }
@@ -10980,6 +12628,26 @@
     if (isTrainTemplate(state)) backBlocks.logo = serializedBlock("frontStub", assetPaths);
     return {
       packageVersion: 14,
+      seasonalPassageTitleVersion: state.seasonalPassageTitleVersion,
+      seasonLayoutRefinementVersion: state.seasonLayoutRefinementVersion,
+      winterSnowLayoutVersion: state.winterSnowLayoutVersion,
+      winterTypographyVersion: state.winterTypographyVersion,
+      autumnTypographyRollbackVersion: state.autumnTypographyRollbackVersion,
+      seasonDisplayFontVersion: state.seasonDisplayFontVersion,
+      winterOpticalLayoutVersion: state.winterOpticalLayoutVersion,
+      winterBackHeaderVersion: state.winterBackHeaderVersion,
+      summerFrameVersion: state.summerFrameVersion,
+      springFrontInkVersion: state.template === "train-spring" ? state.springFrontInkVersion : undefined,
+      seasonAssetCleanupVersion: state.seasonAssetCleanupVersion,
+      springRefinementVersion: state.template === "train-spring" ? state.springRefinementVersion : undefined,
+      springFilmLayerVersion: state.template === "train-spring" ? state.springFilmLayerVersion : undefined,
+      springPanoramaVersion: state.template === "train-spring" ? state.springPanoramaVersion : undefined,
+      springBackPanoramaVersion: state.template === "train-spring" ? state.springBackPanoramaVersion : undefined,
+      springFrontReferenceVersion: state.template === "train-spring" ? state.springFrontReferenceVersion : undefined,
+      springFlowerLogoVersion: state.template === "train-spring" ? state.springFlowerLogoVersion : undefined,
+      springTextPaletteVersion: state.template === "train-spring" ? state.springTextPaletteVersion : undefined,
+      springCaptionLayoutVersion: state.template === "train-spring" ? state.springCaptionLayoutVersion : undefined,
+      springReverseDesignVersion: state.template === "train-spring" ? state.springReverseDesignVersion : undefined,
       compositeTextLayerVersion: COMPOSITE_TEXT_LAYER_VERSION,
       templateId: config.templateId,
       templateVersion: config.templateVersion,
@@ -11232,8 +12900,8 @@
     }
     function importBlock(serialized, key, label) {
       if (!isPlainJsonObject(serialized)) return;
-      ["color", "tintMode", "fit", "zoom", "panX", "panY", "effect"].forEach(function (property) {
-        if (Object.prototype.hasOwnProperty.call(serialized, property)) documentState.blocks[key][property] = clone(serialized[property]);
+      ["color", "tintMode", "fit", "zoom", "panX", "panY", "panMode", "effect"].forEach(function (property) {
+        if (Object.prototype.hasOwnProperty.call(serialized, property) && serialized[property] !== undefined) documentState.blocks[key][property] = clone(serialized[property]);
       });
       applyImportedBlockImage(documentState.blocks[key], serialized, label, false);
     }
@@ -11278,6 +12946,28 @@
       if (payload.motion.durationMs != null) documentState.duration = payload.motion.durationMs;
     }
     documentState.template = template;
+    documentState.seasonalPassageTitleVersion = Number(payload.seasonalPassageTitleVersion) || 0;
+    documentState.seasonLayoutRefinementVersion = Number(payload.seasonLayoutRefinementVersion) || 0;
+    documentState.winterSnowLayoutVersion = Number(payload.winterSnowLayoutVersion) || 0;
+    documentState.winterTypographyVersion = Number(payload.winterTypographyVersion) || 0;
+    documentState.autumnTypographyRollbackVersion = Number(payload.autumnTypographyRollbackVersion) || 0;
+    documentState.seasonDisplayFontVersion = Number(payload.seasonDisplayFontVersion) || 0;
+    documentState.winterOpticalLayoutVersion = Number(payload.winterOpticalLayoutVersion) || 0;
+    documentState.winterBackHeaderVersion = Number(payload.winterBackHeaderVersion) || 0;
+    documentState.summerFrameVersion = Number(payload.summerFrameVersion) || 0;
+    documentState.seasonAssetCleanupVersion = Number(payload.seasonAssetCleanupVersion) || 0;
+    if (template === "train-spring") {
+      documentState.springRefinementVersion = Number(payload.springRefinementVersion) || 0;
+      documentState.springFilmLayerVersion = Number(payload.springFilmLayerVersion) || 0;
+      documentState.springFrontInkVersion = Number(payload.springFrontInkVersion) || 0;
+      documentState.springPanoramaVersion = Number(payload.springPanoramaVersion) || 0;
+      documentState.springBackPanoramaVersion = Number(payload.springBackPanoramaVersion) || 0;
+      documentState.springFrontReferenceVersion = Number(payload.springFrontReferenceVersion) || 0;
+      documentState.springFlowerLogoVersion = Number(payload.springFlowerLogoVersion) || 0;
+      documentState.springTextPaletteVersion = Number(payload.springTextPaletteVersion) || 0;
+      documentState.springCaptionLayoutVersion = Number(payload.springCaptionLayoutVersion) || 0;
+      documentState.springReverseDesignVersion = Number(payload.springReverseDesignVersion) || 0;
+    }
     return normalizeDocument(documentState, template);
   }
   function hydrateEditorDocumentImages(documentState, payload, template) {
@@ -11295,8 +12985,8 @@
       if (isTrainTemplate(template) && entry.key === "backStub") return;
       var block = next.blocks[entry.key];
       if (!block) return;
-      var bundledTrainLogo = template === "train" && entry.key === "frontStub"
-        && block.imageAssetStored !== true && block.imageName === "train-travel-logo-v4.png";
+      var bundledTrainLogo = isTrainTemplate(template) && entry.key === "frontStub"
+        && block.imageAssetStored !== true && block.imageName === bundledTrainLogoName(template);
       applyImportedBlockImage(block, entry.source, entry.label, bundledTrainLogo);
       if (!bundledTrainLogo && blockReferencesImageAsset(template, entry.key, block) && !block.imageData) {
         throw new Error(entry.label + " 원본 이미지가 JSON에 포함되어 있지 않습니다.");
@@ -11330,8 +13020,8 @@
       if (!block) return;
       var imageData = importedImageData(block.imageData, template + " " + key);
       if (imageData) block.imageData = imageData;
-      var bundledTrainLogo = template === "train" && key === "frontStub"
-        && block.imageAssetStored !== true && block.imageName === "train-travel-logo-v4.png";
+      var bundledTrainLogo = isTrainTemplate(template) && key === "frontStub"
+        && block.imageAssetStored !== true && block.imageName === bundledTrainLogoName(template);
       if (!bundledTrainLogo && blockReferencesImageAsset(template, key, block) && !imageData) {
         throw new Error(template + " " + key + " 원본 이미지가 JSON에 포함되어 있지 않습니다.");
       }
@@ -11414,10 +13104,10 @@
       Object.keys(documentState.blocks || {}).forEach(function (key) {
         var block = documentState.blocks[key];
         if (!block) return;
-        var bundledTrainLogo = template === "train" && key === "frontStub"
-          && block.imageData === window.LOG_TICKET_TRAIN_LOGO_ASSET
+        var bundledTrainLogo = isTrainTemplate(template) && key === "frontStub"
+          && block.imageData === bundledTrainLogoSource(template)
           && block.imageAssetStored !== true
-          && block.imageName === "train-travel-logo-v4.png";
+          && block.imageName === bundledTrainLogoName(template);
         if (bundledTrainLogo) return;
         if (!block.imageData) {
           if (blockReferencesImageAsset(template, key, block)) throw new Error(template + " " + key + " 원본 이미지가 없습니다.");
@@ -12066,15 +13756,17 @@
     return output;
   }
 
-  function drawAlphaMaskedEffectLayer(baseCanvas, paint, composite, opacity) {
+  function drawAlphaMaskedEffectLayer(baseCanvas, paint, composite, opacity, alphaMask) {
     if (opacity <= 0) return;
     var layerCanvas = document.createElement("canvas");
     layerCanvas.width = baseCanvas.width;
     layerCanvas.height = baseCanvas.height;
     var layerContext = layerCanvas.getContext("2d", { alpha: true });
     paint(layerContext, layerCanvas.width, layerCanvas.height);
-    layerContext.globalCompositeOperation = "destination-in";
-    layerContext.drawImage(baseCanvas, 0, 0);
+    if (alphaMask !== false) {
+      layerContext.globalCompositeOperation = "destination-in";
+      layerContext.drawImage(alphaMask || baseCanvas, 0, 0);
+    }
     var context = baseCanvas.getContext("2d", { alpha: true });
     context.save();
     context.globalCompositeOperation = composite || "source-over";
@@ -12119,32 +13811,51 @@
     maskCanvas.height = 1;
   }
 
-  function bakeImageEffects(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke, openingMask, openingMaskScaleX, openingMaskScaleY) {
-    var cssWidth = Math.max(1, frameWidth);
-    var cssHeight = Math.max(1, frameHeight);
+  function bakeImageEffects(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke, openingMask, openingMaskScaleX, openingMaskScaleY, slotScaleX, slotScaleY, matchPreviewFilm) {
+    var crop = calculateShrunkSlotCrop(config, image.naturalWidth, image.naturalHeight, frameWidth, frameHeight, slotScaleX, slotScaleY);
+    // CSS applies filters and grain before the image layer's transform. Bake
+    // seasonal photos in that same local space, then let the clone transform
+    // the complete result. Baking in the shrunken space inflated the effects.
+    var cssWidth = Math.max(1, matchPreviewFilm ? frameWidth : crop.visualFrameWidth);
+    var cssHeight = Math.max(1, matchPreviewFilm ? frameHeight : crop.visualFrameHeight);
+    var drawX = matchPreviewFilm ? crop.x : crop.visualX;
+    var drawY = matchPreviewFilm ? crop.y : crop.visualY;
+    var drawWidth = matchPreviewFilm ? crop.width : crop.visualWidth;
+    var drawHeight = matchPreviewFilm ? crop.height : crop.visualHeight;
     var renderScale = Math.min(Math.max(1, requestedScale), 4096 / cssWidth, 4096 / cssHeight);
     var canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(cssWidth * renderScale));
     canvas.height = Math.max(1, Math.round(cssHeight * renderScale));
     var context = canvas.getContext("2d", { alpha: true });
-    var effect = config.effect || defaultEffect();
-    var crop = calculateCrop(config, image.naturalWidth, image.naturalHeight, canvas.width, canvas.height, renderScale);
+    var effect = visibleImageEffect(config);
     context.save();
     var bakedEffectFilter = effectFilterString(effect, true, renderScale);
     context.filter = ((bakedEffectFilter === "none" ? "" : bakedEffectFilter + " ") + imageShadowFilter(shadow, renderScale)).trim() || "none";
-    context.drawImage(image, crop.x, crop.y, crop.width, crop.height);
+    context.drawImage(image, drawX*renderScale, drawY*renderScale, drawWidth*renderScale, drawHeight*renderScale);
     context.restore();
-    var alphaMask = snapshotCanvasAlphaMask(canvas);
+    var alphaMask = matchPreviewFilm ? null : snapshotCanvasAlphaMask(canvas);
+    var filmMask;
+    if (matchPreviewFilm) {
+      // The live film/grain masks use the original photo alpha, not the
+      // blurred photo or the alpha accumulated by earlier film surfaces.
+      filmMask = document.createElement("canvas");
+      filmMask.width = canvas.width;
+      filmMask.height = canvas.height;
+      filmMask.getContext("2d", { alpha: true }).drawImage(image, drawX*renderScale, drawY*renderScale, drawWidth*renderScale, drawHeight*renderScale);
+    }
 
     drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
       paintEffectOverlay(layerContext, width, height, effect);
-    }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
+    }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100, filmMask);
 
-    drawImageVignette(canvas, effect);
-    /* Blend modes can increase even tiny antialias/background alpha values.
-       Restore every alpha byte from the filtered source, rather than only
-       clearing fully transparent pixels, so a transparent PNG stays exact. */
-    restoreCanvasAlphaMask(canvas, alphaMask);
+    drawImageVignette(canvas, effect, filmMask);
+    drawImageFilm(canvas, effect, filmMask, matchPreviewFilm);
+    drawImageGrain(canvas, effect, renderScale, filmMask);
+    /* Retain the legacy transparent-image alpha outside the seasonal preview
+       path. Seasonal film surfaces can cover blurred edges (and winter film
+       covers the frame), so restoring the photo alpha would erase that ink. */
+    if (alphaMask) restoreCanvasAlphaMask(canvas, alphaMask);
+    if (filmMask) filmMask.width = filmMask.height = 1;
     paintCanvasOutline(canvas, stroke, renderScale);
 
     if (openingMask && openingMask.complete && openingMask.naturalWidth) {
@@ -12162,57 +13873,76 @@
     return dataUrl;
   }
 
-  function customImageBakeOutset(stroke, shadow) {
+  function customImageBakeOutset(stroke, shadow, effect) {
+    var effectBlur = Math.max(0, finiteNumber(effect && effect.blur, 0));
+    /* Canvas/CSS blur kernels have a soft tail beyond the nominal radius.
+       Three radii plus an antialias guard retains that tail before the later
+       outline and shadow passes expand it again. */
+    var effectOutset = effectBlur > 0 ? effectBlur * 3 + 2 : 0;
     var outline = normalizeStroke(stroke);
-    var outset = outline.enabled && outline.width > 0 ? outline.width + 1 : 0;
+    var postEffectOutset = outline.enabled && outline.width > 0 ? outline.width + 1 : 0;
     if (shadow && shadow.enabled) {
       var offset = shadowOffset(shadow);
       var blur = Math.max(0, (Number(shadow.blur) || 0) + (Number(shadow.spread) || 0) * .45);
       /* CSS drop-shadow can extend roughly two blur radii past the source.
          Reserve a symmetric box so rotation, export scaling and either offset
          direction cannot clip the last antialiased pixels. */
-      outset = Math.max(outset, (outline.enabled ? outline.width : 0)
+      postEffectOutset = Math.max(postEffectOutset, (outline.enabled ? outline.width : 0)
         + Math.max(Math.abs(offset.x), Math.abs(offset.y)) + blur * 2 + 2);
     }
-    return Math.max(0, Math.ceil(outset));
+    return Math.max(0, Math.ceil(effectOutset + postEffectOutset));
   }
 
   function bakeStretchedCustomImage(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke) {
     var cssWidth = Math.max(1, frameWidth);
     var cssHeight = Math.max(1, frameHeight);
-    var outsetCss = customImageBakeOutset(stroke, shadow);
+    var effect = visibleImageEffect(config);
+    var outsetCss = customImageBakeOutset(stroke, shadow, effect);
     var totalCssWidth = cssWidth + outsetCss * 2;
     var totalCssHeight = cssHeight + outsetCss * 2;
     var renderScale = Math.min(Math.max(1, requestedScale), 4096 / totalCssWidth, 4096 / totalCssHeight);
+    var contentPixelWidth = Math.max(1, Math.round(cssWidth * renderScale));
+    var contentPixelHeight = Math.max(1, Math.round(cssHeight * renderScale));
+    var outsetPixels = Math.max(0, Math.round(outsetCss * renderScale));
     var canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(cssWidth * renderScale));
-    canvas.height = Math.max(1, Math.round(cssHeight * renderScale));
+    canvas.width = contentPixelWidth + outsetPixels * 2;
+    canvas.height = contentPixelHeight + outsetPixels * 2;
     var context = canvas.getContext("2d", { alpha: true });
-    var effect = config.effect || defaultEffect();
     context.save();
     var bakedEffectFilter = effectFilterString(effect, true, renderScale);
     /* Preview order is effect -> outline -> shadow. Keep the inner bitmap free
        of shadow here; the padded final pass below applies it after the outline. */
     context.filter = bakedEffectFilter;
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    context.drawImage(image, outsetPixels, outsetPixels, contentPixelWidth, contentPixelHeight);
     context.restore();
-    var alphaMask = snapshotCanvasAlphaMask(canvas);
-    drawAlphaMaskedEffectLayer(canvas, function (layerContext, width, height) {
+
+    /* Overlay and vignette are sibling pseudo layers in the editor, so they
+       stay inside the original image box while only the filtered bitmap blur
+       spills into the reserved transparent margin. Preserve that composition
+       by finishing those effects on a content-sized copy and putting its
+       centre back over the padded filtered result. */
+    var contentCanvas = document.createElement("canvas");
+    contentCanvas.width = contentPixelWidth;
+    contentCanvas.height = contentPixelHeight;
+    var contentContext = contentCanvas.getContext("2d", { alpha: true });
+    contentContext.drawImage(
+      canvas,
+      outsetPixels, outsetPixels, contentPixelWidth, contentPixelHeight,
+      0, 0, contentPixelWidth, contentPixelHeight
+    );
+    var alphaMask = snapshotCanvasAlphaMask(contentCanvas);
+    drawAlphaMaskedEffectLayer(contentCanvas, function (layerContext, width, height) {
       paintEffectOverlay(layerContext, width, height, effect);
     }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
-    drawImageVignette(canvas, effect);
-    restoreCanvasAlphaMask(canvas, alphaMask);
+    drawImageVignette(contentCanvas, effect);
+    drawImageFilm(contentCanvas, effect);
+    drawImageGrain(contentCanvas, effect, renderScale);
+    restoreCanvasAlphaMask(contentCanvas, alphaMask);
+    context.clearRect(outsetPixels, outsetPixels, contentPixelWidth, contentPixelHeight);
+    context.drawImage(contentCanvas, outsetPixels, outsetPixels);
+    contentCanvas.width = contentCanvas.height = 1;
 
     var output = canvas;
-    if (outsetCss > 0) {
-      var padded = document.createElement("canvas");
-      padded.width = Math.max(1, Math.round(totalCssWidth * renderScale));
-      padded.height = Math.max(1, Math.round(totalCssHeight * renderScale));
-      var padX = (padded.width - canvas.width) / 2;
-      var padY = (padded.height - canvas.height) / 2;
-      padded.getContext("2d", { alpha: true }).drawImage(canvas, padX, padY);
-      output = padded;
-    }
     paintCanvasOutline(output, stroke, renderScale);
 
     if (shadow && shadow.enabled) {
@@ -12238,8 +13968,10 @@
   }
 
   function imageEffectNeedsRasterBake(effect, shadow, stroke) {
-    var value = effect || defaultEffect();
-    return effectFilterString(value, true) !== "none"
+    var value = visibleImageEffect({ effect: effect });
+    return Boolean(winterFilm(value)) || effectFilterString(value, true) !== "none"
+      || filmLayerAmount(value, "grain") > 0
+      || filmLayerAmount(value, "readability") > 0
       || finiteNumber(value.overlay, 0) > 0
       || finiteNumber(value.vignette, 0) !== 0
       || Boolean(stroke && stroke.enabled && finiteNumber(stroke.width, 0) > 0)
@@ -12247,6 +13979,7 @@
   }
 
   async function prepareExportImageBakes(exportScale) {
+    if (state.template === "train-winter") await getWinterGrainTexture().decode();
     var activeFace = state.side === "front" ? frontFace : backFace;
     var useFrontOpeningMask = templateHasFeature(state.template, "mainImageOpeningMask") && state.side === "front";
     var useBackOpeningMask = templateHasFeature(state.template, "mainImageOpeningMask") && state.side === "back";
@@ -12266,11 +13999,12 @@
       /* A neutral polaroid photograph is already browser-ready. Rasterizing it
          through an intermediate canvas needlessly color-converts embedded ICC
          profiles and was the source of the darker exported photograph. */
-      var layerStroke = strokeFor(layer, side);
+      var layerStroke = imagePixelStroke(layer, side);
+      var imagePlacement = placementFor(side, layer);
       if (state.template === "polaroid" && !imageEffectNeedsRasterBake(config.effect, layerShadow, layerStroke)) return;
       records.push({
         selector: "#" + dom.image.id,
-        dataUrl: bakeImageEffects(dom.image, config, dom.frame.clientWidth, dom.frame.clientHeight, exportScale, layerShadow, layerStroke, openingMask, openingMaskScaleX, openingMaskScaleY)
+        dataUrl: bakeImageEffects(dom.image, config, dom.frame.clientWidth, dom.frame.clientHeight, exportScale, layerShadow, layerStroke, openingMask, openingMaskScaleX, openingMaskScaleY, imagePlacement.scaleX, imagePlacement.scaleY, layer === "image-main" && ["train-spring", "train-summer", "train-winter"].indexOf(state.template) >= 0)
       });
     });
     (state.customLayers[state.side] || []).forEach(function (item) {
@@ -12342,6 +14076,7 @@
   }
 
   function normalizeExportCloneArtifacts(clonedTicket, exportScale, compositedLayerKeys) {
+    Array.prototype.forEach.call(clonedTicket.querySelectorAll(".image-film-grain,.image-film-surface"), function (grain) { grain.remove(); });
     if (!clonedTicket) return;
     /* Empty image frames are editor affordances, not document ink. Their
        placeholder label was already suppressed during export, but template
@@ -12350,6 +14085,9 @@
        deliberately shared by the base and overlay passes so later template
        CSS changes cannot reintroduce the matte through cascade order. */
     Array.prototype.forEach.call(clonedTicket.querySelectorAll(".image-main:not(.has-image)"), function (slot) {
+      // Winter's slot covers the entire ticket. Its visible empty background
+      // is part of that face, so retain it in the export as well.
+      if (state.template === "train-winter") return;
       slot.style.setProperty("background", "transparent", "important");
       Array.prototype.forEach.call(slot.querySelectorAll(".block-image-frame"), function (frame) {
         frame.style.setProperty("background", "transparent", "important");
@@ -12409,6 +14147,30 @@
     });
     applyExportVerticalTextFallback(clonedTicket);
     applyExportTextShadowFallback(clonedTicket, exportScale, compositedLayerKeys);
+  }
+
+  function normalizeOttExportScrimGeometry(clonedTicket, exportSide) {
+    /* html2canvas crops the requested ticket from its fractional workspace
+       position. On the OTT info face that rounding left the first one or two
+       output pixels outside the absolutely positioned scrim, so the dark
+       overlay looked shifted even though `inset: 0` was correct in preview.
+       Bleed the export-only decor by one CSS pixel and let the screen face
+       clip it back to its exact bounds. This is deliberately OTT/back-only:
+       no paper template or ordinary image overlay geometry is changed. */
+    if (!clonedTicket || !clonedTicket.classList.contains("ott") || exportSide !== "back") return;
+    var activeFace = clonedTicket.querySelector(".ticket-back");
+    var scrim = activeFace && activeFace.querySelector(".ott-info-scrim");
+    if (!scrim) return;
+    activeFace.style.setProperty("overflow", "hidden", "important");
+    scrim.style.setProperty("position", "absolute", "important");
+    scrim.style.setProperty("inset", "-1px", "important");
+    scrim.style.setProperty("width", "auto", "important");
+    scrim.style.setProperty("height", "auto", "important");
+    scrim.style.setProperty("margin", "0", "important");
+    scrim.style.setProperty("transform", "none", "important");
+    scrim.style.setProperty("translate", "none", "important");
+    scrim.style.setProperty("rotate", "none", "important");
+    scrim.style.setProperty("scale", "none", "important");
   }
 
   /* Text layers paint their drop shadow with a CSS filter, which html2canvas
@@ -12553,6 +14315,8 @@
         effectsHost.style.setProperty("--image-overlay", "0", "important");
         effectsHost.style.setProperty("--image-vignette", "0", "important");
         effectsHost.style.setProperty("--image-vignette-edge", "rgba(0,0,0,0)", "important");
+        Array.prototype.forEach.call(effectsHost.querySelectorAll("html2canvaspseudoelement"), function (pseudo) { pseudo.remove(); });
+        Array.prototype.forEach.call(effectsHost.querySelectorAll(".block-image-frame > span,.image-film-grain,.image-film-surface"), function (effectLayer) { effectLayer.style.setProperty("display", "none", "important"); });
       }
       /* The original clone may carry a responsive currentSrc copied by
          html2canvas. Remove those candidates before assigning the baked PNG,
@@ -12681,7 +14445,12 @@
          mask. Other templates use paper grain as the final press layer. */
       bakeTextureLast: textureEnabled && shouldBakeExportTextureLast(),
       textureOpacity: textureComputed ? clamp(parseFloat(textureComputed.opacity), 0, 1) : 0,
-      textureBlendMode: textureComputed ? String(textureComputed.mixBlendMode || "multiply") : "multiply"
+      textureBlendMode: textureComputed ? String(textureComputed.mixBlendMode || "multiply") : "multiply",
+      textureTileWidth: textureComputed ? finiteNumber(parseFloat(textureComputed.backgroundSize), 720) : 720,
+      textureTileHeight: textureComputed ? finiteNumber(parseFloat(textureComputed.backgroundSize.split(/\s+/)[1]), 720) : 720,
+      textureFilter: textureComputed ? String(textureComputed.filter || "none") : "none",
+      previewWidth: ticket.offsetWidth,
+      previewHeight: ticket.offsetHeight
     };
   }
 
@@ -13018,6 +14787,7 @@
         var inactiveFace = clonedTicket.querySelector(layerSnapshot && layerSnapshot.side === "back" ? ".ticket-front" : ".ticket-back");
         if (inactiveFace) inactiveFace.style.setProperty("visibility", "hidden", "important");
         applyExportLayerSnapshot(clonedTicket, layerSnapshot);
+        normalizeOttExportScrimGeometry(clonedTicket, layerSnapshot && layerSnapshot.side);
         normalizeExportCloneRotations(clonedDocument, clonedTicket);
         if (exportLayerPlan) {
           Array.prototype.forEach.call(clonedTicket.querySelectorAll("[data-canvas-layer]"), function (node) {
@@ -13040,7 +14810,8 @@
   var exportPaperTextureFallbackTile = null;
 
   function loadExportPaperTextureImage() {
-    if (window.location.protocol === "file:") return Promise.resolve(null);
+    var embeddedSource = window.LOG_TICKET_PAPER_TEXTURE_ASSET;
+    if (!embeddedSource && window.location.protocol === "file:") return Promise.resolve(null);
     if (exportPaperTextureImagePromise) return exportPaperTextureImagePromise;
     exportPaperTextureImagePromise = new Promise(function (resolve) {
       var image = new Image();
@@ -13048,7 +14819,7 @@
       image.onload = function () { resolve(image); };
       image.onerror = function () { resolve(null); };
       try {
-        image.src = new URL("ticket-paper-fiber-v2.png", document.baseURI || window.location.href).href;
+        image.src = embeddedSource || new URL("ticket-paper-fiber-v2.png", document.baseURI || window.location.href).href;
       } catch (_) {
         resolve(null);
       }
@@ -13106,13 +14877,19 @@
     var textureContext = textureCanvas.getContext("2d", { alpha: true });
     textureContext.imageSmoothingEnabled = true;
     textureContext.imageSmoothingQuality = "high";
-    if ("filter" in textureContext) textureContext.filter = "contrast(1.04) saturate(.78) brightness(1.01)";
-    var naturalSize = Math.max(1, tile.naturalWidth || tile.width || 256);
-    var tileSize = image ? Math.min(naturalSize, Math.max(720, Math.round(output.width * .75))) : naturalSize;
-    var startX = (output.width % tileSize) / 2 - tileSize;
-    var startY = (output.height % tileSize) / 2 - tileSize;
-    for (var y = startY; y < output.height; y += tileSize) {
-      for (var x = startX; x < output.width; x += tileSize) textureContext.drawImage(tile, x, y, tileSize, tileSize);
+    if ("filter" in textureContext) textureContext.filter = layerSnapshot.textureFilter || "none";
+    var scaleX = output.width / Math.max(1, layerSnapshot.previewWidth);
+    var scaleY = output.height / Math.max(1, layerSnapshot.previewHeight);
+    var tileWidth = Math.max(1, layerSnapshot.textureTileWidth * scaleX);
+    var tileHeight = Math.max(1, layerSnapshot.textureTileHeight * scaleY);
+    // Match background-position:center independently on both axes. The old
+    // remainder formula shifted short axes by half a tile.
+    var startX = ((output.width - tileWidth) / 2) % tileWidth;
+    var startY = ((output.height - tileHeight) / 2) % tileHeight;
+    if (startX > 0) startX -= tileWidth;
+    if (startY > 0) startY -= tileHeight;
+    for (var y = startY; y < output.height; y += tileHeight) {
+      for (var x = startX; x < output.width; x += tileWidth) textureContext.drawImage(tile, x, y, tileWidth, tileHeight);
     }
     textureContext.filter = "none";
     textureContext.globalCompositeOperation = "destination-in";
@@ -13181,10 +14958,11 @@
   async function drawTicketFromPreview() {
     if (typeof window.html2canvas !== "function") throw new Error("고화질 PNG 렌더러를 불러오지 못했습니다.");
     await ensureReferencedSystemFontsLoaded();
+    await window.LOG_TICKET_SEASON_FONTS.ready();
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     renderBlockImages();
     paintTrainPerforations();
-    await Promise.all([trainFrameRenderPromise, trainLogoRenderPromise]);
+    await Promise.all([trainFrameRenderPromise, trainLogoRenderPromise, springWordmarkRenderPromise]);
     await waitForPreviewImages();
     renderBlockImages();
     paintTrainPerforations();

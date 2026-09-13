@@ -1,0 +1,9 @@
+/* Geometry and native ornament suppression only; typography is document data. */
+#ticket.train.train-autumn .ticket-face { overflow:hidden !important; --rail-ink:var(--ticket-accent); }
+#ticket.train.train-autumn .ticket-face :is(.train-back-record-rules,.train-back-image-frame,.train-handwritten-note,.train-stub-divider,.train-stub-frame,.ticket-frame-layer,.train-main-serial-row::before) { display:none !important; }
+#ticket.train.train-autumn .custom-layer-object { text-shadow:none; }
+#ticket.train.train-autumn .route-art-layer .perforation {
+  top:0; bottom:0; height:100%; width:1.4px;
+  background:repeating-linear-gradient(to bottom,var(--ticket-accent) 0 5px,transparent 5px 10px);
+  opacity:.9;
+}

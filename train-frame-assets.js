@@ -1,4 +1,4 @@
-/* Generated local-safe train frame asset bundle. Source PNGs remain in assets/. */
+/* Generated local-safe train frame asset bundle. HTML/CSS fallback PNGs remain in assets/. */
 (function () {
   "use strict";
   var assets = {
@@ -14,6 +14,19 @@
   window.LOG_TICKET_TRAIN_FRAME_ASSETS = assets;
   window.LOG_TICKET_TRAIN_MAIN_OPENING_MASK_ASSET = assets.mainOpening;
   window.LOG_TICKET_TRAIN_BACK_OPENING_MASK_ASSET = assets.backOpening;
+  var springAssets = window.LOG_TICKET_TRAIN_SPRING_FRAME_ASSETS || {};
+  var themeAssets = {
+    train: assets,
+    "train-spring": springAssets
+  };
+  window.LOG_TICKET_TRAIN_THEME_ASSETS = themeAssets;
+  window.LOG_TICKET_TRAIN_OPENING_MASK_ASSETS = {
+    train: { main: assets.mainOpening, back: assets.backOpening },
+    "train-spring": {
+      main: springAssets.mainOpening || assets.mainOpening,
+      back: springAssets.backOpening || assets.backOpening
+    }
+  };
   var variantCache = {};
   var latestRequest = "";
 
@@ -22,8 +35,18 @@
     return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : "#355a58";
   }
 
-  function renderVariant(assetKey, color, variant) {
-    var cacheKey = [assetKey, color, variant].join("|");
+  function safeTheme(value) {
+    return value === "train-spring" ? "train-spring" : "train";
+  }
+
+  function sourceForTheme(assetKey, theme) {
+    var themedAssets = themeAssets[safeTheme(theme)] || assets;
+    return themedAssets[assetKey] || assets[assetKey];
+  }
+
+  function renderVariant(assetKey, color, variant, theme) {
+    theme = safeTheme(theme);
+    var cacheKey = [theme, assetKey, color, variant].join("|");
     if (variantCache[cacheKey]) return variantCache[cacheKey];
     variantCache[cacheKey] = new Promise(function (resolve, reject) {
       var sourceImage = new Image();
@@ -45,7 +68,7 @@
         resolve(dataUrl);
       };
       sourceImage.onerror = function () { reject(new Error("Train frame artwork could not be decoded.")); };
-      sourceImage.src = assets[assetKey];
+      sourceImage.src = sourceForTheme(assetKey, theme);
     });
     return variantCache[cacheKey];
   }
@@ -92,6 +115,7 @@
   }
 
   function applyFrameColor(input) {
+    var theme = safeTheme(typeof input === "object" && input ? input.theme : "train");
     var colors = typeof input === "object" && input ? {
       mainFront: safeColor(input.mainFront), mainBack: safeColor(input.mainBack),
       stubFront: safeColor(input.stubFront), stubBack: safeColor(input.stubBack),
@@ -103,14 +127,14 @@
       stubBack: safeColor(input), dividerFront: safeColor(input), dividerBack: safeColor(input),
       recordDividerTop: safeColor(input), recordDividerMiddle: safeColor(input), backImageFrame: safeColor(input)
     };
-    var requestKey = JSON.stringify(colors);
+    var requestKey = JSON.stringify({ theme: theme, colors: colors });
     latestRequest = requestKey;
     return Promise.all([
-      renderVariant("main", colors.mainFront, "full"),
-      renderVariant("stub", colors.stubFront, "full"), renderVariant("stub", colors.stubBack, "full"),
-      renderVariant("couponDivider", colors.dividerFront, "full"), renderVariant("couponDivider", colors.dividerBack, "full"),
-      renderVariant("recordDividerV1", colors.recordDividerTop, "full"),
-      renderVariant("backImageFrame", colors.backImageFrame, "full")
+      renderVariant("main", colors.mainFront, "full", theme),
+      renderVariant("stub", colors.stubFront, "full", theme), renderVariant("stub", colors.stubBack, "full", theme),
+      renderVariant("couponDivider", colors.dividerFront, "full", theme), renderVariant("couponDivider", colors.dividerBack, "full", theme),
+      renderVariant("recordDividerV1", colors.recordDividerTop, "full", theme),
+      renderVariant("backImageFrame", colors.backImageFrame, "full", theme)
     ]).then(function (results) {
       assignSources({ main: results[0], stubFront: results[1], stubBack: results[2], dividerFront: results[3], dividerBack: results[4], recordDividerTop: results[5], backImageFrame: results[6] }, requestKey);
     });
@@ -124,7 +148,7 @@
       var source = assets[assetKey];
       if (source && image.src !== source) image.src = source;
     });
-    applyFrameColor("#355a58");
+    applyFrameColor({ theme: "train", mainFront: "#355a58", mainBack: "#355a58", stubFront: "#355a58", stubBack: "#355a58", dividerFront: "#355a58", dividerBack: "#355a58", recordDividerTop: "#355a58", recordDividerMiddle: "#355a58", backImageFrame: "#355a58" });
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", hydrateTrainFrames, { once: true });

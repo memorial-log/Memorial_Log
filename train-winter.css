@@ -1,0 +1,13 @@
+#ticket.train.train-winter .ticket-face { overflow:hidden !important; --rail-ink:var(--ticket-accent); }
+#ticket.train.train-winter .ticket-face .image-main {
+  inset:0 !important; width:auto !important; height:auto !important; overflow:hidden !important;
+  border:0 !important; border-radius:0 !important; mask:none !important; -webkit-mask:none !important; clip-path:none !important;
+}
+#ticket.train.train-winter .image-main .block-image-frame { inset:0 !important;width:100% !important;height:100% !important;border:0 !important;border-radius:0 !important;overflow:hidden !important;mask:none !important;-webkit-mask:none !important;clip-path:none !important;isolation:isolate; }
+#ticket.train.train-winter .ticket-face :is(.train-back-record-rules,.train-back-image-frame,.train-handwritten-note,.train-stub-divider,.train-stub-frame,.ticket-frame-layer,.train-main-serial-row::before) { display:none !important; }
+#ticket.train.train-winter .custom-layer-object { text-shadow:none; }
+#ticket.train.train-winter .winter-film-surface { mask:none !important;-webkit-mask:none !important; }
+.ticket .image-film-grain.winter-grain { z-index:4; background-repeat:repeat; }
+.winter-filter-controls { padding:10px;margin:10px 0 14px;border:1px solid var(--line,#ddd);border-radius:8px; }
+.winter-filter-controls > .switch-row { margin-bottom:12px; }
+.winter-filter-controls[hidden],#winterInkControls[hidden] { display:none !important; }

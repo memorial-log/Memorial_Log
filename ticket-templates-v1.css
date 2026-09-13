@@ -1136,9 +1136,12 @@ body.exporting-ticket #ticket.postcard > .ticket-face { box-shadow: none !import
   height: 100% !important;
   border: 0 !important;
   border-radius: inherit !important;
+  box-shadow: none !important;
+}
+#ticket.postcard .ticket-front .block-main,
+#ticket.postcard .ticket-back .block-main {
   rotate: none !important;
   transform: none !important;
-  box-shadow: none !important;
 }
 #ticket.postcard .ticket-front .block-main { background: var(--block-color, #b87977) !important; }
 #ticket.postcard .ticket-front .image-main {

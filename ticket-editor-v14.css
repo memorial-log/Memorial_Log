@@ -6664,6 +6664,11 @@ body.exporting-ticket #ticket .snap-guide-overlay { display: none !important; }
   touch-action: none;
 }
 .object-resize-handle { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.object-resize-handle[data-object-corner="bl"] {
+  right: auto;
+  left: -6px;
+  cursor: nesw-resize;
+}
 .object-rotate-handle {
   top: -23px;
   left: 50%;
@@ -9638,7 +9643,7 @@ body.postcard-static .ticket-scale::before {
   pointer-events: none !important;
   filter: var(--layer-rich-text-outline-filter, none) !important;
 }
-#ticket .custom-image-layer.layer-stroke-on { overflow: visible !important; }
+#ticket .custom-image-layer.custom-image-effects-outset { overflow: visible !important; }
 
 .effects-inspector .overlay-color-control,
 .effects-inspector .overlay-color-control.color-enhanced {
@@ -9704,11 +9709,12 @@ body.postcard-static .ticket-scale::before {
 
 /* OTT MEMORY ------------------------------------------------------------
    One isolated 16:9 template with two semantic faces: playback and info. */
-/* The playback and info faces are screens, not paper. The shared preview
-   face shadow is a solid warm plate blurred behind the card, which showed as
-   a brown line under this template's dark screen while the exported PNG had
-   nothing there. Drop it so the editor matches the export. */
-#ticket.ticket.ott > .ticket-face-shadow { display: none !important; }
+/* The playback and info faces are screens, not paper. Their exterior cast is
+   owned by the ordinary Shadow layer, just like the exported PNG. Do not put
+   a second, untoggleable shadow on the OTT ticket wrapper. */
+#ticket.ticket.ott > .ticket-face-shadow .ticket-face-shadow-shape {
+  background: var(--ott-surface, #07090d);
+}
 .ott-player-chrome,
 .ott-info-scrim { display: none; }
 #ticket.ticket.ott {
@@ -9719,7 +9725,7 @@ body.postcard-static .ticket-scale::before {
   overflow: visible;
   border-radius: 0;
   background: var(--ott-surface);
-  box-shadow: 0 24px 70px rgba(0,0,0,.3);
+  box-shadow: none;
 }
 #ticket.ticket.ott .ticket-front,
 #ticket.ticket.ott .ticket-back {
@@ -9952,6 +9958,20 @@ body.postcard-static .ticket-scale::before {
   color: rgba(255,255,255,.92);
   font: 600 12px/1.2 Pretendard, sans-serif;
 }
+/* The shared metadata rule targets every descendant span, not just the
+   structural field wrapper. Split stock text leaves insert a
+   .native-inline-text-content span (and optional partial-style spans), so
+   those generated glyph wrappers inherited a top border and 4px padding.
+   html2canvas then exported the inherited borders as the short rules above
+   GENRE / STUDIO / YEAR. The cast field uses a different combined leaf and
+   therefore never showed the leak. Keep the neutralizer OTT-only and on
+   glyph descendants so the table/rule styling of every other template stays
+   untouched. */
+#ticket.ticket.ott .ticket-back .back-metadata small span,
+#ticket.ticket.ott .ticket-back .back-metadata b span {
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
 #ticket.ticket.ott .ticket-back .back-body-layer {
   z-index: 6;
   position: absolute;
@@ -9989,3 +10009,428 @@ body.postcard-static .ticket-scale::before {
 #ticket.ticket.ott + .ticket-attribution-preview { color: #fff; }
 
 .ott-subtitle-inspector .color-reset-row { grid-template-columns: 36px minmax(0,1fr); }
+
+/* Spring refinement: generated balanced flourish v8, September 2026. */
+
+.ticket .image-film-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background-size: 230.4px 230.4px;
+  background-repeat: repeat;
+  mix-blend-mode: soft-light;
+  -webkit-mask-image: var(--image-alpha-mask, none);
+  mask-image: var(--image-alpha-mask, none);
+  -webkit-mask-size: var(--image-alpha-mask-size, contain);
+  mask-size: var(--image-alpha-mask-size, contain);
+  -webkit-mask-position: var(--image-alpha-mask-position, center);
+  mask-position: var(--image-alpha-mask-position, center);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.ticket.effects-baked .image-effects-baked .image-film-grain { display: none !important; }
+
+/* Spring front: full main-ticket photograph with an inset raster ornament. */
+#ticket.train.train-spring .ticket-front .heading-layer .kicker,
+#ticket.train.train-spring .ticket-back .train-back-coupon-heading .kicker {
+  top: 10.2% !important;
+}
+#ticket.train.train-spring .ticket-front .image-main {
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-clip-path: none !important;
+  clip-path: none !important;
+}
+#ticket.train.train-spring .ticket-front .image-main .block-image-frame {
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+#ticket.train.train-spring .ticket-front .train-main-frame {
+  inset: 3.5% 29.4% 3.5% 2.2% !important;
+  width: auto !important;
+  height: auto !important;
+}
+#ticket.train.train-spring .ticket-front .speaker-layer {
+  inset: 48% auto auto 11.5% !important;
+  width: 49.8% !important;
+  height: auto !important;
+  text-align: left !important;
+}
+#ticket.train.train-spring .ticket-front .quote-layer {
+  padding: 0 !important;
+  height: auto !important;
+  text-align: left !important;
+}
+#ticket.train.train-spring .ticket-front .quote-layer blockquote {
+  font-weight: 400;
+  line-height: 1.5;
+}
+/* All original main-ticket copy is arranged inside the inset ornament. */
+#ticket.train.train-spring .ticket-front .train-handwritten-note {
+  inset: 24% auto auto 11.5% !important;
+  width: 49.8% !important;
+  font-size: 19px;
+  rotate: 0deg;
+  opacity: 1;
+}
+#ticket.train.train-spring .ticket-front .train-main-serial-row {
+  inset: 75.5% 38.7% auto 11.5% !important;
+  height: 3.5% !important;
+}
+#ticket.train.train-spring .ticket-front .train-main-serial-row::before {
+  display: none;
+}
+#ticket.train.train-spring .ticket-front .train-main-serial-row > #serialPreview {
+  position: absolute !important;
+  top: -.5px !important;
+  right: 0 !important;
+}
+#ticket.train.train-spring .ticket-front .speaker-layer,
+#ticket.train.train-spring .ticket-front .quote-layer,
+#ticket.train.train-spring .ticket-front .train-handwritten-note,
+#ticket.train.train-spring .ticket-front .train-main-serial-row {
+  text-shadow: 0 1px 5px #40202e45;
+}
+
+/* The baked image owns its alpha; an opaque slot matte would leak at export. */
+#ticket.train.train-spring .image-main.has-image,
+#ticket.train.train-spring .image-main.has-image .block-image-frame {
+  background: transparent !important;
+}
+
+/* The reverse pairs a closed portrait opening with a spacious record column. */
+#ticket.train.train-spring .ticket-back .image-main,
+#ticket.train.train-spring .ticket-back .train-back-image-frame {
+  inset: 6% auto auto 3.2% !important;
+  width: 25% !important;
+  height: 88% !important;
+}
+#ticket.train.train-spring .train-back-image-frame > img {
+  top: 0 !important;
+  bottom: auto !important;
+  height: 100% !important;
+}
+#ticket.train.train-spring .ticket-back {
+  --train-back-record-left: 31.5%;
+  --train-back-record-right: 32%;
+}
+#ticket.train.train-spring .ticket-back .back-copy-label {
+  top: 11% !important;
+}
+#ticket.train.train-spring .ticket-back .back-record-rule-top {
+  top: 15.5% !important;
+  left: 31.5% !important;
+  right: 32% !important;
+  opacity: .8;
+}
+#ticket.train.train-spring .ticket-back .back-copy {
+  top: 20% !important;
+  height: auto !important;
+  text-align: left;
+}
+#ticket.train.train-spring .ticket-back .back-body-layer {
+  top: 37% !important;
+  max-height: 42% !important;
+}
+#ticket.train.train-spring .ticket-back .train-back-record-metadata {
+  top: 82% !important;
+}
+
+/* Fit the generated flourish's painted area into the existing divider layers. */
+#ticket.train.train-spring .train-frame-decoration-divider,
+#ticket.train.train-spring .back-record-rule-art {
+  top: -150% !important;
+  bottom: auto !important;
+  height: 400% !important;
+  object-fit: fill !important;
+}
+
+/* Image-attached film surfaces stay below type and frame artwork. */
+.ticket .image-film-surface {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  -webkit-mask-image: var(--image-alpha-mask, none); mask-image: var(--image-alpha-mask, none);
+  -webkit-mask-size: var(--image-alpha-mask-size, contain); mask-size: var(--image-alpha-mask-size, contain);
+  -webkit-mask-position: var(--image-alpha-mask-position, center); mask-position: var(--image-alpha-mask-position, center);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.ticket.effects-baked .image-effects-baked .image-film-surface { display: none !important; }
+.film-filter-controls { padding: 10px; margin: 10px 0 14px; border: 1px solid var(--line, #ddd); border-radius: 8px; }
+.film-filter-controls > .switch-row { margin: 0 0 12px; }
+#layerList .film-effect-row { margin-left: 18px; grid-template-columns: 14px minmax(0, 1fr) 38px !important; min-height: 42px; }
+.film-effect-branch { opacity: .5; padding-left: 2px; }
+.film-effect-toggle { border: 0; padding: 4px; background: transparent; color: inherit; cursor: pointer; font-size: 9px; letter-spacing: .5px; }
+.film-effect-toggle[aria-pressed="false"] { opacity: .45; }
+#layerList .film-effect-row.selected .film-effect-toggle,
+#layerList .film-effect-row.selected .film-effect-branch { color: var(--ui-surface); }
+
+/* One continuous spring-front photograph behind both ticket columns. */
+#ticket.train.train-spring .ticket-front .train-stub-frame { display: none !important; }
+#ticket.train.train-spring .ticket-front {
+  --rail-ink: #ffe4ee;
+  --ticket-quote: #ffe4ee;
+  --ticket-muted: #f3d5e2;
+  --ticket-accent: #f7bfd6;
+  --ticket-accent-55: rgba(247,191,214,.55);
+  --ticket-accent-62: rgba(247,191,214,.62);
+}
+#ticket.train.train-spring .ticket-front .heading-layer,
+#ticket.train.train-spring .ticket-front .metadata-layer,
+#ticket.train.train-spring .ticket-front .stub-print-layer,
+#ticket.train.train-spring .ticket-front #sourcePreview {
+  text-shadow: 0 1px 5px #25152580;
+}
+
+/* Spring reverse: one continuous photograph and film layer beneath the copy. */
+#ticket.train.train-spring .ticket-back .image-main {
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-clip-path: none !important;
+  clip-path: none !important;
+}
+#ticket.train.train-spring .ticket-back .image-main .block-image-frame {
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  clip-path: none !important;
+}
+#ticket.train.train-spring .ticket-back .ticket-frame-layer,
+#ticket.train.train-spring .ticket-back .train-back-image-frame,
+#ticket.train.train-spring .ticket-back .train-back-record-rules,
+#ticket.train.train-spring .ticket-back .train-stub-frame,
+#ticket.train.train-spring .ticket-back .train-stub-divider {
+  display: none !important;
+}
+#ticket.train.train-spring .ticket-back {
+  --train-back-record-left: 8.5%;
+  --train-back-record-right: 36.5%;
+  --rail-ink: #ffe4ee;
+  --ticket-quote: #ffe4ee;
+  --ticket-muted: #f3d5e2;
+  --ticket-accent: #f7bfd6;
+  --ticket-accent-55: rgba(247,191,214,.55);
+  --ticket-accent-62: rgba(247,191,214,.62);
+}
+#ticket.train.train-spring .ticket-back .back-copy-label,
+#ticket.train.train-spring .ticket-back .back-copy,
+#ticket.train.train-spring .ticket-back .back-body-layer,
+#ticket.train.train-spring .ticket-back .train-back-record-metadata,
+#ticket.train.train-spring .ticket-back .heading-layer,
+#ticket.train.train-spring .ticket-back .metadata-layer,
+#ticket.train.train-spring .ticket-back .stub-print-layer,
+#ticket.train.train-spring .ticket-back #backSourcePreview {
+  text-shadow: 0 1px 5px #25152580;
+}
+
+/* Spring coupon: identical base geometry on both faces, with shared editor state. */
+#ticket.train.train-spring .ticket-face {
+  /* The logo-to-last-row group is 63% tall. Center its full bounds, with
+     every copy layer retaining its existing offset from the logo. */
+  --spring-coupon-group-height: 63%;
+  --spring-coupon-group-top: calc((100% - var(--spring-coupon-group-height)) / 2);
+  --spring-coupon-offset: calc(var(--spring-coupon-group-top) + 12.5%);
+}
+#ticket.train.train-spring .ticket-front .train-handwritten-note,
+#ticket.train.train-spring .ticket-face .heading-layer .kicker,
+#ticket.train.train-spring .ticket-face .train-stub-divider,
+#ticket.train.train-spring .ticket-face .train-coupon-meta-rules {
+  display: none !important;
+}
+#ticket.train.train-spring .ticket-face .image-stub {
+  inset: var(--spring-coupon-group-top) auto auto 80.8% !important;
+  width: 11.2% !important;
+  height: 17% !important;
+}
+#ticket.train.train-spring .ticket-front .speaker-layer {
+  inset: 77% auto auto 7.4% !important;
+  width: 58% !important;
+  text-align: center !important;
+}
+#ticket.train.train-spring .ticket-front .quote-layer,
+#ticket.train.train-spring .ticket-front .quote-layer blockquote {
+  text-align: center !important;
+}
+#ticket.train.train-spring .ticket-front .train-main-serial-row {
+  inset: 93.5% 31% auto 2.5% !important;
+  height: 2% !important;
+}
+#ticket.train.train-spring .ticket-front .train-main-serial-row::before {
+  display: inline-block;
+}
+#ticket.train.train-spring .ticket-front .train-main-serial-row > #serialPreview {
+  position: absolute !important;
+  inset: 0 auto auto 15.5% !important;
+}
+#ticket.train.train-spring .ticket-face .ticket-title {
+  top: calc(6.5% + var(--spring-coupon-offset)) !important;
+  height: 11% !important;
+}
+#ticket.train.train-spring .ticket-face .stub-print-layer .stub-copy {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+#ticket.train.train-spring .ticket-face :is(#stubToplinePreview, #backStubToplinePreview) {
+  inset: calc(20.3% + var(--spring-coupon-offset)) auto auto var(--stub-content-left) !important;
+  width: 6.8% !important;
+  height: auto !important;
+}
+#ticket.train.train-spring .ticket-face :is(#admitTextPreview, #backAdmitTextPreview) {
+  inset: calc(22.7% + var(--spring-coupon-offset)) auto auto var(--stub-content-left) !important;
+  width: 6.8% !important;
+  height: auto !important;
+  font-size: 17px;
+}
+#ticket.train.train-spring .ticket-face .ticket-subtitle {
+  inset: calc(22.8% + var(--spring-coupon-offset)) var(--stub-content-right) auto 85.7% !important;
+  width: auto !important;
+  white-space: nowrap !important;
+}
+#ticket.train.train-spring .ticket-face :is(#stubTitlePreview, #backStubTitlePreview) {
+  inset: calc(25.2% + var(--spring-coupon-offset)) var(--stub-content-right) auto 85.7% !important;
+  width: auto !important;
+  height: auto !important;
+}
+#ticket.train.train-spring .ticket-face :is(#platformTextPreview, #backPlatformTextPreview) {
+  inset: calc(27.6% + var(--spring-coupon-offset)) var(--stub-content-right) auto 85.7% !important;
+  width: auto !important;
+  height: auto !important;
+}
+/* Shared coupon edges and an even rhythm through the three leader rows. */
+#ticket.train.train-spring .ticket-face .stub-print-layer .rail-code { top: calc(32.2% + var(--spring-coupon-offset)) !important; }
+#ticket.train.train-spring .ticket-face :is(#sourcePreview, #backSourcePreview) { top: calc(35.8% + var(--spring-coupon-offset)) !important; }
+#ticket.train.train-spring .ticket-face .stub-serial-copy { top: calc(39.4% + var(--spring-coupon-offset)) !important; }
+#ticket.train.train-spring .ticket-face .metadata-layer {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  border: 0 !important;
+}
+#ticket.train.train-spring .ticket-face .metadata-layer > .metadata-field {
+  position: absolute !important;
+  display: block !important;
+  top: calc(46.3% + var(--spring-coupon-offset)) !important;
+  width: 5.2% !important;
+  height: 4.2% !important;
+  border: 0 !important;
+}
+#ticket.train.train-spring .ticket-face .metadata-bot-field { left: var(--stub-content-left) !important; }
+#ticket.train.train-spring .ticket-face .metadata-persona-field { left: 83.8% !important; }
+#ticket.train.train-spring .ticket-face .metadata-layer > .metadata-date-field {
+  left: 89.9% !important;
+}
+#ticket.train.train-spring .ticket-face .metadata-field > small,
+#ticket.train.train-spring .ticket-face .metadata-field > b {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 35.714286% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  display: block !important;
+  text-align: center !important;
+}
+#ticket.train.train-spring .ticket-face .metadata-field > b { top: 64.285714% !important; }
+
+/* Outline glyph wrappers must follow the text leaf's alignment, without
+   becoming another metadata grid or a shrinking coupon-label flex item. */
+#ticket.train.train-spring .ticket-face .metadata-field > [data-canvas-layer] .text-outline-ink {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+#ticket.train.train-spring .ticket-face :is(#sourcePreview, #backSourcePreview) > .coupon-label > .text-outline-ink {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+
+/* The spring heading accepts either the generated wordmark or editable text. */
+#ticket.train.train-spring .ticket-back .back-copy-label {
+  top: 5.8% !important;
+  height: auto !important;
+  text-transform: none !important;
+  white-space: pre-wrap !important;
+}
+#ticket.train.train-spring .ticket-back .back-body-layer {
+  top: 43% !important;
+  max-height: 34% !important;
+}
+
+/* Raster lettering: the font-size control scales the artwork; alignment and
+   free transforms remain the same native layer controls. */
+#ticket.train.train-spring .ticket-back .back-copy-label.spring-wordmark {
+  line-height: 0 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+#ticket.train.train-spring .spring-wordmark-image {
+  display: block;
+  height: auto;
+  width: 2.4em;
+  max-width: none;
+  vertical-align: top;
+  pointer-events: none;
+}
+#ticket.train.train-spring .spring-wordmark.layer-text-transparent:not(.layer-stroke-on) .spring-wordmark-image {
+  opacity: 0;
+}
+
+/* Spring reverse: complete movable lettering overhangs the face; only the
+   stationary ticket boundary clips it. The PNG and layer never get cropped. */
+#ticket.train.train-spring .ticket-back { overflow: hidden !important; }
+#ticket.train.train-spring .ticket-back .back-copy-label {
+  left: 11.4% !important;
+  top: 14% !important;
+  right: auto !important;
+  width: max-content !important;
+}
+#ticket.train.train-spring .ticket-back .back-copy-label.spring-wordmark {
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  contain: none !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+#ticket.train.train-spring .ticket-back .back-copy {
+  right: auto !important;
+  width: var(--spring-back-quote-width, 28.5%) !important;
+}
+#ticket.train.train-spring .ticket-back .back-body-layer {
+  left: 7.5% !important;
+  right: auto !important;
+  width: 58% !important;
+  top: 55.5% !important;
+  max-height: 28% !important;
+}
+#ticket.train.train-spring .ticket-back .train-back-record-metadata {
+  left: 7.5% !important;
+  right: auto !important;
+  width: 58% !important;
+  top: 82% !important;
+  gap: 10px;
+}
+
+/* Spring's record fields spread across the same measure as the body. */
+#ticket.train.train-spring .ticket-back .record-metadata-persona-field { text-align: center; }
+#ticket.train.train-spring .ticket-back .record-metadata-date-field { text-align: right; }
+
+/* A filter child owns only its filter controls. */
+.inspector-group.film-only > :not(#winterFilterControls):not(#filmFilterControls):not(#resetEffectsBtn) { display: none !important; }
