@@ -15137,7 +15137,7 @@
 
   function loadExportPaperTextureImage() {
     var embeddedSource = window.LOG_TICKET_PAPER_TEXTURE_ASSET;
-    if (!embeddedSource && window.location.protocol === "file:") return Promise.resolve(null);
+    if (!embeddedSource) return Promise.resolve(null);
     if (exportPaperTextureImagePromise) return exportPaperTextureImagePromise;
     exportPaperTextureImagePromise = new Promise(function (resolve) {
       var image = new Image();
@@ -15145,7 +15145,7 @@
       image.onload = function () { resolve(image); };
       image.onerror = function () { resolve(null); };
       try {
-        image.src = embeddedSource || new URL("assets/ticket-paper-fiber-v2.png", document.baseURI || window.location.href).href;
+        image.src = embeddedSource;
       } catch (_) {
         resolve(null);
       }

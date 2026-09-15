@@ -210,7 +210,7 @@ textarea:focus-visible {
   content: "";
   position: absolute;
   inset: 0;
-  background: url("../assets/ticket-paper-fiber-v2.png") center / 360px repeat;
+  background: var(--log-ticket-paper-texture, none) center / 360px repeat;
   mix-blend-mode: multiply;
   opacity: .6;
   pointer-events: none;
@@ -1288,7 +1288,7 @@ input[type="range"] { height: 4px; padding: 0; accent-color: #333; }
   inset: -8%;
   z-index: 2;
   display: none;
-  background: url("../assets/ticket-paper-fiber-v2.png") center / 720px 720px repeat;
+  background: var(--log-ticket-paper-texture, none) center / 720px 720px repeat;
   filter: contrast(1.04) saturate(.78) brightness(1.01);
   mix-blend-mode: multiply;
   opacity: var(--texture-strength);
