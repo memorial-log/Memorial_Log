@@ -28,8 +28,9 @@
 #ticket.train.train-summer .image-main .block-image-frame::before,
 #ticket.train.train-summer .image-main .block-image-frame::after { display:none !important; }
 /* The border belongs to the frame, even with a transparent or contained photo. */
-#ticket.train.train-summer .ticket-front .image-main.layer-stroke-on::after {
-  content:"";position:absolute;inset:calc(-1 * var(--layer-stroke-width));
+.summer-photo-border { display:none; }
+#ticket.train.train-summer .ticket-front .image-main.layer-stroke-on > .summer-photo-border {
+  display:block;position:absolute;inset:calc(-1 * var(--layer-stroke-width));
   border:var(--layer-stroke-width) solid var(--layer-stroke-color);border-radius:0;
   box-sizing:border-box;pointer-events:none;z-index:10;
   background:none;mask:none;-webkit-mask:none;filter:none;

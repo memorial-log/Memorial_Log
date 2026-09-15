@@ -526,6 +526,59 @@
     gulim: "Gulim, '굴림', sans-serif"
   };
   var FONT_FAMILY_KEYS = Object.keys(FONT_FAMILY_MAP);
+  // Only faces actually bundled or requested by this editor are offered.
+  var FONT_WEIGHT_OPTIONS = {
+    pretendard: [100,200,300,400,500,600,700,800,900],
+    "noto-serif": [300,400,600,700], "noto-serif-jp": [300,400,600,700],
+    "gowun-batang": [400,700], "gothic-a1": [300,400,500,600,700],
+    "m-plus-rounded-1c": [300,400,500,700], cinzel: [400,500,600,700],
+    "bodoni-moda": [400,500,600,700,800,900], "bodoni-archive": [400,500,600,700,800,900],
+    "memorial-winter": [400,500,600,700,800,900], "memorial-didone": [400,500,600,700,800,900]
+  };
+  var FONT_WEIGHT_LABELS = {100:"Thin",200:"Extra Light",300:"Light",400:"Regular",500:"Medium",600:"Semi Bold",700:"Bold",800:"Extra Bold",900:"Black"};
+  var renderedInlineWeightStyles = new WeakMap();
+  function validFontWeight(value) { return /^[1-9]00$/.test(String(value || "")); }
+  function numericFontWeight(value) {
+    if (validFontWeight(value)) return String(value);
+    return value === "bold" ? "700" : value === "normal" ? "400" : "";
+  }
+  function textWeightSettings(style, fallback) {
+    style = style || {};
+    var effective = numericFontWeight(style.fontWeight) || numericFontWeight(fallback) || "400";
+    // Old documents used 700 for the bold toggle. Other weights are font faces.
+    var bold = typeof style.fontBold === "boolean" ? style.fontBold : effective === "700";
+    var base = validFontWeight(style.fontWeightBase) ? String(style.fontWeightBase) : bold ? "400" : effective;
+    return { base: base, bold: bold };
+  }
+  function textWeightPatch(style, change, fallback) {
+    var settings = textWeightSettings(style, fallback);
+    if (validFontWeight(change.base)) settings.base = String(change.base);
+    if (typeof change.bold === "boolean") settings.bold = change.bold;
+    return { fontWeightBase: settings.base, fontBold: settings.bold,
+      fontWeight: String(Math.max(Number(settings.base), settings.bold ? 700 : 0)) };
+  }
+  function inheritedWeightStyle(run, base) {
+    // A legacy substring with its own weight must not inherit new base metadata.
+    return run && run.fontWeight != null ? run : Object.assign({}, base, run || {});
+  }
+  function weightFontKey(key, computedFamily) {
+    if (key) return key;
+    var primary = String(computedFamily || "").split(",")[0].replace(/["']/g, "").trim().toLowerCase();
+    return FONT_FAMILY_KEYS.find(function (candidate) {
+      return FONT_FAMILY_MAP[candidate].split(",")[0].replace(/["']/g, "").trim().toLowerCase() === primary;
+    }) || "";
+  }
+  function supportedSelectionWeights(styles, key, computedFamily) {
+    var common = null;
+    styles.forEach(function (entry) {
+      var family = entry.fontFamily;
+      var font = !family || family === "inherit" ? weightFontKey(key, computedFamily)
+        : fontKeyAllowed(family) ? family : weightFontKey("", family);
+      var options = FONT_WEIGHT_OPTIONS[font] || [];
+      common = common === null ? options.slice() : common.filter(function (weight) { return options.indexOf(weight) >= 0; });
+    });
+    return common && common.length ? common : null;
+  }
   var SYSTEM_FONT_KEY_PATTERN = /^system:[A-Za-z0-9_-]{8,2048}$/;
   var LEGACY_LOCAL_FONT_KEY_PATTERN = /^local:[0-9a-f]{16,64}$/;
   function isSystemFontKey(key) { return SYSTEM_FONT_KEY_PATTERN.test(String(key || "")); }
@@ -2037,6 +2090,8 @@
         if (Number.isFinite(Number(value.fontSize))) style.fontSize = clamp(Number(value.fontSize), 2, MAX_FONT_SIZE_PX);
         if (fontKeyAllowed(value.fontFamily)) style.fontFamily = value.fontFamily;
         if (/^[1-9]00$/.test(String(value.fontWeight || ""))) style.fontWeight = String(value.fontWeight);
+        if (validFontWeight(value.fontWeightBase)) style.fontWeightBase = String(value.fontWeightBase);
+        if (typeof value.fontBold === "boolean") style.fontBold = value.fontBold;
         if (["normal", "italic"].indexOf(value.fontStyle) >= 0) style.fontStyle = value.fontStyle;
         if (Number.isFinite(Number(value.letterSpacing))) style.letterSpacing = clamp(Number(value.letterSpacing), -300, 300);
         if (Number.isFinite(Number(value.lineHeight))) style.lineHeight = clamp(Number(value.lineHeight), .6, 3);
@@ -2059,6 +2114,8 @@
       if (fontKeyAllowed(run.fontFamily)) next.fontFamily = run.fontFamily;
       if (Number.isFinite(Number(run.fontSize))) next.fontSize = clamp(Number(run.fontSize), 2, MAX_FONT_SIZE_PX);
       if (/^[1-9]00$/.test(String(run.fontWeight || ""))) next.fontWeight = String(run.fontWeight);
+      if (validFontWeight(run.fontWeightBase)) next.fontWeightBase = String(run.fontWeightBase);
+      if (typeof run.fontBold === "boolean") next.fontBold = run.fontBold;
       if (["normal", "italic"].indexOf(run.fontStyle) >= 0) next.fontStyle = run.fontStyle;
       if (Number.isFinite(Number(run.letterSpacing))) next.letterSpacing = clamp(Number(run.letterSpacing), -300, 300);
       if (Number.isFinite(Number(run.lineHeight))) next.lineHeight = clamp(Number(run.lineHeight), .6, 3);
@@ -2217,6 +2274,8 @@
         fontFamily: safeStyleValue(run && run.fontFamily, "inherit", 180),
         fontSize: clamp(finiteNumber(run && run.fontSize, 28), 4, MAX_FONT_SIZE_PX),
         fontWeight: safeStyleValue(run && run.fontWeight, "400", 40),
+        fontWeightBase: validFontWeight(run && run.fontWeightBase) ? String(run.fontWeightBase) : undefined,
+        fontBold: run && typeof run.fontBold === "boolean" ? run.fontBold : undefined,
         fontStyle: safeStyleValue(run && run.fontStyle, "normal", 40),
         lineHeight: safeStyleValue(run && run.lineHeight, "normal", 60),
         letterSpacing: safeStyleValue(run && run.letterSpacing, "normal", 60),
@@ -2349,6 +2408,8 @@
           font: fontKeyAllowed(item.font) ? item.font : "noto-serif",
           fontSize: clamp(finiteNumber(item.fontSize, 28), 8, MAX_FONT_SIZE_PX),
           fontWeight: safeStyleValue(item.fontWeight, "400", 40),
+          fontWeightBase: validFontWeight(item.fontWeightBase) ? String(item.fontWeightBase) : undefined,
+          fontBold: typeof item.fontBold === "boolean" ? item.fontBold : undefined,
           fontStyle: safeStyleValue(item.fontStyle, "normal", 40),
           lineHeight: safeStyleValue(item.lineHeight, "1.35", 60),
           letterSpacing: safeStyleValue(item.letterSpacing, "normal", 60),
@@ -3193,6 +3254,10 @@
         next.blocks.frontStub.imageData = fallback.blocks.frontStub.imageData;
         next.blocks.frontStub.imageName = fallback.blocks.frontStub.imageName;
         next.blocks.frontStub.imageType = fallback.blocks.frontStub.imageType;
+        /* A bundled (or absent) default is not an IndexedDB upload. Keeping
+           the imported upload flag here makes seasonal JSON imports demand
+           an image that this migration has just replaced with an empty slot. */
+        next.blocks.frontStub.imageAssetStored = false;
         next.blocks.frontStub.fit = "contain";
         next.blocks.frontStub.zoom = 1;
         next.blocks.frontStub.panX = 0;
@@ -3689,7 +3754,7 @@
     window.LOG_TICKET_SEASON_FONTS.apply(next, saved && saved.seasonDisplayFontVersion);
     window.LOG_TICKET_WINTER_THEME.alignOpticalType(next, saved && saved.winterOpticalLayoutVersion);
     window.LOG_TICKET_WINTER_THEME.refineBackHeader(next, saved && saved.winterBackHeaderVersion);
-    window.LOG_TICKET_SUMMER_THEME.refine(next, saved && saved.summerFrameVersion);
+    window.LOG_TICKET_SUMMER_THEME.refine(next, saved && saved.summerFrameVersion, saved && saved.summerFrontLayoutVersion, saved && saved.summerBackLayoutVersion);
     applySpringFrontInk(next, saved && saved.springFrontInkVersion);
     removeRetiredSeasonAssets(next, saved && saved.seasonAssetCleanupVersion);
     next.designVersion = DESIGN_VERSION;
@@ -4117,6 +4182,8 @@
   }
   function selectFontSourceTab(target, source) {
     var resolved = source === "system" ? "system" : "app";
+    var weightRow = $("#" + target + "FontWeightRow");
+    if (weightRow) weightRow.hidden = resolved === "system" || weightRow.dataset.supported !== "true";
     $$('[data-font-tabs="' + target + '"] [data-font-tab]').forEach(function (button) {
       var selected = button.dataset.fontTab === resolved;
       button.classList.toggle("selected", selected);
@@ -5328,6 +5395,9 @@
   }
   function inlineStyleProperties(run, target, suppressColor) {
     if (!run) return;
+    if (run.fontWeight) renderedInlineWeightStyles.set(target, {
+      fontWeight: run.fontWeight, fontWeightBase: run.fontWeightBase, fontBold: run.fontBold
+    });
     if (run.color && !suppressColor) target.style.setProperty("color", run.color, "important");
     if (run.fontFamily) target.style.setProperty("font-family", fontFamilyForKey(run.fontFamily), "important");
     if (run.fontSize != null) target.style.setProperty("font-size", run.fontSize + "px", "important");
@@ -5539,10 +5609,6 @@
   }
   function traceShapePath(context, item, width, height) {
     context.beginPath();
-    if (window.LOG_TICKET_SUMMER_THEME.kinds.indexOf(item.shapeKind) >= 0) {
-      window.LOG_TICKET_SUMMER_THEME.trace(context, item.shapeKind, width, height);
-      return;
-    }
     if (item.shapeKind === "arch") {
       var archRise = Math.min(width / 2, height);
       context.moveTo(0, height);
@@ -5594,6 +5660,38 @@
     context.fillStyle = effect.overlayColor;
     context.fillRect(0, 0, width, height);
   }
+  function hasSolidImageTint(effect) {
+    return effect.overlay === 100 && effect.overlayBlend === "normal";
+  }
+  var solidImageTintFilterCache = Object.create(null);
+  function solidImageTintFilter(effect) {
+    if (!hasSolidImageTint(effect)) return "";
+    var color = validHexColor(effect.overlayColor, "#000000").toLowerCase();
+    if (solidImageTintFilterCache[color]) return solidImageTintFilterCache[color];
+    var namespace = "http://www.w3.org/2000/svg";
+    var filter = document.createElementNS(namespace, "filter");
+    filter.id = "image-solid-tint-" + color.slice(1);
+    filter.setAttribute("x", "-100%");
+    filter.setAttribute("y", "-100%");
+    filter.setAttribute("width", "300%");
+    filter.setAttribute("height", "300%");
+    filter.setAttribute("color-interpolation-filters", "sRGB");
+    var matrix = document.createElementNS(namespace, "feColorMatrix");
+    matrix.setAttribute("type", "matrix");
+    var rgb = [1, 3, 5].map(function (offset) { return parseInt(color.slice(offset, offset + 2), 16) / 255; });
+    matrix.setAttribute("values", "0 0 0 0 " + rgb[0] + " 0 0 0 0 " + rgb[1] + " 0 0 0 0 " + rgb[2] + " 0 0 0 1 0");
+    filter.appendChild(matrix);
+    imageOutlineFilterDefs().appendChild(filter);
+    return solidImageTintFilterCache[color] = 'url("#' + filter.id + '")';
+  }
+  function paintSolidImageTint(canvas, effect) {
+    if (!hasSolidImageTint(effect)) return;
+    var context = canvas.getContext("2d", { alpha: true });
+    context.save();
+    context.globalCompositeOperation = "source-in";
+    paintEffectOverlay(context, canvas.width, canvas.height, effect);
+    context.restore();
+  }
   var imageOutlineFilterCache = Object.create(null);
   function imageOutlineFilterDefs() {
     var svg = document.getElementById("imageOutlineFilterDefs");
@@ -5610,16 +5708,17 @@
     document.body.appendChild(svg);
     return defs;
   }
-  function imageOutlineFilter(stroke, pixelScale, outsideOnly) {
+  function imageOutlineFilter(stroke, pixelScale, outsideOnly, filledText) {
     var value = normalizeStroke(stroke);
     if (!value.enabled || value.width <= 0) return "";
     var radius = Math.max(.1, value.width * Math.max(.1, finiteNumber(pixelScale, 1)));
     var roundedRadius = Math.round(radius * 2) / 2;
-    var key = (outsideOnly ? "ring|" : "image|") + value.join + "|" + value.color.toLowerCase() + "|" + roundedRadius.toFixed(1);
+    var kind = outsideOnly ? "ring" : filledText ? "filled-text" : "image";
+    var key = kind + "|" + value.join + "|" + value.color.toLowerCase() + "|" + roundedRadius.toFixed(1);
     if (imageOutlineFilterCache[key]) return 'url("#' + imageOutlineFilterCache[key] + '")';
 
     var namespace = "http://www.w3.org/2000/svg";
-    var id = (outsideOnly ? "text-outline-" : "image-outline-") + value.join + "-" + value.color.slice(1).toLowerCase() + "-" + roundedRadius.toFixed(1).replace(".", "_");
+    var id = (outsideOnly ? "text-outline-" : filledText ? "filled-text-outline-" : "image-outline-") + value.join + "-" + value.color.slice(1).toLowerCase() + "-" + roundedRadius.toFixed(1).replace(".", "_");
     var filter = document.createElementNS(namespace, "filter");
     filter.id = id;
     filter.setAttribute("x", "-100%");
@@ -5677,7 +5776,10 @@
     if (!outsideOnly) {
       var merge = document.createElementNS(namespace, "feMerge");
       var outlineNode = document.createElementNS(namespace, "feMergeNode");
-      outlineNode.setAttribute("in", "outsideOutline");
+      /* A cut-out ring attenuates antialiased glyph edges twice when merged
+         with the fill. Keep the complete underlay for filled text so the
+         background cannot show through that join. Hollow text stays a ring. */
+      outlineNode.setAttribute("in", filledText ? "coloredOutline" : "outsideOutline");
       var sourceNode = document.createElementNS(namespace, "feMergeNode");
       sourceNode.setAttribute("in", "SourceGraphic");
       merge.append(outlineNode, sourceNode);
@@ -5750,6 +5852,66 @@
     context.restore();
     source.width = source.height = colorLayer.width = colorLayer.height = scratch.width = scratch.height = 1;
   }
+  function paintGeneratedSummerFoam(canvas, image, item, geometry) {
+    var artImage = canvas.parentElement.querySelector("img.summer-foam-art-source");
+    var masks = window.LOG_TICKET_SUMMER_ART.masks(item.shapeKind, artImage);
+    if (!masks) return;
+    var context = canvas.getContext("2d");
+    var width = geometry.width, height = geometry.height, scale = geometry.scale;
+    var x = geometry.x, y = geometry.y;
+    if (item.fillMode !== "none") {
+      var fill = document.createElement("canvas");
+      fill.width = Math.max(1, Math.round(width));
+      fill.height = Math.max(1, Math.round(height));
+      var fillContext = fill.getContext("2d");
+      if (item.fillMode === "image" && image && image.complete && image.naturalWidth) {
+        var crop = calculateResizedShapeCrop(item, image.naturalWidth, image.naturalHeight, width, height, scale);
+        var effect = visibleImageEffect(item);
+        fillContext.filter = effectFilterString(effect, true, scale);
+        fillContext.drawImage(image, crop.x, crop.y, crop.width, crop.height);
+        fillContext.filter = "none";
+        drawAlphaMaskedEffectLayer(fill, function (layerContext, layerWidth, layerHeight) {
+          paintEffectOverlay(layerContext, layerWidth, layerHeight, effect);
+        }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
+        drawImageVignette(fill, effect);
+        drawImageFilm(fill, effect);
+        drawImageGrain(fill, effect, scale);
+      } else {
+        fillContext.fillStyle = item.fillColor || "#ffffff";
+        fillContext.fillRect(0, 0, fill.width, fill.height);
+      }
+      fillContext.globalCompositeOperation = "destination-in";
+      fillContext.drawImage(masks.body, 0, 0, fill.width, fill.height);
+      context.drawImage(fill, x, y, width, height);
+      fill.width = fill.height = 1;
+    }
+    var stroke = geometry.stroke;
+    if (stroke.enabled && stroke.width > 0) {
+      var ink = document.createElement("canvas");
+      ink.width = canvas.width; ink.height = canvas.height;
+      var inkContext = ink.getContext("2d");
+      inkContext.drawImage(masks.ink, x, y, width, height);
+      inkContext.globalCompositeOperation = "source-in";
+      inkContext.fillStyle = stroke.color;
+      inkContext.fillRect(0, 0, ink.width, ink.height);
+      inkContext.globalCompositeOperation = "source-over";
+      if (stroke.width > 1.25) {
+        paintCanvasOutline(ink, { enabled: true, width: (stroke.width - 1.25) / 2, color: stroke.color, join: stroke.join }, scale);
+      } else if (stroke.width < 1.25) {
+        var originalInk = document.createElement("canvas");
+        originalInk.width = ink.width; originalInk.height = ink.height;
+        originalInk.getContext("2d").drawImage(ink, 0, 0);
+        var inset = (1.25 - stroke.width) * scale / 2;
+        inkContext.globalCompositeOperation = "destination-in";
+        [[inset,0],[-inset,0],[0,inset],[0,-inset]].forEach(function (offset) {
+          inkContext.drawImage(originalInk, offset[0], offset[1]);
+        });
+        originalInk.width = originalInk.height = 1;
+      }
+      context.drawImage(ink, 0, 0);
+      ink.width = ink.height = 1;
+    }
+  }
   function paintCustomShape(canvas, image, item, renderScale) {
     var cssWidth = Math.max(1, canvas.parentElement.clientWidth || 1);
     var cssHeight = Math.max(1, canvas.parentElement.clientHeight || 1);
@@ -5791,6 +5953,12 @@
     context.imageSmoothingQuality = "high";
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
+    if (window.LOG_TICKET_SUMMER_THEME.kinds.indexOf(item.shapeKind) >= 0) {
+      paintGeneratedSummerFoam(canvas, image, item, {
+        width: contentWidth, height: contentHeight, x: offsetX, y: offsetY, scale: scale, stroke: shapeStroke
+      });
+      return;
+    }
     /* Draw the centered stroke first. The fill is painted afterwards and
        covers its inner half, so only the requested width remains outside the
        shape instead of stealing space from the fill. */
@@ -5903,11 +6071,10 @@
             (item.styledShapes || []).forEach(function (shape) { appendStyledShape(visual, shape); });
             item.styledRuns.forEach(function (run) { appendStyledRun(visual, run); });
             node.appendChild(visual);
-            /* Rich snapshots can contain decorative shapes and run-level
-               backgrounds. Build one text-only alpha union for the hollow
-               outline so those decorations remain visible but are never
-               mistaken for glyphs. Keeping all runs in one filter target also
-               avoids seams where two styled runs touch. */
+            /* Keep one text-only outline target so decorations and run-level
+               backgrounds never become glyph outlines. Filled runs are also
+               repainted here over their outline underlay; hollow text keeps
+               only the outside ring. */
             var outlineVisual = visual.cloneNode(true);
             outlineVisual.className = "rich-text-visual rich-text-outline-ink text-outline-ink";
             Array.prototype.forEach.call(outlineVisual.querySelectorAll(".styled-clone-shape"), function (shape) { shape.remove(); });
@@ -5948,7 +6115,9 @@
           var customOutline = imageOutlineFilter(strokeFor(item.id, side));
           var customShadow = imageShadowFilter(shadowFor(item.id, side));
           var customEffectFilter = effectFilterString(effect, true);
-          image.style.filter = ((customEffectFilter === "none" ? "" : customEffectFilter + " ") + customOutline + " " + customShadow).trim() || "none";
+          /* Full normal tint replaces RGB while retaining the bitmap alpha.
+             Masking a second color layer over black leaves dark antialiased edges. */
+          image.style.filter = ((customEffectFilter === "none" ? "" : customEffectFilter + " ") + solidImageTintFilter(effect) + " " + customOutline + " " + customShadow).trim() || "none";
           /* A free image is its layer box, not a crop inside a separate frame.
              Keeping the bitmap at exactly 100% x 100% makes the selection,
              inspector dimensions, preview and export share one geometry. */
@@ -5962,7 +6131,7 @@
           node.style.setProperty("--image-alpha-mask-size", "100% 100%");
           node.style.setProperty("--image-alpha-mask-position", "0 0");
           setLayerAlphaMask(node, item.imageData);
-          node.style.setProperty("--image-overlay", effect.overlay / 100);
+          node.style.setProperty("--image-overlay", hasSolidImageTint(effect) ? 0 : effect.overlay / 100);
           node.style.setProperty("--image-overlay-color", effect.overlayColor);
           node.style.setProperty("--image-overlay-blend", effect.overlayBlend);
           setImageVignetteProperties(node, effect.vignette);
@@ -5995,6 +6164,20 @@
             if (shapeImage.src !== item.imageData) shapeImage.src = item.imageData;
           } else shapeImage.removeAttribute("src");
           placeholder.hidden = item.fillMode !== "image" || Boolean(item.imageData);
+          var foamArt = node.querySelector("img.summer-foam-art-source");
+          var foamSource = window.LOG_TICKET_SUMMER_ART.source(item.shapeKind);
+          if (foamSource) {
+            if (!foamArt) {
+              foamArt = document.createElement("img");
+              foamArt.className = "summer-foam-art-source";
+              foamArt.alt = "";
+              foamArt.hidden = true;
+              foamArt.setAttribute("data-html2canvas-ignore", "true");
+              foamArt.addEventListener("load", function () { renderCustomLayers(renderScale); });
+              node.appendChild(foamArt);
+            }
+            if (foamArt.src !== foamSource) foamArt.src = foamSource;
+          } else if (foamArt) foamArt.remove();
           /* Export only needs a high-resolution backing canvas on the active
              face. Keeping the hidden face at preview resolution avoids a
              second multi-megapixel canvas during PNG generation. */
@@ -6242,10 +6425,10 @@
       node.style.setProperty("--layer-stroke-width", stroke.width + "px");
       node.style.setProperty("--layer-stroke-join", stroke.join);
       node.style.setProperty("--layer-text-outline-filter", textBox && stroke.enabled && stroke.width > 0
-        ? imageOutlineFilter(previewStroke, 1, textColorMode === "none")
+        ? imageOutlineFilter(previewStroke, 1, textColorMode === "none", true)
         : "none");
       node.style.setProperty("--layer-rich-text-outline-filter", textBox && stroke.enabled && stroke.width > 0
-        ? imageOutlineFilter(previewStroke, 1, true)
+        ? imageOutlineFilter(previewStroke, 1, textColorMode === "none", true)
         : "none");
       /* An auto-inverting layer is blended as a whole, so a literal outline
          colour would come back inverted along with the fill. Feed the blend
@@ -6254,6 +6437,14 @@
          exactly the colour that was picked. */
       node.style.setProperty("--layer-stroke-color", strokeDisplayColor);
       node.classList.toggle("layer-stroke-on", Boolean(stroke.enabled && stroke.width > 0));
+      if (state.template === "train-summer" && side === "front" && layer === "image-main"
+        && !node.querySelector(".summer-photo-border")) {
+        /* Keep the frame separate from effect pseudos removed during export. */
+        var photoBorder = document.createElement("span");
+        photoBorder.className = "summer-photo-border";
+        photoBorder.setAttribute("aria-hidden", "true");
+        node.appendChild(photoBorder);
+      }
       node.classList.toggle("custom-image-effects-outset", Boolean(custom && custom.type === "image"
         && (shadow.enabled || stroke.enabled && stroke.width > 0 || finiteNumber(custom.effect && custom.effect.blur, 0) > 0)));
       node.classList.toggle("layer-stroke-rounded", stroke.join === "round");
@@ -6640,6 +6831,17 @@
   }
 
   async function captureLayerForClipping(side, key, scale, bakedImages) {
+    var captureBakes = bakedImages || [];
+    var clippingImage = customLayerById(key);
+    if (clippingImage && clippingImage.type === "image" && hasSolidImageTint(visibleImageEffect(clippingImage))) {
+      var imageSelector = '[data-canvas-layer="' + key + '"] img.custom-image-source';
+      if (!captureBakes.some(function (record) { return record.selector === imageSelector; })) {
+        /* html2canvas cannot evaluate the live RGB replacement filter. Bake
+           this image for clipping as well, including in BOTH-side previews. */
+        var tintBake = customImageBakeRecord(clippingImage, side, scale);
+        if (tintBake) captureBakes = captureBakes.concat(tintBake);
+      }
+    }
     var liveFace = side === "back" ? backFace : frontFace;
     var width = Math.max(1, liveFace.offsetWidth);
     var height = Math.max(1, liveFace.offsetHeight);
@@ -6726,7 +6928,7 @@
           copyClippingCanvasPixels(scratchFace, clonedFace);
           clonedTicket.classList.add("effects-baked", "layer-overlay-export");
           addExportBlendNeutralizer(clonedDocument, clonedTicket, key);
-          if (bakedImages && bakedImages.length) await applyExportImageBakesToClone(clonedTicket, bakedImages);
+          if (captureBakes.length) await applyExportImageBakesToClone(clonedTicket, captureBakes);
           normalizeExportCloneRotations(clonedDocument, clonedTicket);
           if (clonedFace) clonedFace.querySelectorAll(".layer-clipping-preview").forEach(function (node) { node.remove(); });
           var visible = {};
@@ -6785,9 +6987,15 @@
     var fullWidth = output.width;
     var fullHeight = output.height;
     var context = output.getContext("2d", { alpha: true });
+    /* html2canvas leaves its rendering scale on this context. Source and mask
+       are already pixel-sized, so applying that scale again can erase the
+       clipped image during high-resolution export. */
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.globalAlpha = 1;
     context.globalCompositeOperation = "destination-in";
     context.drawImage(maskCanvas, 0, 0, output.width, output.height);
-    context.globalCompositeOperation = "source-over";
+    context.restore();
     var bounds = clippingCanvasAlphaBounds(output);
     if (!bounds) {
       output.width = output.height = 1;
@@ -7367,6 +7575,89 @@
     runs.splice(0, runs.length);
     Array.prototype.push.apply(runs, canonicalInlineRuns(next, textLength));
   }
+  function selectedWeightStyles(kind, base, styledRuns) {
+    if (!trackedTextSelectionMatches(kind)) {
+      var nonempty = (styledRuns || []).filter(function (run) { return String(run.text || "").length > 0; });
+      return nonempty.length ? nonempty : [base];
+    }
+    var runs = canonicalInlineRuns(activeTrackedInlineRuns(false) || [], activeTrackedTextLength());
+    var start = trackedTextSelection.start, end = trackedTextSelection.end;
+    var boundaries = [start];
+    runs.forEach(function (run) {
+      if (run.start > start && run.start < end) boundaries.push(run.start);
+      if (run.end > start && run.end < end) boundaries.push(run.end);
+    });
+    return boundaries.map(function (index) { return inheritedWeightStyle(inlineRunStyleAt(runs, index), base); });
+  }
+  function renderFontWeightControl(target, kind, key, style, fallback, computedFamily, styledRuns) {
+    var base = Object.assign({fontWeight: String(fallback || "400")}, style);
+    var selectedStyles = selectedWeightStyles(kind, base, styledRuns);
+    var settings = selectedStyles.map(function (entry) { return textWeightSettings(entry, fallback); });
+    var toggle = $("#" + target + "BoldToggle");
+    toggle.checked = settings.every(function (entry) { return entry.bold; });
+    toggle.indeterminate = settings.some(function (entry) { return entry.bold; }) && !toggle.checked;
+    var font = weightFontKey(key, computedFamily);
+    var weights = supportedSelectionWeights(selectedStyles, font, computedFamily);
+    var row = $("#" + target + "FontWeightRow"), select = $("#" + target + "FontWeight");
+    row.dataset.supported = String(Boolean(weights));
+    row.hidden = !weights;
+    select.dataset.fontKey = font;
+    select.dataset.weights = weights ? weights.join(",") : "";
+    if (!weights) return;
+    var value = settings.every(function (entry) { return entry.base === settings[0].base; }) ? settings[0].base : "";
+    var signature = weights.join(",") + ":" + (!value ? "mixed" : weights.indexOf(Number(value)) < 0 ? "current:" + value : "supported");
+    if (select.dataset.options !== signature) {
+      select.textContent = "";
+      if (!value || weights.indexOf(Number(value)) < 0) {
+        var current = document.createElement("option");
+        current.value = value; current.textContent = value ? value + " · 현재 설정" : "혼합";
+        current.disabled = true; select.appendChild(current);
+      }
+      weights.forEach(function (weight) {
+        var option = document.createElement("option");
+        option.value = String(weight); option.textContent = weight + " · " + FONT_WEIGHT_LABELS[weight];
+        select.appendChild(option);
+      });
+      select.dataset.options = signature;
+    }
+    setInputValue("#" + target + "FontWeight", value);
+  }
+  function changeSelectedTextWeight(change, target) {
+    var custom = activeCustomLayer(), isCustom = custom && custom.type === "text";
+    if (!isCustom && TEXT_LAYER_KEYS.indexOf(state.selectedLayer) < 0) return;
+    var kind = isCustom ? "custom" : "native";
+    var style = isCustom ? custom : layerStyleEntry(state.side, state.selectedLayer, true);
+    var face = state.side === "front" ? frontFace : backFace;
+    var node = trackedTextSelectionMatches("native")
+      ? nativeInlineTextTarget(state.selectedLayer, state.side, trackedTextSelection.property)
+      : face.querySelector('[data-canvas-layer="' + state.selectedLayer + '"]');
+    var computed = node ? window.getComputedStyle(node) : null;
+    var fallback = computed ? computed.fontWeight : "400";
+    var base = Object.assign({fontWeight: fallback}, style);
+    if (change.base != null) {
+      var weights = $("#" + target + "FontWeight").dataset.weights || "";
+      if (weights.split(",").indexOf(String(change.base)) < 0) return;
+    }
+    function patch(run) { return textWeightPatch(inheritedWeightStyle(run, base), change, fallback); }
+    if (trackedTextSelectionMatches(kind)) { applyInlineStyleToTrackedSelection(patch); return; }
+    function updateRuns(runs) {
+      (runs || []).forEach(function (run) {
+        if (run.fontWeight != null || run.fontWeightBase != null || run.fontBold != null) Object.assign(run, patch(run));
+      });
+    }
+    if (isCustom) {
+      updateRuns(custom.inlineTextStyles);
+      updateRuns(custom.styledRuns);
+      updateRuns(custom.typingStyle ? [custom.typingStyle] : []);
+    } else {
+      var side = canonicalTrainCouponSide(state.side, state.selectedLayer, state);
+      var fields = state.inlineTextStyles && state.inlineTextStyles[side] && state.inlineTextStyles[side][state.selectedLayer] || {};
+      Object.keys(fields).forEach(function (field) { updateRuns(fields[field]); });
+      var typing = state.textTypingStyles && state.textTypingStyles[side] && state.textTypingStyles[side][state.selectedLayer] || {};
+      Object.keys(typing).forEach(function (field) { updateRuns([typing[field]]); });
+    }
+    Object.assign(style, textWeightPatch(base, change, fallback));
+  }
   function removeNativeInlineStyleProperty(side, layerKey, property) {
     var canonicalSide = canonicalTrainCouponSide(side, layerKey, state);
     var layerFields = state.inlineTextStyles && state.inlineTextStyles[canonicalSide] && state.inlineTextStyles[canonicalSide][layerKey];
@@ -7443,9 +7734,10 @@
     boundaries.slice(0, -1).forEach(function (partStart, index) {
       var partEnd = boundaries[index + 1];
       var style = inlineRunStyleAt(runs, partStart);
-      Object.keys(patch || {}).forEach(function (key) {
-        if (patch[key] == null || patch[key] === "") delete style[key];
-        else style[key] = patch[key];
+      var partPatch = typeof patch === "function" ? patch(style) : patch;
+      Object.keys(partPatch || {}).forEach(function (key) {
+        if (partPatch[key] == null || partPatch[key] === "") delete style[key];
+        else style[key] = partPatch[key];
       });
       if (Object.keys(style).length) next.push(Object.assign({ start: partStart, end: partEnd }, style));
     });
@@ -7788,6 +8080,8 @@
       fontSize: custom.fontSize,
       fontFamily: custom.font,
       fontWeight: custom.fontWeight,
+      fontWeightBase: custom.fontWeightBase,
+      fontBold: custom.fontBold,
       fontStyle: custom.fontStyle,
       textAlign: custom.align,
       writingMode: custom.writingMode,
@@ -7835,7 +8129,6 @@
     var displayedFontSize = trackedInlineStyleValue(textKind, "fontSize", baseFontSize);
     var baseFontFamily = style.fontFamily || "";
     var displayedFontFamily = trackedInlineStyleValue(textKind, "fontFamily", baseFontFamily);
-    var displayedWeight = trackedInlineStyleValue(textKind, "fontWeight", style.fontWeight || String(computedWeight));
     var displayedFontStyle = trackedInlineStyleValue(textKind, "fontStyle", style.fontStyle || computedStyle);
     var wordmarkTitle = state.template === "train-spring" && state.side === "back" && key === "copy-label";
     var wordmarkOption = $('#layerFontFamily option[value="spring-flourish"]');
@@ -7854,16 +8147,13 @@
     setInputValue("#layerFontFamily", displayedFontFamily);
     syncFontSelectPreview("#layerFontFamily", displayedFontFamily);
     syncFontSourceTab("layer", displayedFontFamily);
-    $("#layerBoldToggle").checked = parseInt(displayedWeight, 10) >= 600;
     $("#layerItalicToggle").checked = displayedFontStyle === "italic";
-    $("#layerBoldToggle").indeterminate = false;
     $("#layerItalicToggle").indeterminate = false;
+    renderFontWeightControl("layer", textKind, displayedFontFamily, style, String(computedWeight), computed && computed.fontFamily, customText ? custom.styledRuns : []);
+    $("#layerFontWeightRow").hidden = $("#layerFontWeightRow").hidden || wordmarkActive;
     if (customText && !trackedTextSelectionMatches("custom")) {
       var customRuns = (custom.styledRuns || []).filter(function (run) { return String(run.text || "").length > 0; });
-      var customBoldStates = customRuns.map(function (run) { return parseInt(run.fontWeight, 10) >= 600; });
       var customItalicStates = customRuns.map(function (run) { return run.fontStyle === "italic"; });
-      $("#layerBoldToggle").checked = customBoldStates.length ? customBoldStates.every(Boolean) : parseInt(custom.fontWeight, 10) >= 600;
-      $("#layerBoldToggle").indeterminate = customBoldStates.length > 1 && customBoldStates.some(Boolean) && !customBoldStates.every(Boolean);
       $("#layerItalicToggle").checked = customItalicStates.length ? customItalicStates.every(Boolean) : custom.fontStyle === "italic";
       $("#layerItalicToggle").indeterminate = customItalicStates.length > 1 && customItalicStates.some(Boolean) && !customItalicStates.every(Boolean);
     }
@@ -8066,13 +8356,10 @@
       syncFontSelectPreview("#customTextFont", displayedCustomFont);
       syncFontSourceTab("custom", displayedCustomFont);
       var textRuns = (custom.styledRuns || []).filter(function (run) { return String(run.text || "").length > 0; });
-      var boldStates = textRuns.map(function (run) { return parseInt(run.fontWeight, 10) >= 600; });
       var italicStates = textRuns.map(function (run) { return run.fontStyle === "italic"; });
       var customSelectionActive = trackedTextSelectionMatches("custom");
-      var displayedCustomWeight = trackedInlineStyleValue("custom", "fontWeight", custom.fontWeight);
       var displayedCustomFontStyle = trackedInlineStyleValue("custom", "fontStyle", custom.fontStyle);
-      $("#customBoldToggle").checked = customSelectionActive ? parseInt(displayedCustomWeight, 10) >= 600 : (boldStates.length ? boldStates.every(Boolean) : parseInt(custom.fontWeight, 10) >= 600);
-      $("#customBoldToggle").indeterminate = !customSelectionActive && boldStates.length > 1 && boldStates.some(Boolean) && !boldStates.every(Boolean);
+      renderFontWeightControl("custom", "custom", displayedCustomFont, custom, custom.fontWeight, "", textRuns);
       $("#customItalicToggle").checked = customSelectionActive ? displayedCustomFontStyle === "italic" : (italicStates.length ? italicStates.every(Boolean) : custom.fontStyle === "italic");
       $("#customItalicToggle").indeterminate = !customSelectionActive && italicStates.length > 1 && italicStates.some(Boolean) && !italicStates.every(Boolean);
       setInputValue("#customFontSizePt", pxToPt(trackedInlineStyleValue("custom", "fontSize", custom.fontSize)));
@@ -8095,6 +8382,9 @@
         setInputValue("#customShapeFillMode", custom.fillMode);
         $("#customShapeFillColor").value = custom.fillColor;
         $("#customShapeFillColorCode").textContent = custom.fillColor.toUpperCase();
+        var summerFoam = window.LOG_TICKET_SUMMER_THEME.kinds.indexOf(custom.shapeKind) >= 0;
+        $("#customShapeFillColorLabel").textContent = summerFoam ? "포말 내부 색상" : "채우기 색상";
+        $("#customShapeFoamFillNote").hidden = !summerFoam || custom.fillMode !== "color";
         $("#customShapeColorFields").hidden = custom.fillMode !== "color";
         $("#customShapeFillNote").hidden = custom.fillMode !== "none";
         $("#customShapeImageFields").hidden = custom.fillMode !== "image";
@@ -8192,6 +8482,13 @@
     }
 
     var strokeEditable = hasSelection && layerSupportsStroke(state.selectedLayer, state.side);
+    var photoBorderEditable = state.template === "train-summer" && state.side === "front" && state.selectedLayer === "image-main";
+    $("#photoBorderColorControl").hidden = !photoBorderEditable;
+    if (photoBorderEditable) {
+      var photoStroke = strokeFor("image-main", "front");
+      $("#photoBorderColor").value = photoStroke.color;
+      $("#photoBorderColorCode").textContent = photoStroke.color.toUpperCase();
+    }
     $("#strokeInspector").classList.toggle("active", strokeEditable);
     if (strokeEditable) {
       var activeStroke = strokeFor(state.selectedLayer, state.side);
@@ -9744,7 +10041,7 @@
     }
     return opacity;
   }
-  function captureStyledRuns(root) {
+  function captureStyledRuns(root, sourceStyle) {
     var candidates = [root].concat(Array.prototype.slice.call(root.querySelectorAll("*")));
     var runs = [];
     candidates.forEach(function (node) {
@@ -9754,6 +10051,11 @@
       if (computed.display === "none" || computed.visibility === "hidden") return;
       var rect = relativeElementRect(node, root);
       var isRoot = node === root;
+      // A visual snapshot alone cannot distinguish base 600 + bold from 700.
+      // Keep the editing state for each captured run without changing its ink.
+      var weightStyle = renderedInlineWeightStyles.get(node)
+        || (sourceStyle && String(sourceStyle.fontWeight) === computed.fontWeight ? sourceStyle : {});
+      var weightSettings = textWeightSettings(weightStyle, computed.fontWeight);
       runs.push({
         text: text,
         x: rect.x, y: rect.y, w: rect.w, h: rect.h,
@@ -9768,6 +10070,8 @@
         fontFamily: computed.fontFamily,
         fontSize: parseFloat(computed.fontSize) || 28,
         fontWeight: computed.fontWeight,
+        fontWeightBase: weightSettings.base,
+        fontBold: weightSettings.bold,
         fontStyle: computed.fontStyle,
         lineHeight: computed.lineHeight,
         letterSpacing: computed.letterSpacing,
@@ -9900,7 +10204,9 @@
          layer (and large text can be clipped by the font-size ceiling). */
       var fontScale = 1;
       var letterScale = 1;
-      var styledRuns = scaleCapturedTextMetrics(captureStyledRuns(node), 1, 1, writingMode);
+      var sourceStyle = layerStyleEntry(state.side, captureKey, false) || {};
+      var weightSettings = textWeightSettings(sourceStyle, computed.fontWeight);
+      var styledRuns = scaleCapturedTextMetrics(captureStyledRuns(node, sourceStyle), 1, 1, writingMode);
       var styledShapes = captureStyledShapes(node);
       var representative = styledRuns[0] || {};
       var textBoxStyle = capturedBoxStyle(node);
@@ -9911,6 +10217,8 @@
         autoHeight: false,
         fontSize: clamp(finiteNumber(representative.fontSize, (parseFloat(computed.fontSize) || 28) * fontScale), 8, MAX_FONT_SIZE_PX),
         fontWeight: computed.fontWeight,
+        fontWeightBase: weightSettings.base,
+        fontBold: weightSettings.bold,
         fontStyle: computed.fontStyle,
         lineHeight: scaleCapturedCssPixelMetric(computed.lineHeight, fontScale),
         letterSpacing: scaleCapturedCssPixelMetric(computed.letterSpacing, letterScale),
@@ -10267,20 +10575,10 @@
   });
   $("#layerBoldToggle").addEventListener("change", function () {
     var enabled = $("#layerBoldToggle").checked;
-    commit(function () {
-      var custom = activeCustomLayer();
-      if (custom && custom.type === "text") {
-        if (trackedTextSelectionMatches("custom")) { applyInlineStyleToTrackedSelection({ fontWeight: enabled ? "700" : "400" }); return; }
-        removeCustomInlineStyleProperty(custom, "fontWeight");
-        custom.fontWeight = enabled ? "700" : "400";
-        (custom.styledRuns || []).forEach(function (run) { run.fontWeight = custom.fontWeight; });
-        return;
-      }
-      if (trackedTextSelectionMatches("native")) { applyInlineStyleToTrackedSelection({ fontWeight: enabled ? "700" : "400" }); return; }
-      removeNativeInlineStyleProperty(state.side, state.selectedLayer, "fontWeight");
-      var style = layerStyleEntry(state.side, state.selectedLayer, true);
-      style.fontWeight = enabled ? "700" : "400";
-    });
+    commit(function () { changeSelectedTextWeight({ bold: enabled }, "layer"); });
+  });
+  bindInput("#layerFontWeight", function (value) {
+    changeSelectedTextWeight({ base: value }, "layer");
   });
   $("#layerItalicToggle").addEventListener("change", function () {
     var enabled = $("#layerItalicToggle").checked;
@@ -10371,6 +10669,8 @@
     custom.font = state.font || "noto-serif";
     custom.fontSize = 28;
     custom.fontWeight = "400";
+    delete custom.fontWeightBase;
+    delete custom.fontBold;
     custom.fontStyle = "normal";
     custom.align = "left";
     custom.writingMode = "horizontal-tb";
@@ -10384,6 +10684,8 @@
       run.fontFamily = fontFamilyForKey(custom.font);
       run.fontSize = custom.fontSize;
       run.fontWeight = custom.fontWeight;
+      delete run.fontWeightBase;
+      delete run.fontBold;
       run.fontStyle = custom.fontStyle;
       run.textAlign = custom.align;
       run.letterSpacing = custom.letterSpacing;
@@ -10527,14 +10829,10 @@
   });
   $("#customBoldToggle").addEventListener("change", function () {
     var enabled = $("#customBoldToggle").checked;
-    commit(function () {
-      var layer = activeCustomLayer();
-      if (!layer || layer.type !== "text") return;
-      if (trackedTextSelectionMatches("custom")) { applyInlineStyleToTrackedSelection({ fontWeight: enabled ? "700" : "400" }); return; }
-      removeCustomInlineStyleProperty(layer, "fontWeight");
-      layer.fontWeight = enabled ? "700" : "400";
-      (layer.styledRuns || []).forEach(function (run) { run.fontWeight = layer.fontWeight; });
-    });
+    commit(function () { changeSelectedTextWeight({ bold: enabled }, "custom"); });
+  });
+  bindInput("#customFontWeight", function (value) {
+    changeSelectedTextWeight({ base: value }, "custom");
   });
   $("#customItalicToggle").addEventListener("change", function () {
     var enabled = $("#customItalicToggle").checked;
@@ -11587,6 +11885,10 @@
   bindInput("#strokeColor", function (value) {
     if (state.selectedLayer && layerSupportsStroke(state.selectedLayer, state.side)) strokeFor(state.selectedLayer, state.side).color = value;
   });
+  bindInput("#photoBorderColor", function (value) {
+    if (state.template !== "train-summer" || state.side !== "front" || state.selectedLayer !== "image-main") return;
+    strokeFor("image-main", "front").color = value;
+  });
   bindEffectNumber("#strokeWidthOut", 0, 40, function (value) {
     if (!state.selectedLayer || !layerSupportsStroke(state.selectedLayer, state.side)) return;
     var stroke = strokeFor(state.selectedLayer, state.side);
@@ -12637,6 +12939,8 @@
       winterOpticalLayoutVersion: state.winterOpticalLayoutVersion,
       winterBackHeaderVersion: state.winterBackHeaderVersion,
       summerFrameVersion: state.summerFrameVersion,
+      summerFrontLayoutVersion: state.summerFrontLayoutVersion,
+      summerBackLayoutVersion: state.summerBackLayoutVersion,
       springFrontInkVersion: state.template === "train-spring" ? state.springFrontInkVersion : undefined,
       seasonAssetCleanupVersion: state.seasonAssetCleanupVersion,
       springRefinementVersion: state.template === "train-spring" ? state.springRefinementVersion : undefined,
@@ -12690,6 +12994,15 @@
   }
   function editableJsonPayload() {
     var payload = ticketPayload();
+    /* Editable documents need the original pixels belonging to their saved
+       block metadata. Presentation exports may use a tinted/fallback logo;
+       importing those pixels would bake its color or invent an unused asset. */
+    ["front", "back"].forEach(function (side) {
+      ["main", "stub"].forEach(function (slot) {
+        var key = side + (slot === "main" ? "Main" : "Stub");
+        payload.faces[side].blocks[slot].image = state.blocks[key].imageData || null;
+      });
+    });
     var documentState = clone(state);
     var documents = {};
     documents[state.template] = documentState;
@@ -12955,6 +13268,8 @@
     documentState.winterOpticalLayoutVersion = Number(payload.winterOpticalLayoutVersion) || 0;
     documentState.winterBackHeaderVersion = Number(payload.winterBackHeaderVersion) || 0;
     documentState.summerFrameVersion = Number(payload.summerFrameVersion) || 0;
+    documentState.summerFrontLayoutVersion = Number(payload.summerFrontLayoutVersion) || 0;
+    documentState.summerBackLayoutVersion = Number(payload.summerBackLayoutVersion) || 0;
     documentState.seasonAssetCleanupVersion = Number(payload.seasonAssetCleanupVersion) || 0;
     if (template === "train-spring") {
       documentState.springRefinementVersion = Number(payload.springRefinementVersion) || 0;
@@ -12982,9 +13297,13 @@
       { key: "backMain", source: back.blocks && back.blocks.main, label: "BACK MAIN" },
       { key: "backStub", source: back.blocks && back.blocks.stub, label: "BACK STUB" }
     ].forEach(function (entry) {
-      if (isTrainTemplate(template) && entry.key === "backStub") return;
       var block = next.blocks[entry.key];
       if (!block) return;
+      /* Older files can retain an independent reverse-logo asset even though
+         the current coupon mirrors the front. Restore an explicitly saved
+         asset instead of leaving its upload reference without any pixels. */
+      if (isTrainTemplate(template) && entry.key === "backStub"
+        && !blockReferencesImageAsset(template, entry.key, block)) return;
       var bundledTrainLogo = isTrainTemplate(template) && entry.key === "frontStub"
         && block.imageAssetStored !== true && block.imageName === bundledTrainLogoName(template);
       applyImportedBlockImage(block, entry.source, entry.label, bundledTrainLogo);
@@ -13915,6 +14234,7 @@
     context.filter = bakedEffectFilter;
     context.drawImage(image, outsetPixels, outsetPixels, contentPixelWidth, contentPixelHeight);
     context.restore();
+    paintSolidImageTint(canvas, effect);
 
     /* Overlay and vignette are sibling pseudo layers in the editor, so they
        stay inside the original image box while only the filtered bitmap blur
@@ -13931,7 +14251,7 @@
       0, 0, contentPixelWidth, contentPixelHeight
     );
     var alphaMask = snapshotCanvasAlphaMask(contentCanvas);
-    drawAlphaMaskedEffectLayer(contentCanvas, function (layerContext, width, height) {
+    if (!hasSolidImageTint(effect)) drawAlphaMaskedEffectLayer(contentCanvas, function (layerContext, width, height) {
       paintEffectOverlay(layerContext, width, height, effect);
     }, effect.overlayBlend === "normal" ? "source-over" : effect.overlayBlend, effect.overlay / 100);
     drawImageVignette(contentCanvas, effect);
@@ -13965,6 +14285,22 @@
     if (output !== canvas) output.width = output.height = 1;
     canvas.width = canvas.height = 1;
     return result;
+  }
+
+  function customImageBakeRecord(item, side, exportScale) {
+    if (item.type !== "image" || !item.imageData || isLayerHidden(item.id, side)) return null;
+    var face = side === "back" ? backFace : frontFace;
+    var node = face.querySelector('[data-canvas-layer="' + item.id + '"]');
+    var image = node && node.querySelector("img.custom-image-source");
+    if (!node || !image || !image.complete || !image.naturalWidth) return null;
+    var baked = bakeStretchedCustomImage(image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id, side), strokeFor(item.id, side));
+    return {
+      selector: '[data-canvas-layer="' + item.id + '"] img.custom-image-source',
+      dataUrl: baked.dataUrl,
+      outsetCss: baked.outsetCss,
+      contentWidthCss: baked.contentWidthCss,
+      contentHeightCss: baked.contentHeightCss
+    };
   }
 
   function imageEffectNeedsRasterBake(effect, shadow, stroke) {
@@ -14008,18 +14344,8 @@
       });
     });
     (state.customLayers[state.side] || []).forEach(function (item) {
-      if (item.type !== "image" || !item.imageData || isLayerHidden(item.id, state.side)) return;
-      var node = activeFace.querySelector('[data-canvas-layer="' + item.id + '"]');
-      var image = node && node.querySelector("img.custom-image-source");
-      if (!node || !image || !image.complete || !image.naturalWidth) return;
-      var customBake = bakeStretchedCustomImage(image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id), strokeFor(item.id));
-      records.push({
-        selector: '[data-canvas-layer="' + item.id + '"] img.custom-image-source',
-        dataUrl: customBake.dataUrl,
-        outsetCss: customBake.outsetCss,
-        contentWidthCss: customBake.contentWidthCss,
-        contentHeightCss: customBake.contentHeightCss
-      });
+      var record = customImageBakeRecord(item, state.side, exportScale);
+      if (record) records.push(record);
     });
     if (state.template === "postcard" && state.side === "back" && !isLayerHidden("image-stub", "back")) {
       var stampNode = activeFace.querySelector('[data-canvas-layer="image-stub"]');
@@ -14121,13 +14447,12 @@
        saved round/angular join is visible and smoothly antialiased. html2canvas
        does not evaluate url() filters. Restore the equivalent native stroke on
        the clone and pass the inherited --layer-stroke-join to the patched
-       renderer. Hollow text and rich-text outline unions are ring-only masks;
-       ordinary text keeps its own fill and uses a doubled centred stroke so the
+       renderer. Hollow text uses ring-only masks; filled text, including rich
+       text unions, uses a doubled centred stroke underneath its fill so the
        requested width remains visible outside the glyph. */
     Array.prototype.forEach.call(clonedTicket.querySelectorAll(".layer-stroke-on .text-outline-ink"), function (ink) {
       var host = ink.closest("[data-canvas-layer]");
-      var ringOnly = ink.classList.contains("rich-text-outline-ink")
-        || Boolean(host && host.classList.contains("layer-text-transparent"));
+      var ringOnly = Boolean(host && host.classList.contains("layer-text-transparent"));
       var textNodes = [ink].concat(Array.prototype.slice.call(ink.querySelectorAll("*")));
       textNodes.forEach(function (textNode) {
         textNode.style.setProperty("filter", "none", "important");
@@ -14139,6 +14464,7 @@
           ? "var(--layer-stroke-width)"
           : "calc(var(--layer-stroke-width) * 2)", "important");
         textNode.style.setProperty("-webkit-text-stroke-color", "var(--layer-stroke-color)", "important");
+        if (!ringOnly) textNode.style.setProperty("paint-order", "stroke fill", "important");
         if (ringOnly) {
           textNode.style.setProperty("text-shadow", "none", "important");
           textNode.style.setProperty("mix-blend-mode", "normal", "important");
@@ -14819,7 +15145,7 @@
       image.onload = function () { resolve(image); };
       image.onerror = function () { resolve(null); };
       try {
-        image.src = embeddedSource || new URL("ticket-paper-fiber-v2.png", document.baseURI || window.location.href).href;
+        image.src = embeddedSource || new URL("assets/ticket-paper-fiber-v2.png", document.baseURI || window.location.href).href;
       } catch (_) {
         resolve(null);
       }

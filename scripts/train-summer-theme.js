@@ -64,66 +64,7 @@
       widths.forEach(function(value,i){if(i%2===0)ctx.fillRect(x*w/total,0,value*w/total,h);x+=value;});
     });
   }
-  // Curves are native canvas paths. Every body and droplet closes explicitly;
-  // there is no cropped raster outline or SVG dependency at any zoom/export size.
-  var rear = [
-    ['M',25,240],['C',55,210,76,178,95,164],['C',110,153,102,179,114,174],
-    ['C',135,159,164,112,202,83],['C',224,68,215,83,201,96],['C',182,116,162,139,169,147],
-    ['C',176,155,192,130,202,136],['C',212,141,187,159,208,160],['C',229,159,264,112,306,81],
-    ['C',322,73,310,92,309,96],['C',313,102,322,101,326,98],['C',310,123,310,142,334,151],
-    ['C',369,169,416,110,457,91],['C',474,84,466,94,455,101],['C',421,132,405,175,371,177],
-    ['C',324,180,278,166,241,177],['C',204,187,181,204,156,218],['C',140,226,119,230,120,218],
-    ['C',121,210,137,206,132,198],['C',128,184,111,203,106,211],['C',80,240,63,291,37,327],
-    ['L',10,327],['Z']
-  ];
-  var over = [
-    ['M',365,855],['C',400,827,427,804,450,798],['C',472,790,470,800,460,805],['C',446,819,474,827,497,812],
-    ['C',536,790,554,765,595,749],['C',622,738,637,749,623,758],['C',606,768,629,777,656,760],
-    ['C',691,739,720,716,749,711],['C',777,703,753,720,744,729],['C',714,757,746,769,779,751],
-    ['C',829,723,870,720,912,677],['C',925,665,937,652,950,637],['C',969,620,981,615,984,616],
-    ['C',983,626,961,634,958,647],['C',950,659,958,663,973,657],['C',1004,646,1039,637,1069,610],
-    ['C',1093,582,1100,565,1083,570],['C',1065,577,1055,567,1063,551],['C',1079,530,1095,509,1110,508],
-    ['C',1131,499,1122,514,1114,523],['C',1105,536,1131,550,1180,483],
-    ['C',1201,455,1220,426,1235,416],['C',1251,405,1237,432,1224,454],
-    ['C',1206,485,1191,516,1202,522],['C',1211,527,1229,502,1234,508],
-    ['C',1243,521,1210,558,1188,577],['C',1171,598,1150,623,1136,643],
-    ['C',1129,658,1149,659,1157,658],['C',1166,666,1141,695,1139,720],
-    ['C',1130,734,1144,732,1159,720],['C',1179,704,1198,680,1214,675],
-    ['C',1234,669,1216,706,1188,735],['C',1182,740,1155,761,1139,758],
-    ['C',1127,755,1120,759,1112,754],['C',1086,770,1091,751,1099,747],['C',1109,732,1088,737,1070,749],
-    ['C',1030,776,1000,803,966,815],['C',948,824,940,812,951,802],['C',955,796,940,801,922,822],
-    ['L',900,870],['L',365,870],['Z']
-  ];
-  var letter = [
-    ['M',620,870],['C',672,830,711,801,739,797],['C',768,796,737,815,749,824],['C',779,834,822,799,844,777],
-    ['C',857,763,823,776,831,756],['C',855,717,903,691,936,668],['C',962,650,974,625,953,634],
-    ['C',932,642,939,618,960,598],['C',984,571,1017,536,1023,516],['C',1028,496,1002,520,994,512],
-    ['C',985,502,1002,477,1028,447],['C',1054,416,1072,380,1064,359],['C',1060,344,1032,364,1034,341],
-    ['C',1036,322,1049,286,1036,284],['C',1023,281,1002,303,991,296],['C',966,283,982,247,998,225],
-    ['C',1024,195,1057,160,1053,152],['C',1043,142,1095,85,1115,78],['C',1139,69,1122,91,1102,111],
-    ['C',1072,144,1059,179,1054,210],['C',1048,246,1061,242,1081,228],['C',1112,205,1100,240,1086,268],
-    ['C',1066,305,1061,333,1081,329],['C',1110,315,1112,348,1104,375],['C',1092,414,1066,438,1061,457],
-    ['C',1054,480,1075,449,1091,433],['C',1121,398,1160,414,1151,442],['C',1137,480,1104,511,1085,544],
-    ['C',1055,595,1034,650,1004,697],['C',987,725,965,757,976,771],['C',987,786,1016,741,1038,734],
-    ['C',1073,720,1059,778,1030,844],['L',1030,884],['L',620,884],['Z']
-  ];
-  var dropsRear=[[499,73,7,19,.82],[457,125,3.5,5,.6],[622,147,9,16,.66],[651,121,4,6,.65],
-    [770,79,8,21,.62],[1107,141,9,22,.75],[98,340,8,23,.6],[78,443,8,24,.58],[79,551,6,12,.52],
-    [109,610,10,32,.64],[117,689,9,21,.64],[83,736,8,26,.63],[1159,313,7,13,.6],[1163,385,4,5,.6],
-    [1169,426,8,18,.61],[1172,466,3.5,6,.6],[389,766,9,23,.65],[128,263,4,8,.6]];
-  var dropsOver=[[696,695,9,16,.62],[802,699,10,25,.78],[1130,470,9,25,.72],[1048,591,3.8,12,.65],
-    [976,786,5,8,.65]];
-  var dropsLetter=[[1023,138,6,12,.6],[1121,187,9,19,.55],[934,348,11,28,.66],
-    [893,581,9,28,.61],[916,628,5,11,.59],[1084,660,8,23,.66],[772,750,7,17,.77]];
-  function trace(ctx, kind, width, height) {
-    var box=kind==='summer-foam-over'?[365,390,900,480]:kind==='summer-foam-letter'?[620,70,550,814]:[25,50,1165,772];
-    var body=kind==='summer-foam-over'?over:kind==='summer-foam-letter'?letter:rear;
-    var drops=kind==='summer-foam-over'?dropsOver:kind==='summer-foam-letter'?dropsLetter:dropsRear;
-    ctx.save();ctx.scale(width/box[2],height/box[3]);ctx.translate(-box[0],-box[1]);
-    body.forEach(function(p){if(p[0]==='M')ctx.moveTo(p[1],p[2]);else if(p[0]==='L')ctx.lineTo(p[1],p[2]);else if(p[0]==='C')ctx.bezierCurveTo(p[1],p[2],p[3],p[4],p[5],p[6]);else ctx.closePath();});
-    drops.forEach(function(d){ctx.moveTo(d[0]+Math.cos(d[4])*d[2],d[1]+Math.sin(d[4])*d[2]);ctx.ellipse(d[0],d[1],d[2],d[3],d[4],0,Math.PI*2);ctx.closePath();});
-    ctx.restore();
-  }
+  // Foam artwork is loaded from image-generated PNGs by train-summer-art.js.
   function create(next, normalize, block) {
     var layers={front:[],back:[]};
     next.theme='light';next.accent=BLUE;next.quoteColor=BLACK;next.muted=BLACK;next.font='pretendard';
@@ -145,32 +86,87 @@
     foam('front','foam-over','포말 2 · 사진 위','summer-foam-over',[179,248.7,486.3,261.1]);
     foam('back','foam-letter','포말 · 편지','summer-foam-letter',[326,12.4,316.5,506.1]);
     text('back','letter-label','Dear Summer','DEAR SUMMER,',46,62,440,15,{color:BLUE,letterSpacing:'3.7px'});
-    text('back','letter-heading','편지 제목','그해 여름의 우리에게,\n오래 남을 장면을 보냅니다.',46,105,447,24,{lineHeight:'1.45'});
-    text('back','letter-body','편지 본문','햇빛이 머물던 창가와 바람의 온도,\n아무 말 없이도 함께 웃었던 순간을 기억합니다.\n\n시간이 흘러 이 표를 다시 펼쳤을 때,\n그날의 목소리가 조용히 돌아올 수 있도록.',46,225,411,15.5,{lineHeight:'1.65'});
-    text('back','letter-signoff','편지 · 발신과 수신','FROM HAEON / TO MIRA',46,416,354,10.5,{letterSpacing:'1.8px'});
-    text('back','letter-date','편지 · 날짜','2026.07.19',46,436,250,10.5,{letterSpacing:'1.7px'});
+    text('back','letter-body','편지 본문','햇빛이 머물던 창가와 바람의 온도,\n아무 말 없이도 함께 웃었던 순간을 기억합니다.\n\n시간이 흘러 이 표를 다시 펼쳤을 때,\n그날의 목소리가 조용히 돌아올 수 있도록.',38,146.4,500,17,{lineHeight:'1.5'});
+    text('back','letter-signoff','편지 · 발신과 수신','FROM HAEON / TO MIRA',38,295.2,420,10.5,{color:BLUE,letterSpacing:'1.8px'});
+    text('back','letter-date','편지 · 날짜','2026.07.19',38,314.4,250,10.5,{letterSpacing:'1.7px'});
     ['front','back'].forEach(function(side){
       image(side,'outline','티켓 외곽선 · 절취선',borderAsset(),0,0,960,480,BLUE);
       // Peer IDs share the coupon suffix so the editor mirrors all editable data.
-      text(side,'coupon-title','Summer Passage','summer\npassage.',692,34,247,58,{color:BLUE,fontWeight:'900',lineHeight:'.87',letterSpacing:'-2.6px',whiteSpace:'pre'});
-      text(side,'coupon-admit','Admit One','ADMIT ONE',693,155,234,13,{fontWeight:'300',lineHeight:'1.15'});
-      text(side,'coupon-express','Summer Express','SUMMER EXPRESS',693,178,243,8.5,{letterSpacing:'2.2px',lineHeight:'1.2'});
+      text(side,'coupon-title','Summer Passage','summer\npassage.',681.4,34,247,58,{color:BLUE,fontWeight:'900',lineHeight:'.87',letterSpacing:'-2.6px',whiteSpace:'pre',align:'right'});
+      text(side,'coupon-admit','Admit One','ADMIT ONE',694.4,155,234,13,{fontWeight:'300',lineHeight:'1.15',align:'right'});
+      text(side,'coupon-express','Summer Express','SUMMER EXPRESS',685.4,178,243,8.5,{letterSpacing:'2.2px',lineHeight:'1.2',align:'right'});
       [['DEPARTURE','HAEON',224],['ARRIVAL','MIRA',276],['DATE','2026.07.19',328]].forEach(function(row,index){
-        text(side,'coupon-label-'+index,row[0]+' · 항목명',row[0],693,row[2],243,9.5,{color:BLUE,letterSpacing:'2.1px',lineHeight:'1.15'});
-        text(side,'coupon-value-'+index,row[0]+' · 값',row[1],693,row[2]+18,245,20.5,{lineHeight:'1.2'});
+        text(side,'coupon-label-'+index,row[0]+' · 항목명',row[0],685.4,row[2],243,9.5,{color:BLUE,letterSpacing:'2.1px',lineHeight:'1.15',align:'right'});
+        text(side,'coupon-value-'+index,row[0]+' · 값',row[1],683.4,row[2]+18,245,20.5,{lineHeight:'1.2',align:'right'});
       });
-      image(side,'coupon-barcode','Serial Barcode',barcodeAsset(),693,388,235,29,BLACK);
+      image(side,'coupon-barcode','Serial Barcode',barcodeAsset(),693,388,235,29,BLACK).effect.enabled=false;
       text(side,'coupon-serial','Serial Number','No. 07301926',693,425,243,11,{letterSpacing:'2.2px',lineHeight:'1.2'});
     });
+    // Approved text layout from the 2026-09-15 edit; photo slots stay empty.
+    var splashStyle={fontWeight:'900',fontWeightBase:'900',fontBold:false,color:'#ffea00',lineHeight:'0.85',autoHeight:false,boundsTrimmed:false};
+    text('front','splash-title','Splashing Around','SPLASHING\nAROUND',43.2,338.4,321.6,164/3,Object.assign({h:20.5},splashStyle));
+    text('back','splash-title','Splashing Around · 편지 제목','SPLASHING AROUND',38,72,600,164/3,Object.assign({h:18.5},splashStyle));
     next.customLayers=normalize(layers);
     next.layerOrder=next.layerOrder.concat(layers.front.concat(layers.back).map(function(item){return item.id;}));
     return refine(next);
   }
-  function refine(next, previousVersion) {
+  function alignFrontLayout(next, previousVersion) {
+    next.summerFrontLayoutVersion=1;
+    if(previousVersion===1)return next;
+    var defaults={
+      'summer-foam-behind':{old:[-16.7,0,670.5,480,0],box:[-67,-35,670.5,480,0]},
+      'summer-foam-over':{old:[179,248.7-261.1*60/420,486.3*900/845,261.1*480/420,0],box:[129.7,177.5,576.9,329.6,-14.6]}
+    };
+    (next.customLayers.front||[]).forEach(function(item){
+      var layout=defaults[item.shapeKind];
+      if(!layout||item.id!=='custom-summer-front-'+item.shapeKind.replace('summer-',''))return;
+      var current=[item.x*9.6,item.y*4.8,item.w*9.6,item.h*4.8,item.rotation||0];
+      // Update the old template placement once; retain manually positioned waves.
+      if(!current.every(function(value,i){return Math.abs(value-layout.old[i])<.02;}))return;
+      item.x=layout.box[0]/9.6;item.y=layout.box[1]/4.8;
+      item.w=layout.box[2]/9.6;item.h=layout.box[3]/4.8;item.rotation=layout.box[4];
+    });
+    // The shared coupon follows the reference's right edge, clear of the wave.
+    ['front','back'].forEach(function(side){
+      (next.customLayers[side]||[]).forEach(function(item){
+        if(item.type!=='text'||!/^custom-summer-(front|back)-coupon-(title|admit|express|label-\d|value-\d)$/.test(item.id)||item.align!=='left')return;
+        var x=item.id.endsWith('-title')?692:693;
+        if(Math.abs(item.x*9.6-x)<.02)item.align='right';
+      });
+    });
+    return next;
+  }
+  function alignBackLayout(next, previousVersion) {
+    next.summerBackLayoutVersion=1;
+    if(previousVersion===1)return next;
+    var layouts={
+      'foam-letter':{old:[326,12.4,316.5,506.1],box:[0,27,WIDTH*SEAM,480]},
+      'letter-label':{old:[46,62,440,18.75],box:[38,40,500,13.75],size:[15,11]},
+      'letter-heading':{old:[46,105,447,30],box:[38,72,550,40],size:[24,32],lineHeight:['1.45','1.25']},
+      'letter-body':{old:[46,225,411,19.375],box:[38,170,500,21.25],size:[15.5,17],lineHeight:['1.65','1.5']},
+      'letter-signoff':{old:[46,416,354,13.125],box:[38,311,420,13.125]},
+      'letter-date':{old:[46,436,250,13.125],box:[38,329,250,13.125]}
+    };
+    (next.customLayers.back||[]).forEach(function(item){
+      var layout=layouts[item.id.replace('custom-summer-back-','')];
+      if(!layout)return;
+      var current=[item.x*9.6,item.y*4.8,item.w*9.6,item.h*4.8];
+      // Keep edited copy, colors and manually adjusted geometry when upgrading.
+      if(item.rotation||!current.every(function(value,i){return Math.abs(value-layout.old[i])<.02;}))return;
+      item.x=layout.box[0]/9.6;item.y=layout.box[1]/4.8;
+      item.w=layout.box[2]/9.6;item.h=layout.box[3]/4.8;
+      if(layout.size&&item.fontSize===layout.size[0])item.fontSize=layout.size[1];
+      if(layout.lineHeight&&item.lineHeight===layout.lineHeight[0])item.lineHeight=layout.lineHeight[1];
+    });
+    return next;
+  }
+  function refine(next, previousVersion, previousFoamVersion, previousBackVersion) {
     if(next.template!=='train-summer')return next;
     var version=arguments.length>1?previousVersion:next.summerFrameVersion;
+    var foamVersion=arguments.length>2?previousFoamVersion:next.summerFrontLayoutVersion;
+    var backVersion=arguments.length>3?previousBackVersion:next.summerBackLayoutVersion;
     next.summerFrameVersion=1;
-    if(version===1)return next;
+    if(version===1)return alignBackLayout(alignFrontLayout(next,foamVersion),backVersion);
     var oldId='custom-summer-front-photo';
     var photo=(next.customLayers.front||[]).find(function(item){return item.id===oldId;});
     if(photo){
@@ -210,7 +206,7 @@
         }
       });
     });
-    return next;
+    return alignBackLayout(alignFrontLayout(next,foamVersion),backVersion);
   }
-  window.LOG_TICKET_SUMMER_THEME={create:create,refine:refine,trace:trace,kinds:KINDS,silhouette:silhouette,mountOutlineHitTarget:mountOutlineHitTarget};
+  window.LOG_TICKET_SUMMER_THEME={create:create,refine:refine,kinds:KINDS,silhouette:silhouette,mountOutlineHitTarget:mountOutlineHitTarget};
 })();

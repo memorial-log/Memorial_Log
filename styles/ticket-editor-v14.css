@@ -478,7 +478,7 @@
 
 /* v15 — one material system, landscape cinema admission ticket, neutral dark UI. */
 .ticket .paper-texture {
-  background-image: url("ticket-paper-fiber-v2.png") !important;
+  background-image: url("../assets/ticket-paper-fiber-v2.png") !important;
   background-position: center !important;
   background-size: 720px 720px !important;
   background-repeat: repeat !important;
@@ -1375,7 +1375,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
 .template-unavailable { display: none !important; }
 
 .ticket .paper-texture {
-  background-image: url("ticket-paper-fiber-v2.png") !important;
+  background-image: url("../assets/ticket-paper-fiber-v2.png") !important;
   background-position: center !important;
   background-size: 720px 720px !important;
   background-repeat: repeat !important;
@@ -7774,8 +7774,8 @@ body.exporting-ticket #ticket .snap-guide-overlay { display: none !important; }
   inset: 0;
   display: block;
   background: currentColor;
-  -webkit-mask: url("assets/train-back-image-frame-ornament-v6.png") center / 100% 100% no-repeat;
-  mask: url("assets/train-back-image-frame-ornament-v6.png") center / 100% 100% no-repeat;
+  -webkit-mask: url("../assets/train-back-image-frame-ornament-v6.png") center / 100% 100% no-repeat;
+  mask: url("../assets/train-back-image-frame-ornament-v6.png") center / 100% 100% no-repeat;
   pointer-events: none;
 }
 .train .ticket-back .image-main {
@@ -8209,6 +8209,12 @@ body.exporting-ticket #ticket .image-placeholder {
 }
 .text-emphasis-options {
   margin: 5px 0 9px;
+}
+.font-weight-field {
+  margin: 0 0 12px;
+}
+.font-weight-field select {
+  width: 100%;
 }
 
 /* v81: editor selection chrome is UI, never part of a layer's ink. */

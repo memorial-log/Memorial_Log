@@ -1,0 +1,10 @@
+Memorial Didone and Memorial Winter — September 13, 2026
+Derived from Bodoni Moda, Copyright 2020 The Bodoni Moda Project Authors.
+Source: https://github.com/indestructible-type/Bodoni
+Source binary: https://github.com/google/fonts/tree/main/ofl/bodonimoda
+License: SIL Open Font License 1.1 (see OFL.txt).
+
+Memorial Didone fixes optical size 96 for extreme display contrast.
+Memorial Winter fixes optical size 24 and raises lowercase x-height by 15%, preserving baseline, descenders and upper ascenders, to follow the Winter reference.
+Both families contain real static weights 400, 500, 600, 700, 800 and 900. All font-family/name records are renamed. These are derivatives, not original fonts drawn from scratch.
+Other glyphs, OpenType layout and license metadata are retained.

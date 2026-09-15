@@ -11,15 +11,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..900&amp;family=Cinzel:wght@400;500;600;700&amp;family=Gothic+A1:wght@300;400;500;600;700&amp;family=Gowun+Batang:wght@400;700&amp;family=Gowun+Dodum&amp;family=Italianno&amp;family=M+PLUS+Rounded+1c:wght@300;400;500;700&amp;family=Nanum+Brush+Script&amp;family=Nanum+Pen+Script&amp;family=Noto+Serif+JP:wght@300;400;600;700&amp;family=Noto+Serif+KR:wght@300;400;600;700&amp;family=Song+Myung&amp;family=Zen+Kurenaido&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-  <link rel="stylesheet" href="ticket-editor.css?v=139">
-  <link rel="stylesheet" href="ticket-editor-v14.css?v=20260913-photo-cleanup1">
-  <link rel="stylesheet" href="ticket-templates-v1.css?v=163">
-<link rel="stylesheet" href="train-autumn-fonts.css?v=1">
-<link rel="stylesheet" href="train-autumn.css?v=2">
-  <link rel="stylesheet" href="train-winter.css?v=1">
-  <link rel="stylesheet" href="train-winter-fonts.css?v=1">
-  <link rel="stylesheet" href="season-display-fonts.css?v=2">
-  <link rel="stylesheet" href="train-summer.css?v=20260913-outline-hit1">
+  <link rel="stylesheet" href="styles/ticket-editor.css?v=139">
+  <link rel="stylesheet" href="styles/ticket-editor-v14.css?v=20260914-font-weight1">
+  <link rel="stylesheet" href="styles/ticket-templates-v1.css?v=163">
+<link rel="stylesheet" href="styles/train-autumn-fonts.css?v=1">
+<link rel="stylesheet" href="styles/train-autumn.css?v=2">
+  <link rel="stylesheet" href="styles/train-winter.css?v=1">
+  <link rel="stylesheet" href="styles/train-winter-fonts.css?v=1">
+  <link rel="stylesheet" href="styles/season-display-fonts.css?v=2">
+  <link rel="stylesheet" href="styles/train-summer.css?v=20260915-photo-border-export1">
 </head>
 <body>
   <section class="template-entry" id="templateEntry" aria-label="템플릿 선택">
@@ -398,8 +398,12 @@ Some journeys remain long after arrival.</p>
                 </div>
                 <span class="control-label">글자 스타일</span>
                 <div class="quote-effect-options text-emphasis-options" role="group" aria-label="선택한 글자 레이어의 굵기와 기울기">
-                  <label><input id="layerBoldToggle" type="checkbox"><span>굵게</span></label>
-                  <label><input id="layerItalicToggle" type="checkbox"><span>기울임</span></label>
+                  <label><input id="layerBoldToggle" type="checkbox"><span>볼드</span></label>
+                  <label><input id="layerItalicToggle" type="checkbox"><span>이탤릭</span></label>
+                </div>
+                <div class="font-weight-field" id="layerFontWeightRow" hidden>
+                  <label class="field-label" for="layerFontWeight">굵기 선택</label>
+                  <select id="layerFontWeight" aria-label="글꼴 굵기 선택"></select>
                 </div>
                 <label class="field-label" for="layerTextAlign">텍스트 정렬</label>
                 <select id="layerTextAlign"><option value="">템플릿 기본</option><option value="left">좌측</option><option value="center">중앙</option><option value="right">우측</option></select>
@@ -574,6 +578,7 @@ Some journeys remain long after arrival.</p>
               <span class="control-label" id="imageHelp">CURRENT IMAGE SLOT</span>
               <label class="upload-zone"><input type="file" id="imageInput" accept="image/*"><strong>이미지 추가</strong><small id="imageName">선택한 파일 없음</small></label>
               <button class="text-btn" id="removeImageBtn">이미지 제거</button>
+              <label class="color-control" id="photoBorderColorControl" hidden><span>사진 테두리 색상</span><input type="color" id="photoBorderColor" aria-label="사진 테두리 색상" value="#087dff"><code id="photoBorderColorCode">#087DFF</code></label>
               <label class="switch-row logo-tint-control" id="logoTintControl" hidden><span><strong>장식색 적용</strong><small>로고를 프레임·구분선과 같은 색으로 맞춤</small></span><input type="checkbox" id="logoTintToggle"></label>
               <label class="color-control logo-accent-control" id="logoAccentControl" hidden><span>로고·프레임·장식 색상</span><input type="color" id="logoAccentColor" value="#355a58"><code id="logoAccentCode">#355A58</code></label>
               <span class="control-label">맞춤</span>
@@ -659,8 +664,12 @@ Some journeys remain long after arrival.</p>
                 </div>
                 <span class="control-label">글자 스타일</span>
                 <div class="quote-effect-options text-emphasis-options" role="group" aria-label="사용자 텍스트의 굵기와 기울기">
-                  <label><input id="customBoldToggle" type="checkbox"><span>굵게</span></label>
-                  <label><input id="customItalicToggle" type="checkbox"><span>기울임</span></label>
+                  <label><input id="customBoldToggle" type="checkbox"><span>볼드</span></label>
+                  <label><input id="customItalicToggle" type="checkbox"><span>이탤릭</span></label>
+                </div>
+                <div class="font-weight-field" id="customFontWeightRow" hidden>
+                  <label class="field-label" for="customFontWeight">굵기 선택</label>
+                  <select id="customFontWeight" aria-label="글꼴 굵기 선택"></select>
                 </div>
                 </div>
               </div>
@@ -679,7 +688,7 @@ Some journeys remain long after arrival.</p>
                   <input id="customShapeStarPoints" type="number" min="3" max="20" value="5" step="1" inputmode="numeric" aria-describedby="customShapeStarPointsNote">
                   <p class="field-note" id="customShapeStarPointsNote">바깥쪽으로 뾰족하게 나온 꼭짓점 수를 3~20개로 조절합니다.</p>
                 </div>
-                <div id="customShapeColorFields"><label class="color-control"><span>채우기 색상</span><input id="customShapeFillColor" type="color" value="#b87977"><code id="customShapeFillColorCode">#B87977</code></label></div><p class="field-note" id="customShapeFillNote" hidden>속을 비웁니다. 외곽선만 남으니 STROKE를 함께 켜 보세요.</p>
+                <div id="customShapeColorFields"><label class="color-control"><span id="customShapeFillColorLabel">채우기 색상</span><input id="customShapeFillColor" type="color" value="#b87977"><code id="customShapeFillColorCode">#B87977</code></label></div><p class="field-note" id="customShapeFoamFillNote" hidden>포말과 물방울의 내부 색상을 바꿉니다. 선 색상은 아래 윤곽선에서 조절하세요.</p><p class="field-note" id="customShapeFillNote" hidden>속을 비웁니다. 외곽선만 남으니 STROKE를 함께 켜 보세요.</p>
                 <div id="customShapeImageFields" hidden>
                   <input class="sr-only" type="file" id="customShapeImageInput" accept="image/png,image/jpeg,image/webp,image/gif">
                   <div class="shape-image-actions"><label class="text-btn shape-image-file-button" id="chooseCustomShapeImageBtn" for="customShapeImageInput" aria-describedby="customShapeImageName">파일 불러오기</label><button class="text-btn" id="removeCustomShapeImageBtn" type="button">이미지 제거</button></div>
@@ -787,21 +796,23 @@ Some journeys remain long after arrival.</p>
   </div>
 
   <div class="toast" id="toast" role="status"></div>
-  <script src="train-logo-asset.js?v=131" defer></script>
-  <script src="train-spring-logo-asset.js?v=1" defer></script>
-  <script src="train-spring-wordmark-asset.js?v=20260913-photo-cleanup1" defer></script>
-  <script src="train-spring-frame-assets.js?v=20260912-spring-no-diamonds19" defer></script>
-  <script src="train-frame-assets.js?v=20260913-assets-cleanup1" defer></script>
-  <script src="html2canvas.min.js?v=134" defer></script>
-  <script src="postcard-stamp-asset.js?v=1" defer></script>
-  <script src="layout-presets.js?v=140" defer></script>
-  <script src="train-autumn-assets.js?v=20260913-photo-cleanup1" defer></script>
-  <script src="train-autumn-theme.js?v=20260913-photo-cleanup1" defer></script>
-  <script src="train-winter-assets.js?v=20260913-photo-cleanup1" defer></script>
-<script src="train-winter-theme.js?v=20260913-winter-back-header1" defer></script>
-<script src="train-summer-theme.js?v=20260913-empty-frame1" defer></script>
-<script src="season-display-fonts.js?v=2" defer></script>
-<script src="ticket-paper-texture-asset.js?v=20260913-export-match1" defer></script>
-<script src="ticket-editor.js?v=20260913-summer-empty-frame1" defer></script>
+  <script src="scripts/train-logo-asset.js?v=131" defer></script>
+  <script src="scripts/train-spring-logo-asset.js?v=1" defer></script>
+  <script src="scripts/train-spring-wordmark-asset.js?v=20260913-photo-cleanup1" defer></script>
+  <script src="scripts/train-spring-frame-assets.js?v=20260912-spring-no-diamonds19" defer></script>
+  <script src="scripts/train-frame-assets.js?v=20260913-assets-cleanup1" defer></script>
+  <script src="scripts/html2canvas.min.js?v=134" defer></script>
+  <script src="scripts/postcard-stamp-asset.js?v=1" defer></script>
+  <script src="scripts/layout-presets.js?v=140" defer></script>
+  <script src="scripts/train-autumn-assets.js?v=20260913-photo-cleanup1" defer></script>
+  <script src="scripts/train-autumn-theme.js?v=20260913-photo-cleanup1" defer></script>
+  <script src="scripts/train-winter-assets.js?v=20260913-photo-cleanup1" defer></script>
+<script src="scripts/train-winter-theme.js?v=20260913-winter-back-header1" defer></script>
+<script src="scripts/train-summer-art-assets.js?v=20260915-front-droplets19" defer></script>
+<script src="scripts/train-summer-art.js?v=20260914-fill-only-corner14" defer></script>
+<script src="scripts/train-summer-theme.js?v=20260915-no-hidden-heading1" defer></script>
+<script src="scripts/season-display-fonts.js?v=2" defer></script>
+<script src="scripts/ticket-paper-texture-asset.js?v=20260913-export-match1" defer></script>
+<script src="scripts/ticket-editor.js?v=20260915-json-import1" defer></script>
 </body>
 </html>
