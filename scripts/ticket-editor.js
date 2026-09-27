@@ -18,9 +18,14 @@
   var FACE_VIEW_VERSION = 1;
   var POSTCARD_WRITING_LINES = ["오늘의 온도를 오래 기억해.", "멀리 있어도 마음은 가까이.", "다시 만날 날을 기다리며.", "언제나 네 편인 내가."];
   var POSTCARD_WRITING_SAMPLE = POSTCARD_WRITING_LINES.join("\n");
-  var TEMPLATE_IDS = ["train", "train-spring", "train-summer", "train-autumn", "train-winter", "cinema", "postcard", "polaroid", "ott"];
+  var TEMPLATE_IDS = ["train", "train-spring", "train-summer", "train-autumn", "train-winter", "cinema", "postcard", "polaroid", "ott", "sticker-pack", "cd-album"];
+  // An absent book bundle must not prevent any established template opening.
+  if (window.LOG_TICKET_BOOK_THEME && window.LOG_TICKET_BOOK_ASSETS) TEMPLATE_IDS.push("book");
   var LAYOUT_PRESETS = Array.isArray(window.LOG_TICKET_LAYOUT_PRESETS) ? window.LOG_TICKET_LAYOUT_PRESETS : [];
   var TEMPLATE_CONFIG = {
+    book: { documentName: "BOOK", resetName: "북", templateId: "light-novel-book-v1", templateVersion: 1, sourceLabel: "BOOK", sideLabels: { front: "표지", back: "펼침", both: "함께" }, preview: { width: 720, height: 1024 }, export: { width: 2880, height: 4096 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7268, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: true }, autoPairTitle: false },
+    "cd-album": { documentName: "CD ALBUM", resetName: "CD 앨범", templateId: "cd-album-v1", templateVersion: 1, sourceLabel: "ALBUM", sideLabels: { front: "닫힘", back: "열림", both: "합본" }, preview: { width: 720, height: 650 }, export: { width: 2880, height: 2600 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7267, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: true }, autoPairTitle: false },
+    "sticker-pack": { documentName: "STICKER PACK", resetName: "스티커팩", templateId: "sticker-pack-native-v1", templateVersion: 1, sourceLabel: "COLLECTION", sideLabels: { front: "팩", back: "낱개", both: "" }, preview: { width: 900, height: 1100 }, export: { width: 2700, height: 3300 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7266, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: false }, autoPairTitle: false },
     train: {
       documentName: "TRAIN TICKET", resetName: "열차", templateId: "train-ticket-v10", templateVersion: 10,
       family: "train", themeId: "classic",
@@ -114,15 +119,32 @@
   }
   function templateSizeSet(template, documentState) {
     var source = documentState || state;
+    if (template === "book" && window.LOG_TICKET_BOOK_THEME) return window.LOG_TICKET_BOOK_THEME.sizes(source);
+    if (template === "cd-album" && window.LOG_TICKET_CD_THEME) return window.LOG_TICKET_CD_THEME.sizes(source);
+    if (template === "sticker-pack" && window.LOG_TICKET_STICKERS) return window.LOG_TICKET_STICKERS.sizes(source);
     if (safeTemplateId(template) === "ott" && source && source.template === "ott") return ottAspectSizes(source);
     return templateConfig(template);
   }
   function templatePreviewSize(template, documentState) { return templateSizeSet(template, documentState).preview; }
-  function templateExportSize(template, documentState) { return templateSizeSet(template, documentState).export; }
+  function templateCanvasSizeSet(template, documentState, both) {
+    if (template === "book" && window.LOG_TICKET_BOOK_THEME) return window.LOG_TICKET_BOOK_THEME.canvasSizes(documentState || state, both);
+    if (template === "cd-album" && window.LOG_TICKET_CD_THEME) return window.LOG_TICKET_CD_THEME.canvasSizes(documentState || state, both);
+    return templateSizeSet(template, documentState);
+  }
+  function templateExportSize(template, documentState) { return templateCanvasSizeSet(template, documentState).export; }
   /* Both always projects the real front/back DOM faces. Each template keeps a
      geometry tuned to its own aspect ratio while sharing the same interaction
      and sequential, memory-bounded export path. */
   var TEMPLATE_BOTH_GEOMETRY = {
+    book: {
+      // Align the actual paper edges, accounting for each PNG's clear margin.
+      front: { x: .022, y: .042, scale: .9, rotation: 0 },
+      back: { x: .358, y: .11, scale: .9, rotation: 0 }
+    },
+    "cd-album": {
+      front: { x: .06, y: .015, scale: .86, rotation: -3 },
+      back: { x: .055, y: .445, scale: .9, rotation: 2 }
+    },
     train: {
       front: { x: .033, y: .066, scale: .64, rotation: -2.8 },
       back: { x: .329, y: .301, scale: .64, rotation: 2.2 }
@@ -145,6 +167,8 @@
     }
   };
   var TEMPLATE_BOTH_EXPORT_PROJECTION = {
+    book: { scale: 1, offsetX: 0, offsetY: 0 },
+    "cd-album": { scale: 1, offsetX: 0, offsetY: 0 },
     train: { scale: .81, offsetX: .095, offsetY: .078 },
     cinema: { scale: .89, offsetX: .055, offsetY: .037 },
     postcard: { scale: .94, offsetX: .0404, offsetY: .0056 },
@@ -186,17 +210,31 @@
       rotation: geometry.rotation
     };
   }
+  function bothFaceRatio(template, side) {
+    if (template === "book") {
+      var bookFace = window.LOG_TICKET_BOOK_THEME.sizes({ side: side }).preview;
+      var bookStage = window.LOG_TICKET_BOOK_THEME.canvasSizes(null, true).preview;
+      return { width: bookFace.width / bookStage.width, height: bookFace.height / bookStage.height };
+    }
+    if (template !== "cd-album") return { width: 1, height: 1 };
+    var theme = window.LOG_TICKET_CD_THEME;
+    var face = theme.sizes({ side: side }).preview;
+    var stage = theme.canvasSizes(null, true).preview;
+    return { width: face.width / stage.width, height: face.height / stage.height };
+  }
   function bothVisualBounds(template, width, height) {
+    if (template === "cd-album" && window.LOG_TICKET_CD_COMBINED) return window.LOG_TICKET_CD_COMBINED.bounds(width, height);
     var bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
     ["front", "back"].forEach(function (side) {
       var geometry = projectedBothGeometryFor(template, side);
-      var faceWidth = width * geometry.scale;
-      var faceHeight = height * geometry.scale;
+      var ratio = bothFaceRatio(template, side);
+      var faceWidth = width * geometry.scale * ratio.width;
+      var faceHeight = height * geometry.scale * ratio.height;
       var radians = geometry.rotation * Math.PI / 180;
       var rotatedWidth = Math.abs(faceWidth * Math.cos(radians)) + Math.abs(faceHeight * Math.sin(radians));
       var rotatedHeight = Math.abs(faceWidth * Math.sin(radians)) + Math.abs(faceHeight * Math.cos(radians));
-      var centerX = width * (geometry.x + geometry.scale / 2);
-      var centerY = height * (geometry.y + geometry.scale / 2);
+      var centerX = width * geometry.x + faceWidth / 2;
+      var centerY = height * geometry.y + faceHeight / 2;
       bounds.left = Math.min(bounds.left, centerX - rotatedWidth / 2);
       bounds.right = Math.max(bounds.right, centerX + rotatedWidth / 2);
       bounds.top = Math.min(bounds.top, centerY - rotatedHeight / 2);
@@ -208,7 +246,93 @@
     bounds.height = bounds.bottom - bounds.top;
     return bounds;
   }
-  function attributionBasePosition(template, width, height, both) {
+  // Cache only source alpha, not positions or colours. Moving/tinting a layer
+  // never rereads its pixels. Transparent asset margins aren't artwork bounds.
+  var attributionAlphaCache = new Map();
+  var attributionRefreshFrame = 0;
+  function attributionImageBounds(src) {
+    if (!src) return null;
+    var entry = attributionAlphaCache.get(src);
+    if (entry) return entry.bounds;
+    if (attributionAlphaCache.size >= 128) attributionAlphaCache.delete(attributionAlphaCache.keys().next().value);
+    entry = { bounds: [0, 0, 1, 1] };
+    attributionAlphaCache.set(src, entry);
+    entry.ready = loadDataImage(src).then(function (image) {
+      var scale = Math.min(1, 512 / Math.max(image.naturalWidth, image.naturalHeight));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      var ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      var left = canvas.width, top = canvas.height, right = 0, bottom = 0;
+      for (var y = 0; y < canvas.height; y++) for (var x = 0; x < canvas.width; x++) {
+        if (pixels[(y * canvas.width + x) * 4 + 3] < 8) continue;
+        left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x + 1); bottom = Math.max(bottom, y + 1);
+      }
+      entry.bounds = right ? [left / canvas.width, top / canvas.height, right / canvas.width, bottom / canvas.height] : null;
+      canvas.width = canvas.height = 1;
+      if (!attributionRefreshFrame) attributionRefreshFrame = requestAnimationFrame(function () {
+        attributionRefreshFrame = 0; renderAttributionPreview();
+      });
+    }).catch(function () { /* Missing artwork retains its normal layer box. */ });
+    return entry.bounds;
+  }
+  function attributionFacePoints(source, side) {
+    var size = templatePreviewSize(source.template, Object.assign({}, source, { side: side }));
+    var points = [];
+    (source.customLayers[side] || []).forEach(function (item) {
+      if (isLayerHidden(item.id, side, source) || item.opacity === 0) return;
+      if (source.template === 'sticker-pack' && !source.stickerPack.editing) {
+        var sticker = source.stickerPack.items.find(function (entry) { return entry.layers[side] === item.id; });
+        if (sticker && !sticker.document.customLayers.front.length) return;
+      }
+      var box = [0, 0, 1, 1];
+      if (item.type === 'image') {
+        var src = source.template === 'book' ? window.LOG_TICKET_BOOK_THEME.artSource(item)
+          : source.template === 'cd-album' ? window.LOG_TICKET_CD_THEME.artSource(item) : window.LOG_TICKET_STICKERS.artSource(item);
+        box = attributionImageBounds(src);
+        if (!box) return;
+      }
+      var w = item.w / 100 * size.width, h = item.h / 100 * size.height;
+      var cx = item.x / 100 * size.width + w / 2, cy = item.y / 100 * size.height + h / 2;
+      var a = (item.rotation || 0) * Math.PI / 180, k = Math.tan((item.skewX || 0) * Math.PI / 180);
+      var sx = item.type === 'text' ? item.scaleX || 1 : 1, sy = item.type === 'text' ? item.scaleY || 1 : 1;
+      var pad = item.stroke && item.stroke.enabled ? item.stroke.width : 0;
+      [[box[0],box[1]],[box[2],box[1]],[box[2],box[3]],[box[0],box[3]]].forEach(function (p, i) {
+        var x = ((p[0] - .5) * w + (i === 0 || i === 3 ? -pad : pad)) * sx;
+        var y = ((p[1] - .5) * h + (i < 2 ? -pad : pad)) * sy;
+        points.push({ x: cx + (x + k*y)*Math.cos(a) - y*Math.sin(a), y: cy + (x + k*y)*Math.sin(a) + y*Math.cos(a) });
+      });
+    });
+    return { points: points, size: size };
+  }
+  function attributionBasePosition(template, width, height, both, documentState, side) {
+    var source = documentState || state;
+    if (source && ['book', 'cd-album', 'sticker-pack'].indexOf(template) >= 0) {
+      var stage = both ? templateCanvasSizeSet(template, source, true).preview : templatePreviewSize(template, Object.assign({}, source, { side: side || source.side }));
+      var points = [];
+      (both ? ['front', 'back'] : [side || source.side]).forEach(function (faceSide) {
+        var face = attributionFacePoints(source, faceSide);
+        face.points.forEach(function (p) {
+          if (both && template === 'cd-album') {
+            var cd = window.LOG_TICKET_CD_COMBINED, plane = faceSide === 'front' ? 'front' : p.x <= 585 ? 'left' : 'right';
+            p = cd.map(cd.specs[plane].forward, p.x, p.y);
+          } else if (both) {
+            var g = projectedBothGeometryFor(template, faceSide), a = g.rotation * Math.PI / 180;
+            var dx = (p.x - face.size.width / 2) * g.scale, dy = (p.y - face.size.height / 2) * g.scale;
+            p = { x: stage.width*g.x + face.size.width*g.scale/2 + dx*Math.cos(a) - dy*Math.sin(a),
+              y: stage.height*g.y + face.size.height*g.scale/2 + dx*Math.sin(a) + dy*Math.cos(a) };
+          }
+          points.push(p);
+        });
+      });
+      if (both && template === 'cd-album') window.LOG_TICKET_CD_COMBINED.depthPoints(source).forEach(function (p) { points.push({ x:p[0], y:p[1] }); });
+      if (points.length) return {
+        x: (Math.min.apply(null, points.map(function(p){return p.x;})) + Math.max.apply(null, points.map(function(p){return p.x;}))) / 2 * width / stage.width,
+        y: Math.max.apply(null, points.map(function(p){return p.y;})) * height / stage.height
+      };
+    }
     if (both) {
       var bounds = bothVisualBounds(template, width, height);
       return { x: bounds.centerX, y: bounds.bottom };
@@ -222,9 +346,10 @@
   function applyBothGeometryVariables(template) {
     ["front", "back"].forEach(function (side) {
       var geometry = projectedBothGeometryFor(template, side);
+      var ratio = bothFaceRatio(template, side);
       var layoutOffset = (1 - geometry.scale) / 2;
-      ticket.style.setProperty("--both-" + side + "-left", (geometry.x - layoutOffset) * 100 + "%");
-      ticket.style.setProperty("--both-" + side + "-top", (geometry.y - layoutOffset) * 100 + "%");
+      ticket.style.setProperty("--both-" + side + "-left", (geometry.x - layoutOffset * ratio.width) * 100 + "%");
+      ticket.style.setProperty("--both-" + side + "-top", (geometry.y - layoutOffset * ratio.height) * 100 + "%");
       ticket.style.setProperty("--both-" + side + "-scale", geometry.scale);
       ticket.style.setProperty("--both-" + side + "-rotation", geometry.rotation + "deg");
     });
@@ -489,6 +614,9 @@
     source: ["Seat Value", "TEXT"]
   };
   function templateLayerOrder(template) {
+    if (template === "book") return ["face-shadow", "attribution"];
+    if (template === "cd-album") return ["face-shadow", "attribution"];
+    if (template === "sticker-pack") return ["block-main", "attribution"];
     if (template === "train-summer") return ["face-shadow", "block-main", "block-stub", "image-main", "attribution"];
     if (template === "train-autumn") return ["face-shadow", "block-main", "block-stub", "route-art", "texture", "attribution"];
     if (template === "train-winter") return ["face-shadow", "block-main", "block-stub", "image-main", "route-art", "attribution"];
@@ -1216,6 +1344,27 @@
     var next = clone(defaults);
     next.template = template;
     next.layerOrder = templateLayerOrder(template);
+    if (template === "book") {
+      window.LOG_TICKET_BOOK_THEME.create(next, normalizeCustomLayers, defaultBlock);
+      next.layerOrders = createSideLayerOrders(next.layerOrder, next);
+      syncFlatLayerOrder(next);
+      next.sideShadows = createSideShadows(null, next.shadows, next);
+      return enforceProtectedAttribution(next);
+    }
+    if (template === "cd-album") {
+      window.LOG_TICKET_CD_THEME.create(next, normalizeCustomLayers, defaultBlock);
+      next.layerOrders = createSideLayerOrders(next.layerOrder, next);
+      syncFlatLayerOrder(next);
+      next.sideShadows = createSideShadows(null, next.shadows, next);
+      return enforceProtectedAttribution(next);
+    }
+    if (template === "sticker-pack") {
+      window.LOG_TICKET_STICKERS.defaults(next, defaultBlock);
+      next.layerOrders = createSideLayerOrders(next.layerOrder, next);
+      syncFlatLayerOrder(next);
+      next.sideShadows = createSideShadows(null, next.shadows, next);
+      return enforceProtectedAttribution(next);
+    }
     if (template === "train-spring") {
       /* Spring is a separate train document, not a recolor of the saved
          classic document. It inherits the reviewed train layout while its
@@ -1452,7 +1601,7 @@
      template quietly lost its designed type sizes. */
   var MAX_FONT_SIZE_PT = 200;
   var MAX_FONT_SIZE_PX = ptToPx(MAX_FONT_SIZE_PT);
-  var CUSTOM_SHAPE_KINDS = ["rectangle", "ellipse", "triangle", "star", "heart", "arch", "summer-foam-behind", "summer-foam-over", "summer-foam-letter"];
+  var CUSTOM_SHAPE_KINDS = ["rectangle", "ellipse", "triangle", "star", "heart", "arch", "summer-foam-behind", "summer-foam-over", "summer-foam-letter", "cd-disc"];
   var STAR_POINT_MIN = 3;
   var STAR_POINT_MAX = 20;
   var MAX_OBJECT_SIZE_PERCENT = 10000;
@@ -1648,6 +1797,9 @@
     if (isProtectedLayer(key)) return side === "front" || side === "back";
     if (Array.isArray(source.removedLayers) && hasLayerFlag(source.removedLayers, key, side, source)) return false;
     if (definition.group === "CUSTOM") return !definition.sides || definition.sides.indexOf(side) >= 0;
+    if (source.template === "book") return key === "face-shadow";
+    if (source.template === "cd-album") return key === "face-shadow";
+    if (source.template === "sticker-pack") return false;
     if (source.template === "train-summer" && key === "image-main") return side === "front";
     if (["train-winter", "train-autumn", "train-summer"].indexOf(source.template) >= 0) return templateLayerOrder(source.template).indexOf(key) >= 0;
     if (isTrainTemplate(source) && (key === "back-note" || (side === "back" && key === "serial"))) return false;
@@ -1868,6 +2020,24 @@
       entry.shape.style.clipPath = clipPath;
       entry.shape.style.webkitClipPath = webkitClipPath;
       entry.shape.style.borderRadius = computed.borderRadius;
+      if (entry.shape.style.maskImage || entry.shape.style.webkitMaskImage) {
+        ["mask-image", "-webkit-mask-image", "mask-size", "-webkit-mask-size", "mask-repeat", "-webkit-mask-repeat"].forEach(function (key) { entry.shape.style.removeProperty(key); });
+      }
+      ["left", "top", "width", "height", "transform", "opacity", "visibility"].forEach(function (key) { entry.shape.style[key] = ""; });
+      if (state.template === "cd-album") {
+        var bounds = window.LOG_TICKET_CD_THEME.shadowGeometry(state, side);
+        entry.shape.style.visibility = bounds ? "visible" : "hidden";
+        if (bounds) {
+          entry.shape.style.left = bounds.cx - bounds.width / 2 + "px";
+          entry.shape.style.top = bounds.cy - bounds.height / 2 + "px";
+          entry.shape.style.width = bounds.width + "px";
+          entry.shape.style.height = bounds.height + "px";
+          entry.shape.style.transform = "rotate(" + bounds.rotation + "deg)";
+          entry.shape.style.opacity = bounds.opacity;
+          entry.shape.style.borderRadius = "3px";
+        }
+      }
+      if (state.template === "book") window.LOG_TICKET_BOOK_THEME.syncShadow(entry, state, side);
     });
   }
   var selectionOverlay = document.createElement("div");
@@ -1971,10 +2141,46 @@
     }
     return trainBackOpeningMaskPromises[source];
   }
-  var templateTotal = $$("[data-start-template]").length;
+  var bookEntry = $('[data-start-template="book"]');
+  if (bookEntry) {
+    bookEntry.hidden = !isTemplateId("book");
+    if (bookEntry.hidden) bookEntry.style.display = "none";
+  }
+  var templateTotal = $$("[data-start-template]").filter(function (entry) { return !entry.hidden; }).length;
   $("#templateCount").textContent = String(templateTotal).padStart(2, "0") + " TEMPLATES";
 
-  function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function clone(value) {
+    if (value && value.template === "sticker-pack" && window.LOG_TICKET_STICKERS) return window.LOG_TICKET_STICKERS.clone(value);
+    return cloneJsonValue(value);
+  }
+  // Copy JSON containers, sharing immutable strings instead of serializing
+  // every embedded photo for history, template switching and autosave.
+  function cloneJsonValue(value) {
+    if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value !== "object") return undefined;
+    if (Array.isArray(value)) return Array.from(value, function (item) {
+      var copied = cloneJsonValue(item); return copied === undefined ? null : copied;
+    });
+    if (typeof value.toJSON === "function") return cloneJsonValue(value.toJSON());
+    var result = {};
+    Object.keys(value).forEach(function (key) {
+      var copied = cloneJsonValue(value[key]);
+      if (copied === undefined) return;
+      if (key === "__proto__") Object.defineProperty(result, key, { value: copied, enumerable: true, writable: true, configurable: true });
+      else result[key] = copied;
+    });
+    return result;
+  }
+  function equalJsonValue(a, b) {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+    var keysA = Object.keys(a).filter(function (key) { return a[key] !== undefined; });
+    var keysB = Object.keys(b).filter(function (key) { return b[key] !== undefined; });
+    return keysA.length === keysB.length && keysA.every(function (key) {
+      return Object.prototype.hasOwnProperty.call(b, key) && equalJsonValue(a[key], b[key]);
+    });
+  }
   /* Alpha-mask custom properties carry a whole data URL. Rebuilding and
      re-assigning one costs tens of milliseconds for a large artwork, so the
      applied source is remembered per node and only written when it changes. */
@@ -2441,6 +2647,8 @@
           styledShapes: styledShapes,
           boxStyle: boxStyle
         });
+        if (item.type === "image" && Number.isInteger(item.stickerArt) && item.stickerArt >= 0 && item.stickerArt < (window.STICKER_ART_CATALOG ? window.STICKER_ART_CATALOG.length : 36)) next[side][next[side].length - 1].stickerArt = item.stickerArt;
+        if (item.type === "shape" && ["color", "image", "vellum"].indexOf(item.cdPaperMode) >= 0) next[side][next[side].length - 1].cdPaperMode = item.cdPaperMode;
       });
     });
     return next;
@@ -3134,6 +3342,7 @@
     return migrated;
   }
   function normalizeDocument(saved, template) {
+    if (template === "sticker-pack" && saved) window.LOG_TICKET_STICKERS.validate(saved);
     saved = migrateTrainCouponRulesDocument(saved, template);
     if (template === "postcard") {
       saved = migrateLegacyPostcardDocument(saved);
@@ -3757,6 +3966,14 @@
     window.LOG_TICKET_SUMMER_THEME.refine(next, saved && saved.summerFrameVersion, saved && saved.summerFrontLayoutVersion, saved && saved.summerBackLayoutVersion);
     applySpringFrontInk(next, saved && saved.springFrontInkVersion);
     removeRetiredSeasonAssets(next, saved && saved.seasonAssetCleanupVersion);
+    if (template === "cd-album") {
+      window.LOG_TICKET_CD_THEME.refine(next, saved && saved.cdAlbumVersion, normalizeCustomLayers);
+      syncFlatLayerOrder(next);
+    }
+    if (template === "book") {
+      window.LOG_TICKET_BOOK_THEME.normalize(next, normalizeCustomLayers, saved);
+      syncFlatLayerOrder(next);
+    }
     next.designVersion = DESIGN_VERSION;
     return enforceProtectedAttribution(next);
   }
@@ -3923,7 +4140,7 @@
       });
       ["front", "back"].forEach(function (side) {
         ((documentState.customLayers || {})[side] || []).forEach(function (item) {
-          if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image") return;
+          if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image" && !(template === "cd-album" && item.cdPaperMode)) return;
           if (!item.imageData) {
             if (metadataReferencesImageAsset(item)) missingAssetData = true;
             return;
@@ -3972,7 +4189,7 @@
       });
       ["front", "back"].forEach(function (side) {
         (((documentState.customLayers || {})[side]) || []).forEach(function (item) {
-          if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image") return;
+          if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image" && !(template === "cd-album" && item.cdPaperMode)) return;
           if (item.imageData || metadataReferencesImageAsset(item)) {
             activeIds[imageCustomAssetId(template, side, item.id)] = true;
           }
@@ -4047,7 +4264,7 @@
     ["front", "back"].forEach(function (side) {
       (((documentState.customLayers || {})[side]) || []).forEach(function (item) {
         var record = item && records[imageCustomAssetId(template, side, item.id)];
-        if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image"
+        if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image" && !(template === "cd-album" && item.cdPaperMode)
           || item.imageData || !metadataReferencesImageAsset(item) || !record || !record.data) return;
         item.imageData = record.data;
         item.imageAssetStored = true;
@@ -4353,7 +4570,7 @@
       ["front", "back"].forEach(function (side) {
         (((documentState.customLayers || {})[side]) || []).forEach(function (item) {
           if (!customLayerCanStoreImage(item)) return;
-          item.imageAssetStored = Boolean((item.type !== "shape" || item.fillMode === "image")
+          item.imageAssetStored = Boolean((item.type !== "shape" || item.fillMode === "image" || template === "cd-album" && item.cdPaperMode)
             && (item.imageData || item.imageAssetStored === true && (item.imageName || item.imageType)));
           delete item.imageData;
         });
@@ -4365,7 +4582,7 @@
   function statePackage(lightweight) {
     var documents = {};
     TEMPLATE_IDS.forEach(function (template) {
-      documents[template] = clone(state.template === template ? state : templateDocuments[template]);
+      if (template !== "sticker-pack") documents[template] = clone(state.template === template ? state : templateDocuments[template]);
     });
     Object.keys(documents).forEach(function (template) {
       documents[template].placements = normalizePlacements(documents[template].placements);
@@ -4434,6 +4651,7 @@
     if (suspendAutoSave) return;
     clearTimeout(saveTimer);
     var requestId = ++saveRequestId;
+    if (state.template === "sticker-pack") { window.LOG_TICKET_STICKERS.scheduleSave(state, function (message) { setAutoSaveState(requestId, message); }); return; }
     if (!imageAssetsReady) {
       imageAssetHydrationPromise.then(function () {
         if (requestId === saveRequestId) scheduleSave();
@@ -4505,7 +4723,8 @@
   }
   function startEdit() { if (!editSnapshot) editSnapshot = clone(state); }
   function finishEdit() {
-    if (editSnapshot && JSON.stringify(editSnapshot) !== JSON.stringify(state)) {
+    if (editSnapshot && (state.template === "sticker-pack" && editSnapshot.template === "sticker-pack"
+      ? !window.LOG_TICKET_STICKERS.equal(editSnapshot, state) : !equalJsonValue(editSnapshot, state))) {
       history.push(editSnapshot);
       if (history.length > 40) history.shift();
       future = [];
@@ -4777,6 +4996,10 @@
     state.selectedLayer = layer.id;
   }
   function purgeCustomLayer(id, skipWinterPeer) {
+    if (!skipWinterPeer && state.template === "sticker-pack") {
+      var stickerPeer = window.LOG_TICKET_STICKERS.removed(state, id);
+      if (stickerPeer) purgeCustomLayer(stickerPeer, true);
+    }
     if (!skipWinterPeer && ["train-winter", "train-autumn", "train-summer"].indexOf(state.template) >= 0 && /^custom-(winter|autumn|summer)-(front|back)-coupon-/.test(id)) {
       var peerId = id.replace(/^custom-(winter|autumn|summer)-(front|back)-/, function(_,season,side){return "custom-"+season+"-"+(side === "front" ? "back" : "front")+"-";});
       if (customLayerById(peerId)) purgeCustomLayer(peerId, true);
@@ -4934,6 +5157,7 @@
     layer.w = roundPercent(newWidth / faceWidth * 100);
     layer.h = roundPercent(newHeight / faceHeight * 100);
     layer.imageData = cropResult.dataUrl;
+    if (template === "sticker-pack") delete layer.stickerArt;
     layer.imageAssetStored = true;
     layer.imageName = alphaTrimmedCustomImageName(layer.imageName);
     layer.imageType = "image/png";
@@ -5608,7 +5832,16 @@
     return [];
   }
   function traceShapePath(context, item, width, height) {
+    if (state.template === "book" && window.LOG_TICKET_BOOK_THEME.tracePageImage(context, item, width, height)) return;
     context.beginPath();
+    if (item.shapeKind === "cd-disc") {
+      context.ellipse(width / 2, height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+      context.closePath();
+      context.moveTo(width * .565, height / 2);
+      context.ellipse(width / 2, height / 2, width * .065, height * .065, 0, 0, Math.PI * 2, true);
+      context.closePath();
+      return;
+    }
     if (item.shapeKind === "arch") {
       var archRise = Math.min(width / 2, height);
       context.moveTo(0, height);
@@ -5915,6 +6148,13 @@
   function paintCustomShape(canvas, image, item, renderScale) {
     var cssWidth = Math.max(1, canvas.parentElement.clientWidth || 1);
     var cssHeight = Math.max(1, canvas.parentElement.clientHeight || 1);
+    var foamImage = canvas.parentElement.querySelector("img.summer-foam-art-source");
+    var shapePaintKey = JSON.stringify([cssWidth, cssHeight, typeof renderScale === "number" ? renderScale : 0, window.devicePixelRatio || 1,
+      state.template === "book" ? window.LOG_TICKET_BOOK_THEME.printKey(item, state) : "",
+      image && image.complete, image && image.naturalWidth, foamImage && foamImage.complete, foamImage && foamImage.naturalWidth,
+      Object.assign({}, item, { x: 0, y: 0, rotation: 0, opacity: 100, imageData: "" })]);
+    if (canvas.shapePaintKey === shapePaintKey && canvas.shapeImageSource === item.imageData) return;
+    canvas.shapePaintKey = shapePaintKey; canvas.shapeImageSource = item.imageData;
     var shapeStroke = normalizeStroke(item.stroke);
     var strokeVisible = shapeStroke.enabled && shapeStroke.width > 0;
     var shapeMiterLimit = 2;
@@ -6002,7 +6242,9 @@
       drawImageVignette(imageCanvas, effect);
       drawImageFilm(imageCanvas, effect);
       drawImageGrain(imageCanvas, effect, scale);
+      if (!(state.template === "book" && window.LOG_TICKET_BOOK_THEME.paintPageImage(context, imageCanvas, item, contentWidth, contentHeight, state))) {
         context.drawImage(imageCanvas, 0, 0, contentWidth, contentHeight);
+      }
       imageCanvas.width = 1;
       imageCanvas.height = 1;
     } else if (item.fillMode !== "none") {
@@ -6014,7 +6256,8 @@
        width and the silhouette matches a filled shape of the same size. */
     context.restore();
   }
-  function renderCustomLayers(renderScale) {
+  function renderCustomLayers(renderScale, skipPresentation) {
+    if (window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.restore(ticket);
     ["front", "back"].forEach(function (side) {
       var face = side === "front" ? frontFace : backFace;
       var layers = state.customLayers && state.customLayers[side] ? state.customLayers[side] : [];
@@ -6023,6 +6266,7 @@
         if (valid.indexOf(node.dataset.canvasLayer) < 0) node.remove();
       });
       layers.forEach(function (item) {
+        if (state.template === "cd-album") item = window.LOG_TICKET_CD_THEME.renderPaper(item);
         var node = face.querySelector('[data-canvas-layer="' + item.id + '"]');
         if (!node) {
           node = document.createElement("div");
@@ -6033,6 +6277,8 @@
         var richText = item.type === "text" && ((Array.isArray(item.styledRuns) && item.styledRuns.length) || (Array.isArray(item.styledShapes) && item.styledShapes.length));
         var customFontClass = item.type === "text" && FONT_FAMILY_MAP[item.font] ? " " + item.font : "";
         node.className = "custom-layer-object custom-" + item.type + "-layer" + customFontClass + (richText ? " rich-text-clone" : "");
+        // Material image-load/export refreshes must retain hidden pages/layers.
+        if ((state.template === "book" || state.template === "cd-album") && isLayerHidden(item.id, side)) node.classList.add("hidden-layer");
         node.style.left = item.x + "%";
         node.style.top = item.y + "%";
         node.style.width = item.w + "%";
@@ -6055,6 +6301,13 @@
           node.style.setProperty("text-orientation", "mixed", "important");
           node.style.textTransform = item.textTransform;
           node.style.whiteSpace = item.whiteSpace;
+          var circularText = state.template === "sticker-pack" && state.stickerPack.editing
+            && (state.stickerPack.circleIds || []).indexOf(item.id) >= 0;
+          var textMarkupKey = JSON.stringify([item.text, item.styledRuns, item.styledShapes, item.inlineTextStyles, item.boxStyle, item.boundsTrimmed, customTextColorMode(item), Boolean(circularText)]);
+          // Circular lettering derives each glyph from fresh inherited styles.
+          // Reusing already positioned glyphs would retain old colors/sizes.
+          if (circularText || node.customTextMarkupKey !== textMarkupKey || !node.querySelector(".text-outline-ink")) {
+          node.customTextMarkupKey = textMarkupKey;
           node.replaceChildren();
           if (richText) {
             applySnapshotBoxStyle(node, null);
@@ -6091,6 +6344,7 @@
             appendInlineText(textNode, item.text || "", item.inlineTextStyles, customTextColorMode(item) === "difference");
             node.appendChild(textNode);
           }
+          }
           /* Snapshot box styles can carry their original overflow value, so
              enforce the editor's point/area mode after applying the snapshot. */
           node.style.overflow = item.autoHeight || item.boundsTrimmed ? "visible" : "hidden";
@@ -6106,8 +6360,11 @@
             image.addEventListener("load", renderCustomLayers);
             node.appendChild(image);
           }
-          if (item.imageData) {
-            if (image.src !== item.imageData) image.src = item.imageData;
+          var customImageSource = state.template === "sticker-pack" ? window.LOG_TICKET_STICKERS.artSource(item) : item.imageData;
+          if (state.template === "cd-album") customImageSource = window.LOG_TICKET_CD_THEME.artSource(item);
+          if (state.template === "book") customImageSource = window.LOG_TICKET_BOOK_THEME.artSource(item);
+          if (customImageSource) {
+            if (image.src !== customImageSource) image.src = customImageSource;
           } else {
             image.removeAttribute("src");
           }
@@ -6130,7 +6387,7 @@
           image.style.setProperty("bottom", "auto", "important");
           node.style.setProperty("--image-alpha-mask-size", "100% 100%");
           node.style.setProperty("--image-alpha-mask-position", "0 0");
-          setLayerAlphaMask(node, item.imageData);
+          setLayerAlphaMask(node, customImageSource);
           node.style.setProperty("--image-overlay", hasSolidImageTint(effect) ? 0 : effect.overlay / 100);
           node.style.setProperty("--image-overlay-color", effect.overlayColor);
           node.style.setProperty("--image-overlay-blend", effect.overlayBlend);
@@ -6187,10 +6444,14 @@
         node.style.transformOrigin = "center center";
       });
     });
+    if (state.template === "sticker-pack") window.LOG_TICKET_STICKERS.decorateText(state);
     /* Re-rendering a custom layer rebuilds its base className (including after
        an image load). Restore presentation classes such as layer-stroke-on so
        preview and html2canvas export keep the saved outline. */
-    applyLayerPresentation();
+    if (!skipPresentation) {
+      applyLayerPresentation();
+      if (window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
+    }
   }
 
   function calculateCrop(config, imageW, imageH, frameW, frameH, renderPixelScale) {
@@ -6387,6 +6648,9 @@
   }
 
   function applyLayerPresentation() {
+    // The ticket has fixed dimensions during this pass. Read them before
+    // writing layer styles, avoiding a synchronous layout for every layer.
+    var ticketWidth = ticket.offsetWidth, ticketHeight = ticket.offsetHeight;
     $$("[data-canvas-layer]").forEach(function (node) {
       var layer = node.dataset.canvasLayer;
       if (!layerDefinition(layer, state)) return;
@@ -6519,7 +6783,7 @@
         var rotation = clamp(finiteNumber(placement.rotation, 0), -360, 360);
         node.style.transformOrigin = legacyCompositeTransformOrigin(node, side, layer) || "center center";
         var selfCentering = usesOttCaptionCentering(layer, side, state) ? "translateX(-50%) " : "";
-        node.style.transform = selfCentering + "translate(" + (finiteNumber(placement.x, 0) * ticket.offsetWidth / 100).toFixed(2) + "px," + (finiteNumber(placement.y, 0) * ticket.offsetHeight / 100).toFixed(2) + "px) rotate(" + rotation + "deg) skewX(" + clamp(finiteNumber(placement.skewX, 0), -70, 70) + "deg) scale(" + scaleX + "," + scaleY + ")";
+        node.style.transform = selfCentering + "translate(" + (finiteNumber(placement.x, 0) * ticketWidth / 100).toFixed(2) + "px," + (finiteNumber(placement.y, 0) * ticketHeight / 100).toFixed(2) + "px) rotate(" + rotation + "deg) skewX(" + clamp(finiteNumber(placement.skewX, 0), -70, 70) + "deg) scale(" + scaleX + "," + scaleY + ")";
       }
     });
   }
@@ -6539,6 +6803,7 @@
   }
 
   function clearLayerClippingPreviews() {
+    stickerClippingSnapshot = null;
     $$(".layer-clipping-preview").forEach(function (canvas) {
       canvas.width = canvas.height = 1;
       canvas.remove();
@@ -6831,9 +7096,13 @@
   }
 
   async function captureLayerForClipping(side, key, scale, bakedImages) {
+    if (state.template === "sticker-pack") {
+      var directCapture = captureStickerGraphicForClipping(side, key, scale);
+      if (directCapture) return directCapture;
+    }
     var captureBakes = bakedImages || [];
     var clippingImage = customLayerById(key);
-    if (clippingImage && clippingImage.type === "image" && hasSolidImageTint(visibleImageEffect(clippingImage))) {
+    if (clippingImage && clippingImage.type === "image" && (hasSolidImageTint(visibleImageEffect(clippingImage)) || state.template === "sticker-pack")) {
       var imageSelector = '[data-canvas-layer="' + key + '"] img.custom-image-source';
       if (!captureBakes.some(function (record) { return record.selector === imageSelector; })) {
         /* html2canvas cannot evaluate the live RGB replacement filter. Bake
@@ -6847,6 +7116,7 @@
     var height = Math.max(1, liveFace.offsetHeight);
     var captureId = "clip-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
     var scratchTicket = ticket.cloneNode(true);
+    if (window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.restore(scratchTicket);
     scratchTicket.dataset.clippingCapture = captureId;
     scratchTicket.querySelectorAll("#selectionOverlay,.layer-clipping-preview").forEach(function (node) { node.remove(); });
     Array.prototype.slice.call(scratchTicket.children).forEach(function (child) {
@@ -6883,6 +7153,7 @@
     scratchFace.style.setProperty("rotate", "none", "important");
     scratchFace.style.setProperty("scale", "none", "important");
     scratchFace.style.setProperty("background", "transparent", "important");
+    if (state.template === "sticker-pack") scratchFace.style.setProperty("filter", "none", "important");
     scratchFace.style.setProperty("box-shadow", "none", "important");
     scratchFace.querySelectorAll(".image-placeholder,.custom-shape-placeholder").forEach(function (node) {
       node.style.setProperty("display", "none", "important");
@@ -7047,7 +7318,9 @@
     var activeSides = isBothView(state) && !document.body.classList.contains("exporting-ticket") ? null : state.side;
     var specs = layerClippingSpecs(state, activeSides);
     if (!specs.length || typeof window.html2canvas !== "function") {
+      var hadCdClipping = state.template === "cd-album" && ticket.querySelector(".layer-clipping-preview");
       clearLayerClippingPreviews();
+      if (hadCdClipping && window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
       return;
     }
     var results = [];
@@ -7114,6 +7387,8 @@
         setClippingTargetPaintHidden(result.spec, true, state);
       });
       installed = true;
+      if (state.template === "sticker-pack") stickerClippingSnapshot = stickerClippingState(scale);
+      if (state.template === "cd-album" && window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
     } finally {
       Object.keys(masks).forEach(function (key) {
         releaseLayerClippingCanvas(masks[key] && masks[key].canvas);
@@ -7141,7 +7416,18 @@
     });
   }
 
+  var stickerClippingSnapshot = null;
+  function stickerClippingState(scale) {
+    var specs = layerClippingSpecs(state, state.side), keys = new Set();
+    specs.forEach(function (spec) { keys.add(spec.source); keys.add(spec.target); });
+    return window.LOG_TICKET_STICKERS.clone({ side: state.side, scale: scale, width: ticket.offsetWidth, height: ticket.offsetHeight,
+      specs: specs, layers: state.customLayers[state.side].filter(function (layer) { return keys.has(layer.id); }),
+      shadows: state.sideShadows[state.side], circles: state.stickerPack.circleIds });
+  }
   function queueLayerClippingPreview(scale, immediate, bakedImages, propagateErrors) {
+    if (state.template === "sticker-pack") scale = Math.max(scale || 1, Math.min(3, 4096 / Math.max(ticket.offsetWidth, ticket.offsetHeight, 1)));
+    if (state.template === "sticker-pack" && !immediate && stickerClippingSnapshot
+      && window.LOG_TICKET_STICKERS.equal(stickerClippingSnapshot, stickerClippingState(scale))) { cancelQueuedLayerClippingPreview(); return Promise.resolve(); }
     clippingPreviewGeneration += 1;
     var generation = clippingPreviewGeneration;
     clearTimeout(clippingPreviewTimer);
@@ -8235,6 +8521,13 @@
   function renderInspector() {
     var definition = layerDefinition(state.selectedLayer);
     var custom = activeCustomLayer();
+    if (window.LOG_TICKET_BOOK_THEME) window.LOG_TICKET_BOOK_THEME.renderInspector(state, custom, function (action, value) {
+      if (state.template !== "book") return;
+      commit(function () {
+        if (action === "connection") window.LOG_TICKET_BOOK_THEME.setImageConnection(state, value);
+        else window.LOG_TICKET_BOOK_THEME.setIllustrationFit(state, value, state.selectedLayer === "custom-book-back-right-photo" ? "right-photo" : "photo");
+      });
+    });
     var hasSelection = Boolean(definition && layerAvailableOnSide(state.selectedLayer, state.side));
     $("#emptyInspector").hidden = hasSelection;
 
@@ -8247,7 +8540,7 @@
     var activeInspectors = [inspectorKey];
     var multiCount = selectedLayerCount();
     if (multiCount > 1) activeInspectors.push("multi-selection");
-    if (custom && custom.type === "shape" && custom.fillMode === "image") activeInspectors.push("shape-image-effects");
+    if (custom && custom.type === "shape" && custom.fillMode === "image" && !(state.template === "cd-album" && custom.cdPaperMode === "vellum")) activeInspectors.push("shape-image-effects");
     if (custom && custom.type === "text") activeInspectors.push("layer-style");
     if (!custom && COLOR_LAYER_KEYS.indexOf(state.selectedLayer) >= 0) activeInspectors.push("layer-style");
     if (state.template === "ott" && state.side === "front" && state.selectedLayer === "quote") activeInspectors.push("ott-subtitle");
@@ -8300,7 +8593,7 @@
         ? customLayerDesignPosition(custom, state.template)
         : nativeLayerDesignPosition(selectedNode, selectedFace, state.side, state.selectedLayer, state.template);
       if (isProtectedLayer(state.selectedLayer)) {
-        var attributionInspectorSize = templatePreviewSize(state.template);
+        var attributionInspectorSize = templateCanvasSizeSet(state.template, state, isBothView(state)).preview;
         var attributionInspectorBase = attributionBasePosition(state.template, attributionInspectorSize.width, attributionInspectorSize.height, isBothView(state));
         designPosition = {
           x: attributionInspectorBase.x + finiteNumber(placement.x, 0) / 100 * attributionInspectorSize.width,
@@ -8520,10 +8813,11 @@
        typography groups, but USER LAYER through partial-style clearing must
        always remain immediately below the LAYER STYLE heading. */
     positionCustomLayerIdentityFields(custom);
+    if (window.LOG_TICKET_CD_THEME) window.LOG_TICKET_CD_THEME.paperInspector(state, custom);
   }
 
   function updateTicketGeometry() {
-    var preview = templatePreviewSize(state.template);
+    var preview = templateCanvasSizeSet(state.template).preview;
     var baseWidth = preview.width;
     var baseHeight = preview.height;
     var radians = state.viewRotation * Math.PI / 180;
@@ -8698,14 +8992,27 @@
 
   function setCustomLayerDesignPosition(axis, value, custom, template) {
     if (!custom) return;
+    var previousPosition = { key: custom.id, x: custom.x, y: custom.y };
     var preview = templatePreviewSize(template);
     var basis = axis === "x" ? preview.width : preview.height;
     custom[axis] = clamp(finiteNumber(value, 0) / Math.max(1, basis) * 100, -50, 100);
+    limitStickerPackMove([custom.id], [previousPosition]);
+  }
+
+  function limitStickerPackMove(keys, previous) {
+    if (state.template !== "sticker-pack") return;
+    var result = window.LOG_TICKET_STICKERS.constrainPackMove(state, keys, previous);
+    if (!result) return;
+    if (drag) activeSnapGuides = { x: null, y: null };
+    if (result.blocked && (!drag || !drag.packLimitNotified)) {
+      showToast("선택한 스티커가 팩보다 큽니다. 크기를 줄이거나 ‘팩 안에서만 이동’을 꺼 주세요.");
+      if (drag) drag.packLimitNotified = true;
+    }
   }
 
   function setNativeLayerDesignPosition(axis, value, node, face, side, layer, template) {
     if (isProtectedLayer(layer)) {
-      var attributionPreview = templatePreviewSize(template);
+      var attributionPreview = templateCanvasSizeSet(template, state, isBothView(state)).preview;
       var attributionBasePoint = attributionBasePosition(template, attributionPreview.width, attributionPreview.height, isBothView(state));
       var attributionBase = axis === "x" ? attributionBasePoint.x : attributionBasePoint.y + 8;
       var attributionBasis = axis === "x" ? attributionPreview.width : attributionPreview.height;
@@ -8723,6 +9030,8 @@
   }
 
   function renderObjectTransformHandles() {
+    var cdCombined = window.LOG_TICKET_CD_COMBINED;
+    if (cdCombined) cdCombined.present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
     $$(".object-transform-active").forEach(function (node) { node.classList.remove("object-transform-active"); });
     $$(".selection-proxied").forEach(function (node) { node.classList.remove("selection-proxied"); });
     selectionOverlay.replaceChildren();
@@ -8793,7 +9102,23 @@
         bindCanvasLayerNode(proxy);
       }
 
-      faceSpace.appendChild(proxy);
+      if (cdCombined && cdCombined.enabled(state)) {
+        var planeSpace = faceSpace.cloneNode(false);
+        var cdPlane = cdCombined.planeFor(node, state.side);
+        planeSpace.dataset.cdPlane = cdPlane;
+        cdCombined.stylePlane(planeSpace, cdPlane);
+        planeSpace.appendChild(proxy);
+        selectionOverlay.appendChild(planeSpace);
+        if (state.side === "back" && face.querySelector('[data-cd-mirror="true"][data-selection-layer="' + key + '"]')) {
+          var otherSpace = planeSpace.cloneNode(false), otherProxy = proxy.cloneNode(true);
+          var otherPlane = cdPlane === "left" ? "right" : "left";
+          otherSpace.dataset.cdPlane = otherPlane;
+          cdCombined.stylePlane(otherSpace, otherPlane);
+          delete otherProxy.dataset.pointerBound;
+          bindCanvasLayerNode(otherProxy);
+          otherSpace.appendChild(otherProxy); selectionOverlay.appendChild(otherSpace);
+        }
+      } else faceSpace.appendChild(proxy);
       proxyCount += 1;
     });
     if (!proxyCount) return;
@@ -9039,17 +9364,25 @@
     var side = state.side === "back" ? "back" : "front";
     var placement = placementFor(side, ATTRIBUTION_LAYER_KEY);
     var style = layerStyleEntry(side, ATTRIBUTION_LAYER_KEY, false) || {};
-    var base = attributionBasePosition(state.template, Math.max(1, ticket.offsetWidth), Math.max(1, ticket.offsetHeight), isBothView(state));
+    // The DOM may still have the previous face size during a view switch.
+    var size = templateCanvasSizeSet(state.template, state, isBothView(state)).preview;
+    var base = attributionBasePosition(state.template, size.width, size.height, isBothView(state));
     preview.textContent = ATTRIBUTION_TEXT;
     preview.style.color = /^#[0-9a-f]{6}$/i.test(String(style.color || "")) ? style.color : "#000000";
     preview.style.left = base.x + "px";
     preview.style.top = base.y + 8 + "px";
-    preview.style.marginLeft = finiteNumber(placement.x, 0) / 100 * Math.max(1, ticket.offsetWidth) + "px";
-    preview.style.marginTop = finiteNumber(placement.y, 0) / 100 * Math.max(1, ticket.offsetHeight) + "px";
+    preview.style.marginLeft = finiteNumber(placement.x, 0) / 100 * size.width + "px";
+    preview.style.marginTop = finiteNumber(placement.y, 0) / 100 * size.height + "px";
     preview.classList.toggle("canvas-selected", isProtectedLayer(state.selectedLayer));
   }
 
+  var editorRenderFrame = 0, blockImageRenderFrame = 0;
+  function requestEditorRender() {
+    if (editorRenderFrame) return;
+    editorRenderFrame = requestAnimationFrame(function () { editorRenderFrame = 0; render(); });
+  }
   function render() {
+    if (editorRenderFrame) { cancelAnimationFrame(editorRenderFrame); editorRenderFrame = 0; }
     syncWinterCoupon();
     enforceProtectedAttribution(state);
     var postcardStatic = state.template === "postcard";
@@ -9359,17 +9692,21 @@
     ottAspectControl.hidden = state.template !== "ott";
     setInputValue("#ottAspectSelect", ottAspectId(state));
     var allPngCaption = $("#allPngBtn span");
-    if (allPngCaption) allPngCaption.textContent = templateSupportsBoth(state) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸";
+    if (allPngCaption) allPngCaption.textContent = state.template === "book" ? "표지 · 펼침 · 함께" : state.template === "cd-album" ? "닫힘 · 열림 · 합본" : templateSupportsBoth(state) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸";
     var allPngHelp = $("#allPngHelp");
-    if (allPngHelp) allPngHelp.innerHTML = templateSupportsBoth(state)
+    if (allPngHelp) allPngHelp.innerHTML = state.template === "book"
+      ? "<strong>전체 이미지</strong> 표지 · 펼침 · 함께 세 장을 ZIP 한 개로 저장"
+      : state.template === "cd-album"
+      ? "<strong>전체 이미지</strong> 닫힘 · 열림 · 합본 세 장을 ZIP 한 개로 저장"
+      : templateSupportsBoth(state)
       ? "<strong>전체 이미지</strong> FRONT · BACK · BOTH를 ZIP 한 개로 저장"
-      : "<strong>전체 이미지</strong> 영상 재생 · 정보칸 두 장을 ZIP 한 개로 저장";
+      : state.template === "cd-album" ? "<strong>전체 이미지</strong> 닫힌 케이스 · 열린 케이스 두 장을 ZIP 한 개로 저장" : "<strong>전체 이미지</strong> 영상 재생 · 정보칸 두 장을 ZIP 한 개로 저장";
     renderLayoutPresetControls();
 
     $(".side-switch").hidden = false;
     var motionTab = $('[data-tab="motion"]');
-    if (motionTab) motionTab.hidden = bothStatic || postcardStatic;
-    if ((bothStatic || postcardStatic) && motionTab && motionTab.classList.contains("active")) {
+    if (motionTab) motionTab.hidden = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book";
+    if ((bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book") && motionTab && motionTab.classList.contains("active")) {
       var propertiesTab = $('[data-tab="properties"]');
       if (propertiesTab) propertiesTab.click();
     }
@@ -9382,7 +9719,8 @@
     });
     var postcardTopSwitch = $("#postcardTopSwitch");
     postcardTopSwitch.hidden = state.postcardViewMode !== "both";
-    $$('[data-postcard-top]').forEach(function (button) {
+    $$('#postcardTopSwitch [data-postcard-top]').forEach(function (button) {
+      button.textContent = activeTemplateConfig.sideLabels[button.dataset.postcardTop];
       button.classList.toggle("active", button.dataset.postcardTop === state.postcardTopSide);
     });
     $$("[data-font]").forEach(function (button) { button.classList.toggle("selected", button.dataset.font === state.font); });
@@ -9390,19 +9728,27 @@
     $$("[data-motion]").forEach(function (button) { button.classList.toggle("selected", button.dataset.motion === state.motion); });
     $("#undoBtn").disabled = history.length === 0 || Boolean(flipPhase);
     $("#redoBtn").disabled = future.length === 0 || Boolean(flipPhase);
-    $("#playBtn").hidden = bothStatic || postcardStatic;
-    $("#playBtn").disabled = bothStatic || postcardStatic || Boolean(flipPhase);
+    $("#playBtn").hidden = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book";
+    $("#playBtn").disabled = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book" || Boolean(flipPhase);
 
-    renderCustomLayers();
+    renderCustomLayers(undefined, true);
     buildLayerList();
     applyLayouts();
     renderLayerState();
     renderInspector();
     paintTrainPerforations();
     syncColorCodeInputs();
+    if (window.LOG_TICKET_STICKERS) window.LOG_TICKET_STICKERS.afterRender(state);
+    if (window.LOG_TICKET_CD_THEME) window.LOG_TICKET_CD_THEME.afterRender(state);
+    if (window.LOG_TICKET_BOOK_THEME) window.LOG_TICKET_BOOK_THEME.afterRender(state, function (layout) {
+      if (state.template !== "book") return;
+      commit(function () { window.LOG_TICKET_BOOK_THEME.setLayout(state, layout); });
+    });
     $$(".panel-scroll").forEach(function (panel) { if (panel.scrollLeft) panel.scrollLeft = 0; });
     scheduleSave();
-    requestAnimationFrame(function () {
+    if (blockImageRenderFrame) cancelAnimationFrame(blockImageRenderFrame);
+    blockImageRenderFrame = requestAnimationFrame(function () {
+      blockImageRenderFrame = 0;
       renderBlockImages();
       paintTrainPerforations();
     });
@@ -9581,7 +9927,7 @@
       var value = parser ? parser(node.value) : node.value;
       apply(value);
       if (preview) preview();
-      else render();
+      else requestEditorRender();
     });
     node.addEventListener("change", function () {
       if (parser === Number && node.type === "number" && !Number.isFinite(node.valueAsNumber)) render();
@@ -9589,7 +9935,7 @@
     });
     node.addEventListener("blur", function () {
       if (parser === Number && node.type === "number" && !Number.isFinite(node.valueAsNumber)) render();
-      finishEdit();
+      if (editSnapshot || editorRenderFrame) finishEdit();
     });
     if (parser === Number && node.type === "number") {
       node.addEventListener("keydown", function (event) {
@@ -9609,6 +9955,8 @@
 
   function applyTemplate(template) {
     if (!isTemplateId(template)) return;
+    if (state.template === "sticker-pack") window.LOG_TICKET_STICKERS.flush(state);
+    if (["sticker-pack", "cd-album", "book"].indexOf(template) >= 0 || ["#sticker-pack", "#cd-album", "#book"].indexOf(location.hash) >= 0) window.history.replaceState(null, "", location.pathname + location.search + (["sticker-pack", "cd-album", "book"].indexOf(template) >= 0 ? "#" + template : ""));
     templateDocuments[state.template] = clone(state);
     var currentUiTheme = state.uiTheme;
     var currentZoom = state.viewZoom;
@@ -9853,6 +10201,7 @@
       state.selectedLayer = "";
       trackedTextSelection = null;
       render();
+      if (state.template === "cd-album" || state.template === "book") requestAnimationFrame(fitPreview);
     });
   });
   $$('[data-postcard-top]').forEach(function (button) {
@@ -10144,7 +10493,7 @@
     return normalizeStyledShapes(shapes);
   }
   function layerSnapshotEnvelope(layer, sourceLayer) {
-    return {
+    var snapshot = {
       version: 2,
       layer: clone(layer),
       presentation: {
@@ -10153,6 +10502,8 @@
         clipToBelow: isLayerClipped(sourceLayer || state.selectedLayer, state.side)
       }
     };
+    if (state.template === "sticker-pack") snapshot.stickerContent = window.LOG_TICKET_STICKERS.copyContent(state, sourceLayer || state.selectedLayer);
+    return snapshot;
   }
   function selectedLayerSnapshot(layerKey) {
     var captureKey = layerKey || state.selectedLayer;
@@ -10255,6 +10606,7 @@
     layer.y = clamp(finiteNumber(layer.y, 12) + 2, -50, 100);
     if (payload.presentation && payload.presentation.stroke) layer.stroke = normalizeStroke(payload.presentation.stroke);
     addCustomLayer(layer, payload.presentation && payload.presentation.shadow);
+    if (state.template === "sticker-pack" && payload.stickerContent) window.LOG_TICKET_STICKERS.pasteContent(state, payload.stickerContent, layer);
     if (payload.presentation && payload.presentation.clipToBelow) {
       if (!state.clipping) state.clipping = [];
       var clipToken = layerFlagToken(layer.id, layer.side, state);
@@ -10870,11 +11222,13 @@
     layer.cornerRadii = Array(shapeCornerCount(layer.shapeKind, layer.starPoints)).fill(layer.cornerRadius || 0);
   }, Number);
   $("#customShapeFillMode").addEventListener("change", function (event) {
-    var fillMode = ["color", "image", "none"].indexOf(event.currentTarget.value) >= 0 ? event.currentTarget.value : "color";
+    var requestedMode = event.currentTarget.value;
+    var paperMode = state.template === "cd-album" && window.LOG_TICKET_CD_THEME.isPaper(activeCustomLayer());
+    var fillMode = paperMode && requestedMode === "vellum" ? "vellum" : ["color", "image", "none"].indexOf(requestedMode) >= 0 ? requestedMode : "color";
     commit(function () {
       var layer = activeCustomLayer();
       if (isCustomShapeLayer(layer)) {
-        layer.fillMode = fillMode;
+        if (!paperMode || !window.LOG_TICKET_CD_THEME.setPaperMode(layer, fillMode)) layer.fillMode = fillMode;
         if (fillMode === "image") { layer.imageFrameW = layer.w; layer.imageFrameH = layer.h; }
       }
     });
@@ -11078,6 +11432,7 @@
         layer.imageName = file.name;
         layer.imageType = file.type;
         layer.alphaBoundsTrimmed = false;
+        if (state.template === "sticker-pack") delete layer.stickerArt;
         fitCustomImageFrameToSource(layer, image.naturalWidth, image.naturalHeight, state.template, true);
       });
       var replacedLayer = customLayerById(layerId);
@@ -11103,9 +11458,12 @@
         layer.imageName = file.name;
         layer.imageType = file.type;
         layer.fillMode = "image";
+        if (state.template === "cd-album" && window.LOG_TICKET_CD_THEME.isPaper(layer)) layer.cdPaperMode = "image";
         layer.imageFrameW = layer.w;
         layer.imageFrameH = layer.h;
         resetImagePlacementToOriginal(layer);
+        if (state.template === "cd-album" && /^custom-cd-(?:front-photo|back-photo|back-disc-print|back-tray-paper)$/.test(layer.id)) layer.fit = "cover";
+        if (state.template === "book" && /^custom-book-(?:front|back)-photo$/.test(layer.id)) layer.fit = "cover";
       });
       var savedLayer = customLayerById(layerId);
       if (savedLayer) putImageAsset({ id: imageCustomAssetId(state.template, savedLayer.side, savedLayer.id), data: savedLayer.imageData, name: savedLayer.imageName || "", type: savedLayer.imageType || "" });
@@ -11123,6 +11481,7 @@
       layer.imageName = "";
       layer.imageType = "";
       layer.fillMode = "color";
+      if (state.template === "cd-album" && window.LOG_TICKET_CD_THEME.isPaper(layer)) layer.cdPaperMode = "color";
     });
     deleteImageAsset(assetId);
     showToast("도형 이미지를 제거했어요. 단색 채우기는 유지됩니다.");
@@ -11614,6 +11973,7 @@
     faceSpace.style.width = context.faceW + "px";
     faceSpace.style.height = context.faceH + "px";
     copyTransformSpace(face, faceSpace);
+    if (activeDrag.cdPlane && window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.stylePlane(faceSpace, activeDrag.cdPlane);
     if (activeSnapGuides.x != null) {
       var vertical = document.createElement("i");
       vertical.className = "snap-guide-line snap-guide-line-x";
@@ -11636,8 +11996,10 @@
     var percentY = finiteNumber(dy, 0) / Math.max(1, preview.height) * 100;
     var custom = customLayerById(key);
     if (custom) {
+      var previousPosition = { key: key, x: custom.x, y: custom.y };
       custom.x = finiteNumber(custom.x, 0) + percentX;
       custom.y = finiteNumber(custom.y, 0) + percentY;
+      limitStickerPackMove([key], [previousPosition]);
       return;
     }
     var layout = activeLayout();
@@ -12020,6 +12382,13 @@
   function fitPreview() {
     var baseWidth = ticket.offsetWidth;
     var baseHeight = ticket.offsetHeight;
+    if (state.template === "sticker-pack" && state.stickerPack.editing) {
+      var content = window.LOG_TICKET_STICKERS.contentBounds(state);
+      // The stage centers the original canvas. Include overflow on either side
+      // of that center, without moving the user's layers when fitting the view.
+      baseWidth = 2 * Math.max(baseWidth / 2 - content.x, content.x + content.width - baseWidth / 2);
+      baseHeight = 2 * Math.max(baseHeight / 2 - content.y, content.y + content.height - baseHeight / 2);
+    }
     var radians = state.viewRotation * Math.PI / 180;
     var rotatedWidth = Math.abs(baseWidth * Math.cos(radians)) + Math.abs(baseHeight * Math.sin(radians));
     var rotatedHeight = Math.abs(baseWidth * Math.sin(radians)) + Math.abs(baseHeight * Math.cos(radians));
@@ -12229,10 +12598,15 @@
       ? (target.dataset.selectionSide === "back" ? backFace : frontFace)
       : target.closest(".ticket-face");
     var targetSide = selectionLayer ? target.dataset.selectionSide : (targetFace === backFace ? "back" : "front");
+    var cdCombined = window.LOG_TICKET_CD_COMBINED;
+    var cdDragPlane = cdCombined && cdCombined.enabled(state) ? cdCombined.planeFor(target, targetSide) : "";
     if (selectionLayer) {
       target = targetFace.querySelector('[data-canvas-layer="' + selectionLayer + '"]');
       if (!target) return;
     }
+    // Both CD cases are exposed in this composition. Selecting the rear case
+    // must also activate its native side before render synchronizes TOP.
+    if (cdDragPlane) state.postcardTopSide = targetSide;
     if (isBothView(state) && state.side !== targetSide) {
       state.side = targetSide;
       clearLayerSelection();
@@ -12393,7 +12767,15 @@
       "move-group", "move-custom", "move-quote", "resize-quote", "move-details", "move-layer",
       "resize-text-box", "resize-object", "skew-object"
     ];
-    if (drag && isBothView(state) && faceLocalDragModes.indexOf(drag.mode) >= 0) {
+    if (drag && cdDragPlane) {
+      drag.cdPlane = cdDragPlane;
+      drag.cdStart = cdCombined.localPointer(event, ticket, state, cdDragPlane);
+      drag.faceScale = 1; drag.faceRotation = 0;
+      if (drag.mode === "rotate-object") {
+        drag.cdCenter = { x: target.offsetLeft + target.offsetWidth / 2, y: target.offsetTop + target.offsetHeight / 2 };
+        drag.startAngle = Math.atan2(drag.cdStart.y - drag.cdCenter.y, drag.cdStart.x - drag.cdCenter.x) * 180 / Math.PI;
+      }
+    } else if (drag && isBothView(state) && faceLocalDragModes.indexOf(drag.mode) >= 0) {
       var activeBothGeometry = projectedBothGeometryFor(state.template, targetSide);
       drag.faceScale = activeBothGeometry.scale;
       drag.faceRotation = activeBothGeometry.rotation;
@@ -12406,7 +12788,7 @@
       drag.snapContext = captureMoveSnapContext(targetSide, targetFace, movingKeys, drag.faceScale || 1);
     }
     var captureTarget = target;
-    if (selectionLayer) {
+    if (selectionLayer || cdDragPlane) {
       drag.portal = true;
       captureTarget = ticket;
     }
@@ -12523,6 +12905,10 @@
     var sin = Math.sin(radians);
     var dx = (screenDx * cos + screenDy * sin) / Math.max(.1, state.viewZoom);
     var dy = (-screenDx * sin + screenDy * cos) / Math.max(.1, state.viewZoom);
+    if (drag.cdPlane) {
+      var cdPoint = window.LOG_TICKET_CD_COMBINED.localPointer(event, ticket, state, drag.cdPlane);
+      dx = cdPoint.x - drag.cdStart.x; dy = cdPoint.y - drag.cdStart.y;
+    }
     if (drag.faceRotation || drag.faceScale && drag.faceScale !== 1) {
       var faceRadians = finiteNumber(drag.faceRotation, 0) * Math.PI / 180;
       var faceCos = Math.cos(faceRadians);
@@ -12687,6 +13073,7 @@
       else writablePlacementFor(state.side, drag.layer).skewX = Math.round(nextSkew * 10) / 10;
     } else if (drag.mode === "rotate-object") {
       var pointerAngle = Math.atan2(event.clientY - drag.centerY, event.clientX - drag.centerX) * 180 / Math.PI;
+      if (drag.cdPlane) pointerAngle = Math.atan2(cdPoint.y - drag.cdCenter.y, cdPoint.x - drag.cdCenter.x) * 180 / Math.PI;
       var nextRotation = drag.rotation + pointerAngle - drag.startAngle;
       var rotationStep = event.altKey ? 0 : event.shiftKey ? 15 : 5;
       if (rotationStep) nextRotation = Math.round(nextRotation / rotationStep) * rotationStep;
@@ -12737,7 +13124,33 @@
       updateTextBoxDragPreview(drag);
       return;
     }
-    render();
+    if (state.template === "sticker-pack" && (drag.mode === "move-custom" || drag.mode === "move-group")) {
+      var packMoveOrigins = drag.mode === "move-custom" ? [{ key: drag.layer, x: drag.customX, y: drag.customY }]
+        : drag.entries.filter(function (entry) { return entry.kind === "custom"; }).map(function (entry) { return { key: entry.key, x: entry.startX, y: entry.startY }; });
+      limitStickerPackMove(packMoveOrigins.map(function (entry) { return entry.key; }), packMoveOrigins);
+    }
+    var movedKeys = drag.mode === "move-custom" ? [drag.layer]
+      : drag.mode === "move-group" && drag.entries.every(function (entry) { return entry.kind === "custom"; })
+        ? drag.entries.map(function (entry) { return entry.key; }) : [];
+    var positionOnly = movedKeys.length && movedKeys.every(function (key) {
+      var layer = customLayerById(key);
+      return layer && !/^custom-(winter|autumn|summer)-(front|back)-coupon-/.test(key)
+        && !(layer.type === "text" && customTextColorMode(layer) === "difference");
+    });
+    if (positionOnly) {
+      movedKeys.forEach(function (key) {
+        var layer = customLayerById(key), node = (state.side === "front" ? frontFace : backFace).querySelector('[data-canvas-layer="' + key + '"]');
+        if (node && layer) { node.style.left = layer.x + "%"; node.style.top = layer.y + "%"; }
+      });
+      if (state.template === "sticker-pack") window.LOG_TICKET_STICKERS.refreshContentOutline(state);
+      var movingPrimary = customLayerById(state.selectedLayer);
+      if (movingPrimary) {
+        var movingPosition = customLayerDesignPosition(movingPrimary, state.template);
+        setInputValue("#inspectX", roundedDesignMetric(movingPosition.x));
+        setInputValue("#inspectY", roundedDesignMetric(movingPosition.y));
+      }
+      renderObjectTransformHandles();
+    } else render();
     updateRetainedLayerClippingForDrag(drag);
     if (smartMove) renderSnapGuides(drag);
   }
@@ -12781,7 +13194,9 @@
       width: Math.max(1, ticket.offsetWidth * state.viewZoom),
       height: Math.max(1, ticket.offsetHeight * state.viewZoom),
       cosine: Math.cos(radians),
-      sine: Math.sin(radians)
+      sine: Math.sin(radians),
+      axisLock: '',
+      axisThreshold: Math.max(.1, state.viewZoom)
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     render();
@@ -12795,6 +13210,14 @@
     var screenY = event.clientY - attributionPreviewDrag.startClientY;
     var localX = screenX * attributionPreviewDrag.cosine + screenY * attributionPreviewDrag.sine;
     var localY = -screenX * attributionPreviewDrag.sine + screenY * attributionPreviewDrag.cosine;
+    if (event.shiftKey) {
+      if (!attributionPreviewDrag.axisLock && Math.max(Math.abs(localX), Math.abs(localY)) >= attributionPreviewDrag.axisThreshold) {
+        attributionPreviewDrag.axisLock = Math.abs(localX) >= Math.abs(localY) ? 'x' : 'y';
+      }
+      if (attributionPreviewDrag.axisLock === 'x') localY = 0;
+      else if (attributionPreviewDrag.axisLock === 'y') localX = 0;
+      else localX = localY = 0;
+    } else attributionPreviewDrag.axisLock = '';
     placement.x = clamp(attributionPreviewDrag.startX + localX / attributionPreviewDrag.width * 100, -100, 100);
     placement.y = clamp(attributionPreviewDrag.startY + localY / attributionPreviewDrag.height * 100, -100, 100);
     render();
@@ -13317,7 +13740,7 @@
       if (Array.isArray(runtimeLayers)) runtimeLayers.forEach(function (item) { if (item && item.id) runtimeById[item.id] = item; });
       var sourceLayers = Array.isArray(next.customLayers[side]) ? next.customLayers[side] : [];
       sourceLayers.forEach(function (item, index) {
-        if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image") return;
+        if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image" && !(template === "cd-album" && item.cdPaperMode)) return;
         var runtime = runtimeById[item.id] || {};
         var imageData = importedImageData(runtime.image, "사용자 레이어 " + (index + 1));
         if (imageData) {
@@ -13347,7 +13770,7 @@
     });
     ["front", "back"].forEach(function (side) {
       (((documentState.customLayers || {})[side]) || []).forEach(function (item, index) {
-        if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image") return;
+        if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image" && !(template === "cd-album" && item.cdPaperMode)) return;
         var imageData = importedImageData(item.imageData, template + " 사용자 레이어 " + (index + 1));
         if (imageData) item.imageData = imageData;
         if (metadataReferencesImageAsset(item) && !imageData) {
@@ -13412,13 +13835,14 @@
     TEMPLATE_IDS.forEach(function (template) {
       mergedDocuments[template] = importedDocuments[template]
         ? clone(importedDocuments[template])
-        : clone(currentDocuments[template] || createTemplateDefaults(template));
+        : clone(currentDocuments[template] || (template === "sticker-pack" && (state.template === template ? state : templateDocuments[template])) || createTemplateDefaults(template));
     });
     return { activeTemplate: activeTemplate, documents: mergedDocuments, importedDocuments: importedDocuments };
   }
   function importedImageAssetRecords(documents) {
     var records = [];
     Object.keys(documents || {}).forEach(function (template) {
+      if (template === "sticker-pack") return;
       var documentState = documents[template];
       Object.keys(documentState.blocks || {}).forEach(function (key) {
         var block = documentState.blocks[key];
@@ -13440,7 +13864,7 @@
       });
       ["front", "back"].forEach(function (side) {
         (((documentState.customLayers || {})[side]) || []).forEach(function (item) {
-          if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image") return;
+          if (!customLayerCanStoreImage(item) || item.type === "shape" && item.fillMode !== "image" && !(template === "cd-album" && item.cdPaperMode)) return;
           if (!item.imageData) {
             if (metadataReferencesImageAsset(item)) throw new Error(template + " 사용자 이미지 원본이 없습니다.");
             return;
@@ -13533,6 +13957,7 @@
     suspendAutoSave = true;
     try {
       importedAssetTransaction = await persistImportedImageAssets(imported.importedDocuments);
+      if (imported.importedDocuments["sticker-pack"]) await window.LOG_TICKET_STICKERS.saveImmediate(imported.importedDocuments["sticker-pack"]);
       templateDocuments = imported.documents;
       state = clone(templateDocuments[imported.activeTemplate]);
       templateDocuments[imported.activeTemplate] = clone(state);
@@ -13647,6 +14072,7 @@
     setExportBusy(true, button);
     try {
       await imageAssetHydrationPromise;
+      if (state.template === "sticker-pack") await window.LOG_TICKET_STICKERS.ready();
       if (imageAssetHydrationError) throw imageAssetHydrationError;
       if (!imageAssetsReady) throw new Error("저장된 이미지 준비가 끝나지 않았습니다.");
       return true;
@@ -13731,7 +14157,7 @@
         blob: new Blob([makeZip(files)], { type: "application/zip" }),
         name: stem + "-all-images.zip",
         count: exportedImageCount,
-        label: templateSupportsBoth(exportTemplate) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸"
+        label: exportTemplate === "book" ? "표지 · 펼침 · 함께" : exportTemplate === "cd-album" ? "닫힘 · 열림 · 합본" : templateSupportsBoth(exportTemplate) ? "FRONT · BACK · BOTH" : exportTemplate === "sticker-pack" ? "팩 · 낱개 배치" : "영상 재생 · 정보칸"
       };
     } finally {
       if (canvas) canvas.width = canvas.height = 1;
@@ -14212,7 +14638,7 @@
     return Math.max(0, Math.ceil(effectOutset + postEffectOutset));
   }
 
-  function bakeStretchedCustomImage(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke) {
+  function bakeStretchedCustomImage(image, config, frameWidth, frameHeight, requestedScale, shadow, stroke, returnCanvas) {
     var cssWidth = Math.max(1, frameWidth);
     var cssHeight = Math.max(1, frameHeight);
     var effect = visibleImageEffect(config);
@@ -14277,14 +14703,74 @@
     }
 
     var result = {
-      dataUrl: output.toDataURL("image/png"),
+      dataUrl: returnCanvas ? "" : output.toDataURL("image/png"),
       outsetCss: outsetCss,
       contentWidthCss: cssWidth,
       contentHeightCss: cssHeight
     };
-    if (output !== canvas) output.width = output.height = 1;
-    canvas.width = canvas.height = 1;
+    if (returnCanvas) {
+      result.canvas = output;
+      if (output !== canvas) canvas.width = canvas.height = 1;
+    } else {
+      if (output !== canvas) output.width = output.height = 1;
+      canvas.width = canvas.height = 1;
+    }
     return result;
+  }
+
+  function captureStickerGraphicForClipping(side, key, scale) {
+    var layer = customLayerById(key), face = side === "back" ? backFace : frontFace;
+    if (!layer || ["image", "shape"].indexOf(layer.type) < 0 || isLayerHidden(key, side)) return null;
+    // Styled snapshot boxes can contain extra decoration; retain the complete
+    // DOM renderer for those. Ordinary sticker graphics use their native pixels.
+    if (layer.boxStyle && !window.LOG_TICKET_STICKERS.equal(layer.boxStyle, normalizeBoxStyle())) return null;
+    var node = face.querySelector('[data-canvas-layer="' + key + '"]');
+    if (!node) return null;
+    var raster, owned = false, outset = 0, width = node.clientWidth, height = node.clientHeight;
+    scale = Math.max(1, finiteNumber(scale, 1));
+    if (layer.type === "image") {
+      var image = node.querySelector("img.custom-image-source");
+      if (!image || !image.complete || !image.naturalWidth) return null;
+      var vector = window.LOG_TICKET_STICKERS.rasterSource(layer, width * scale, height * scale);
+      var bake = bakeStretchedCustomImage(vector || image, layer, width, height, scale, shadowFor(key, side), strokeFor(key, side), true);
+      if (vector && vector.tagName === "CANVAS") vector.width = vector.height = 1;
+      raster = bake.canvas; outset = bake.outsetCss; owned = true;
+    } else {
+      raster = node.querySelector("canvas.custom-shape-canvas");
+      if (!raster) return null;
+      outset = -parseFloat(raster.style.left || "0");
+    }
+    var output = document.createElement("canvas");
+    output.width = Math.max(1, Math.round(face.offsetWidth * scale)); output.height = Math.max(1, Math.round(face.offsetHeight * scale));
+    var ctx = output.getContext("2d", { alpha: true });
+    ctx.scale(scale, scale);
+    ctx.translate(layer.x / 100 * face.offsetWidth + width / 2, layer.y / 100 * face.offsetHeight + height / 2);
+    ctx.rotate(finiteNumber(layer.rotation, 0) * Math.PI / 180);
+    ctx.transform(1, 0, Math.tan(finiteNumber(layer.skewX, 0) * Math.PI / 180), 1, 0, 0);
+    ctx.globalAlpha = layer.opacity / 100;
+    if (layer.type === "shape") ctx.filter = imageShadowFilter(shadowFor(key, side), scale).trim() || "none";
+    ctx.drawImage(raster, -width / 2 - outset, -height / 2 - outset, width + outset * 2, height + outset * 2);
+    if (owned) raster.width = raster.height = 1;
+    return output;
+  }
+
+  function captureStickerGraphicsDocument(doc) {
+    if (!doc.stickerPack.editing || doc.clipping.length) return null;
+    var layers = doc.customLayers[doc.side].filter(function (layer) { return !isLayerHidden(layer.id, doc.side); });
+    if (!layers.length || layers.some(function (layer) { return ["image", "shape"].indexOf(layer.type) < 0
+      || layer.boxStyle && !window.LOG_TICKET_STICKERS.equal(layer.boxStyle, normalizeBoxStyle()); })) return null;
+    var size = window.LOG_TICKET_STICKERS.sizes(doc), scale = size.export.width / size.preview.width;
+    var output = document.createElement("canvas"); output.width = size.export.width; output.height = size.export.height;
+    var ctx = output.getContext("2d", { alpha: true }), order = layerOrderFor(doc.side, doc);
+    renderCustomLayers(scale);
+    layers.sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
+    for (var i = 0; i < layers.length; i++) {
+      var raster = captureStickerGraphicForClipping(doc.side, layers[i].id, scale);
+      if (!raster) { output.width = output.height = 1; return null; }
+      ctx.drawImage(raster, 0, 0, output.width, output.height); raster.width = raster.height = 1;
+    }
+    output.ticketContentRect = { x: 0, y: 0, width: output.width, height: output.height };
+    return output;
   }
 
   function customImageBakeRecord(item, side, exportScale) {
@@ -14293,7 +14779,9 @@
     var node = face.querySelector('[data-canvas-layer="' + item.id + '"]');
     var image = node && node.querySelector("img.custom-image-source");
     if (!node || !image || !image.complete || !image.naturalWidth) return null;
-    var baked = bakeStretchedCustomImage(image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id, side), strokeFor(item.id, side));
+    var stickerSource = state.template === "sticker-pack" ? window.LOG_TICKET_STICKERS.rasterSource(item, node.clientWidth * exportScale, node.clientHeight * exportScale) : null;
+    var baked = bakeStretchedCustomImage(stickerSource || image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id, side), strokeFor(item.id, side));
+    if (stickerSource && stickerSource.tagName === "CANVAS") stickerSource.width = stickerSource.height = 1;
     return {
       selector: '[data-canvas-layer="' + item.id + '"] img.custom-image-source',
       dataUrl: baked.dataUrl,
@@ -15240,13 +15728,33 @@
     return output;
   }
 
+  function trimTransparentExportMargin(sourceCanvas) {
+    // Run only on the finished PNG, after shadows and the credit are drawn.
+    // Keep even alpha=1 pixels so soft shadows and antialiased edges survive.
+    var bounds = exactCustomImageAlphaBounds(sourceCanvas);
+    if (!bounds) return sourceCanvas;
+    var x = bounds.x;
+    var y = bounds.y;
+    var right = bounds.x + bounds.width;
+    var bottom = bounds.y + bounds.height;
+    if (x === 0 && y === 0 && right === sourceCanvas.width && bottom === sourceCanvas.height) return sourceCanvas;
+    var output = document.createElement("canvas");
+    output.width = right - x; output.height = bottom - y;
+    var context = output.getContext("2d", { alpha: true });
+    if (!context) return sourceCanvas;
+    // Integer coordinates and a 1:1 copy preserve the original export density.
+    context.drawImage(sourceCanvas, x, y, output.width, output.height, 0, 0, output.width, output.height);
+    sourceCanvas.width = sourceCanvas.height = 1;
+    return output;
+  }
+
   function addMandatoryAttributionPadding(sourceCanvas, side, documentState, bothView) {
     var source = documentState || state;
     if (!sourceCanvas) return sourceCanvas;
     var placement = source.placements && source.placements[side] && source.placements[side][ATTRIBUTION_LAYER_KEY] || {};
     var style = source.layerStyles && source.layerStyles[side] && source.layerStyles[side][ATTRIBUTION_LAYER_KEY] || {};
     var contentRect = sourceCanvas.ticketContentRect || { x: 0, y: 0, width: sourceCanvas.width, height: sourceCanvas.height };
-    var previewSize = templatePreviewSize(source.template, source);
+    var previewSize = templateCanvasSizeSet(source.template, source, bothView).preview;
     var exportScale = Math.min(contentRect.width / Math.max(1, previewSize.width), contentRect.height / Math.max(1, previewSize.height));
     var fontSize = Math.max(1, 7 * exportScale);
     var gap = 8 * exportScale;
@@ -15255,7 +15763,7 @@
     measureContext.font = "600 " + fontSize.toFixed(2) + "px 'Gothic A1', Pretendard, sans-serif";
     var textWidth = measureContext.measureText(ATTRIBUTION_TEXT).width;
     measureCanvas.width = measureCanvas.height = 1;
-    var base = attributionBasePosition(source.template, contentRect.width, contentRect.height, Boolean(bothView));
+    var base = attributionBasePosition(source.template, contentRect.width, contentRect.height, Boolean(bothView), source, side);
     var desiredX = contentRect.x + base.x + finiteNumber(placement.x, 0) / 100 * contentRect.width;
     var desiredY = contentRect.y + base.y + gap + finiteNumber(placement.y, 0) / 100 * contentRect.height;
     var safeMargin = Math.max(2, exportScale * 2);
@@ -15278,10 +15786,11 @@
     context.fillText(ATTRIBUTION_TEXT, desiredX + leftPadding, desiredY);
     context.restore();
     sourceCanvas.width = sourceCanvas.height = 1;
-    return output;
+    return trimTransparentExportMargin(output);
   }
 
   async function drawTicketFromPreview() {
+    if (state.template === "sticker-pack" && !window.LOG_TICKET_STICKERS.capturing) return state.stickerPack.editing ? window.LOG_TICKET_STICKERS.captureContent(state) : window.LOG_TICKET_STICKERS.captureScene(state);
     if (typeof window.html2canvas !== "function") throw new Error("고화질 PNG 렌더러를 불러오지 못했습니다.");
     await ensureReferencedSystemFontsLoaded();
     await window.LOG_TICKET_SEASON_FONTS.ready();
@@ -15362,6 +15871,30 @@
     return layerAvailableOnSide("face-shadow", side, source) && !isLayerHidden("face-shadow", side, source);
   }
 
+  function drawCdCaseShadow(context, side, source, scale, x, y) {
+    var bounds = window.LOG_TICKET_CD_THEME.shadowGeometry(source, side);
+    if (!bounds) return;
+    context.save();
+    context.translate(x + bounds.cx * scale, y + bounds.cy * scale);
+    context.rotate(bounds.rotation * Math.PI / 180);
+    context.scale(scale, scale);
+    context.globalAlpha = bounds.opacity;
+    context.shadowColor = "rgba(34,27,23,.22)";
+    context.shadowOffsetY = 11 * scale;
+    context.shadowBlur = 18 * scale;
+    context.fillStyle = "#211915";
+    context.beginPath();
+    context.roundRect(-bounds.width / 2, -bounds.height / 2, bounds.width, bounds.height, 3);
+    context.fill();
+    // Remove the backing itself: transparent plastic and disc holes must never
+    // reveal an opaque black rectangle. Call on an empty shadow canvas only.
+    context.shadowColor = "transparent";
+    context.globalCompositeOperation = "destination-out";
+    context.globalAlpha = 1;
+    context.fill();
+    context.restore();
+  }
+
   function addSingleFaceExportShadow(sourceCanvas, side, documentState) {
     if (!sourceCanvas) return sourceCanvas;
     var sourceContentRect = sourceCanvas.ticketContentRect || { x: 0, y: 0, width: sourceCanvas.width, height: sourceCanvas.height };
@@ -15390,7 +15923,8 @@
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     context.save();
-    context.filter = "drop-shadow(0px " + offsetY.toFixed(3) + "px " + blur.toFixed(3) + "px rgba(34,27,23,.22))";
+    if ((documentState || state).template === "cd-album") drawCdCaseShadow(context, side, documentState || state, renderScale, padX, padTop);
+    else context.filter = "drop-shadow(0px " + offsetY.toFixed(3) + "px " + blur.toFixed(3) + "px rgba(34,27,23,.22))";
     context.drawImage(sourceCanvas, padX, padTop);
     context.restore();
     output.ticketContentRect = {
@@ -15404,12 +15938,17 @@
   }
 
   function drawCompositeFace(context, faceCanvas, template, side, onTop, outputWidth, outputHeight, shadowEnabled) {
+    if (template === "cd-album" && window.LOG_TICKET_CD_COMBINED) {
+      window.LOG_TICKET_CD_COMBINED.paintFace(context, faceCanvas, side, outputWidth, outputHeight, shadowEnabled, state);
+      return;
+    }
     var geometry = bothGeometryFor(template, side);
     var projection = bothProjectionFor(template);
-    var width = outputWidth * geometry.scale * projection.scale;
-    var height = outputHeight * geometry.scale * projection.scale;
-    var centerX = outputWidth * (projection.offsetX + projection.scale * (geometry.x + geometry.scale / 2));
-    var centerY = outputHeight * (projection.offsetY + projection.scale * (geometry.y + geometry.scale / 2));
+    var ratio = bothFaceRatio(template, side);
+    var width = outputWidth * geometry.scale * projection.scale * ratio.width;
+    var height = outputHeight * geometry.scale * projection.scale * ratio.height;
+    var centerX = outputWidth * (projection.offsetX + projection.scale * geometry.x) + width / 2;
+    var centerY = outputHeight * (projection.offsetY + projection.scale * geometry.y) + height / 2;
     var angle = geometry.rotation * Math.PI / 180;
     var shadows = shadowEnabled ? [
       { color: "rgba(34,27,23,.2)", offsetY: outputHeight * .014 * projection.scale, blur: outputWidth * .014 * projection.scale }
@@ -15423,13 +15962,31 @@
     /* Derive every shadow from the card's real alpha in the same draw. The
        old opaque black backing rectangle showed through rotated edge pixels
        and produced a dark stair-step fringe. */
+    var cdShadowCanvas = null;
+    if (template === "cd-album") {
+      shadows = [];
+      if (shadowEnabled) {
+        cdShadowCanvas = document.createElement("canvas");
+        cdShadowCanvas.width = faceCanvas.width; cdShadowCanvas.height = faceCanvas.height;
+        var shadowContext = cdShadowCanvas.getContext("2d", { alpha: true });
+        drawCdCaseShadow(shadowContext, side, state, faceCanvas.width / window.LOG_TICKET_CD_THEME.sizes({ side: side }).preview.width, 0, 0);
+        shadowContext.drawImage(faceCanvas, 0, 0);
+      }
+    }
     context.filter = shadows.map(function (shadow) {
       return "drop-shadow(0px " + shadow.offsetY + "px " + shadow.blur + "px " + shadow.color + ")";
     }).join(" ") || "none";
-    context.drawImage(faceCanvas, -width / 2, -height / 2, width, height);
+    context.drawImage(cdShadowCanvas || faceCanvas, -width / 2, -height / 2, width, height);
     context.restore();
+    if (cdShadowCanvas) cdShadowCanvas.width = cdShadowCanvas.height = 1;
   }
   async function drawVisibleTicketFromPreview() {
+    if (['book', 'cd-album', 'sticker-pack'].indexOf(state.template) >= 0) {
+      // Prime both faces before sequential export changes the active side.
+      attributionBasePosition(state.template, 1, 1, isBothView(state), state, state.side);
+      await Promise.all(Array.from(attributionAlphaCache.values()).map(function(entry){return entry.ready;}));
+    }
+    if (state.template === 'cd-album' && isBothView(state)) await window.LOG_TICKET_CD_COMBINED.ready();
     if (!isBothView(state)) {
       var singleFaceCanvas = await drawTicketFromPreview();
       return addMandatoryAttributionPadding(addSingleFaceExportShadow(singleFaceCanvas, state.side, state), state.side, state, false);
@@ -15531,6 +16088,40 @@
     return concat(locals.concat([centralData, end]));
   }
 
+
+  /* Sticker-only adapter: all editing/capture operations still use this editor. */
+  if (window.LOG_TICKET_STICKERS) window.LOG_TICKET_STICKERS.attach({
+    state: function () { return state; },
+    defaults: function () { return createTemplateDefaults("sticker-pack"); },
+    normalize: function (value) { return normalizeDocument(value, "sticker-pack"); },
+    layers: normalizeCustomLayers,
+    commit: function (change) { if (state.template === "sticker-pack") commit(function () { change(state); }); },
+    replace: function (next) { if (state.template !== "sticker-pack") return; commit(function () { state = next; multiSelectedLayerKeys = []; trackedTextSelection = null; }); requestAnimationFrame(fitPreview); },
+    install: function (next, expected) {
+      if (expected && templateDocuments["sticker-pack"].stickerPack.initialized) return;
+      if (state.template === "sticker-pack") next.uiTheme = state.uiTheme;
+      templateDocuments["sticker-pack"] = clone(next);
+      if (state.template === "sticker-pack" && (!expected || !state.stickerPack.initialized)) { state = clone(next); if (expected) { history = []; future = []; } render(); requestAnimationFrame(fitPreview); }
+    },
+    selected: function () { syncMultiSelectionToPrimary(); return multiSelectedLayerKeys.length ? multiSelectedLayerKeys.slice() : [state.selectedLayer].filter(Boolean); },
+    remove: function (keys) { if (state.template === "sticker-pack") removeLayerKeys(keys); },
+    visible: function (key, side, doc) { return !isLayerHidden(key, side, doc); },
+    clipTarget: function (key, side, doc) { return isLayerClipped(key, side, doc) ? clippingTargetFor(key, side, doc) : null; },
+    outlineFilter: imageOutlineFilter, paintOutline: paintCanvasOutline,
+    imageBake: function (layer, side, scale) { return customImageBakeRecord(layer, side, scale); },
+    prepare: async function () { await ensureReferencedSystemFontsLoaded(); if (document.fonts) await document.fonts.ready; await waitForPreviewImages(); },
+    syncOrder: function (doc) { doc.layerOrders = createSideLayerOrders(doc.layerOrder, doc, doc.layerOrders); syncFlatLayerOrder(doc); },
+    render: render, fit: fitPreview, toast: showToast,
+    beginExport: beginExport, endExport: endExport, zip: makeZip, bytes: dataUrlBytes, blob: canvasToBlob, download: download,
+    capture: async function (doc, deferRestoreRender) {
+      if (!doc || doc.template !== "sticker-pack" || state.template !== "sticker-pack") throw new Error("스티커팩에서만 사용할 수 있습니다.");
+      var previous = state, suspended = suspendAutoSave, selection = multiSelectedLayerKeys.slice(), tracked = trackedTextSelection;
+      suspendAutoSave = true; window.LOG_TICKET_STICKERS.capturing = true;
+      try { state = doc; state.selectedLayer = ""; multiSelectedLayerKeys = []; trackedTextSelection = null; render(); await waitForEditorPaint(); await waitForPreviewImages(); return captureStickerGraphicsDocument(doc) || await drawTicketFromPreview(); }
+      finally { state = previous; multiSelectedLayerKeys = selection; multiSelectionStateRef = previous; multiSelectionSide = previous.side; trackedTextSelection = tracked; suspendAutoSave = suspended; window.LOG_TICKET_STICKERS.capturing = false; if (!deferRestoreRender) render(); }
+    }
+  });
+
   installColorCodeInputs();
   if (window.indexedDB) {
     imageAssetHydrationPromise = hydrateImageAssets().then(function (restored) {
@@ -15543,6 +16134,9 @@
   }
   hydrateSystemFontRecords();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { render(); });
+  if (location.hash === "#sticker-pack") { applyTemplate("sticker-pack"); $("#templateEntry").classList.add("hidden"); }
+  if (location.hash === "#cd-album") { applyTemplate("cd-album"); $("#templateEntry").classList.add("hidden"); }
+  if (location.hash === "#book" && isTemplateId("book")) { applyTemplate("book"); $("#templateEntry").classList.add("hidden"); }
   render();
   requestAnimationFrame(fitPreview);
 })();
