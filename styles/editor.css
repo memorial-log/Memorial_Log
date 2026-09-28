@@ -16376,3 +16376,43 @@ body[data-template="sticker-pack"]:not(.sticker-editing-active) .layer-create-co
 #bookPageControls p, #bookImageInspector p { font-size:10px; line-height:1.6; margin:8px 0 0; opacity:.8; }
 #bookPageControls p { flex-basis:100%; }
 #bookTextOverflow { color:#a74c37; }
+
+/* Source: styles/lp-album.css — scoped LP surfaces; existing templates unchanged. */
+#ticket.ticket.lp-album { background:transparent!important; border:0!important; border-radius:0!important; box-shadow:none!important; filter:none; }
+#ticket.ticket.lp-album > .ticket-face { background:transparent!important; border:0!important; border-radius:0!important; clip-path:none!important; box-shadow:none!important; overflow:visible; }
+#ticket.ticket.lp-album::before, #ticket.ticket.lp-album::after,
+#ticket.ticket.lp-album > .ticket-face::before, #ticket.ticket.lp-album > .ticket-face::after,
+#ticket.ticket.lp-album > .ticket-face > :not(.custom-layer-object):not(.layer-clipping-preview) { display:none!important; }
+#ticket.ticket.lp-album .custom-text-layer { text-shadow:none; }
+#ticket.ticket.lp-album .custom-shape-placeholder { display:none; }
+#ticket.ticket.lp-album [data-canvas-layer$="-material"], #ticket.ticket.lp-album [data-canvas-layer$="-material"] *,
+#ticket.ticket.lp-album [data-canvas-layer$="-surface"], #ticket.ticket.lp-album [data-canvas-layer$="-surface"] * { pointer-events:none!important; }
+#ticket.ticket.lp-album.face-view-both > .ticket-front, #ticket.ticket.lp-album.face-view-both > .ticket-back,
+#ticket.ticket.lp-album.face-view-both > .ticket-face-shadow { width:720px!important; height:720px!important; }
+
+/* Source: styles/cassette.css — no selectors affect other templates. */
+#ticket.ticket.cassette { background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;filter:none; }
+#ticket.ticket.cassette > .ticket-face { background:transparent!important;border:0!important;border-radius:0!important;clip-path:none!important;box-shadow:none!important;overflow:visible; }
+#ticket.ticket.cassette::before,#ticket.ticket.cassette::after,#ticket.ticket.cassette > .ticket-face::before,#ticket.ticket.cassette > .ticket-face::after,
+#ticket.ticket.cassette > .ticket-face > :not(.custom-layer-object):not(.layer-clipping-preview):not(.cassette-combined-depth) { display:none!important; }
+#ticket.ticket.cassette .custom-text-layer { text-shadow:none; }
+#ticket.ticket.cassette .custom-shape-placeholder { display:none; }
+#ticket.ticket.cassette [data-canvas-layer$="-material"],#ticket.ticket.cassette [data-canvas-layer$="-material"] *,
+#ticket.ticket.cassette [data-canvas-layer$="-surface"],#ticket.ticket.cassette [data-canvas-layer$="-surface"] *,
+#ticket.ticket.cassette [data-canvas-layer$="-rim"],#ticket.ticket.cassette [data-canvas-layer$="-rim"] * { pointer-events:none!important; }
+#ticket.ticket.cassette.face-view-both > .ticket-front { width:720px!important;height:1120px!important;transform:var(--cassette-combined-front)!important; }
+#ticket.ticket.cassette.face-view-both > .ticket-back { width:1080px!important;height:720px!important;transform:var(--cassette-combined-back)!important; }
+#ticket.ticket.cassette.face-view-both > .ticket-front,#ticket.ticket.cassette.face-view-both > .ticket-back { inset:0 auto auto 0!important;transform-origin:0 0!important; }
+#ticket.ticket.cassette.face-view-both > .ticket-face-shadow { display:none!important; }
+#ticket.ticket.cassette .cassette-combined-depth { position:absolute;left:0;top:0;width:1254px;height:1254px;max-width:none;transform-origin:0 0;pointer-events:none;z-index:0; }
+#ticket.ticket.cassette > .cassette-combined-ground { position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5; }
+#ticket.ticket.cassette.face-top-front > .cassette-combined-ground-front,#ticket.ticket.cassette.face-top-back > .cassette-combined-ground-back { z-index:20; }
+#ticket.ticket.cassette .cassette-combined-ground[hidden],#ticket.ticket.cassette .cassette-combined-depth[hidden] { display:none!important; }
+
+/* A label has a real hit silhouette, including its open reel window. */
+#ticket.cassette .cassette-label-hit { pointer-events:none!important; }
+#ticket.cassette .cassette-label-hit > canvas,#ticket.cassette .cassette-label-hit > img { pointer-events:none!important; }
+#ticket.cassette .cassette-label-hit-target { position:absolute;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none!important; }
+#ticket.cassette .cassette-label-hit-target path { pointer-events:fill!important; }
+#ticket.cassette [data-canvas-layer="custom-cassette-back-body-color"],#ticket.cassette [data-canvas-layer="custom-cassette-back-body-color"] * { pointer-events:none!important; }
+

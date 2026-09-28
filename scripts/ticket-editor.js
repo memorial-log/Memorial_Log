@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  var cassetteExportSession = null;
   var DESIGN_VERSION = 38;
   /* Keep design migrations stable while isolating documents that contain
      logical inline text ranges from older cached editor tabs. */
@@ -21,8 +22,13 @@
   var TEMPLATE_IDS = ["train", "train-spring", "train-summer", "train-autumn", "train-winter", "cinema", "postcard", "polaroid", "ott", "sticker-pack", "cd-album"];
   // An absent book bundle must not prevent any established template opening.
   if (window.LOG_TICKET_BOOK_THEME && window.LOG_TICKET_BOOK_ASSETS) TEMPLATE_IDS.push("book");
+  if (window.LOG_TICKET_LP_THEME && window.LOG_TICKET_LP_ASSETS) TEMPLATE_IDS.push("lp-album");
+  if (window.LOG_TICKET_CASSETTE_THEME && window.LOG_TICKET_CASSETTE_ASSETS) TEMPLATE_IDS.push("cassette");
+  function perspectivePresentation(doc) { return (doc || state).template === "cassette" ? window.LOG_TICKET_CASSETTE_COMBINED : window.LOG_TICKET_CD_COMBINED; }
   var LAYOUT_PRESETS = Array.isArray(window.LOG_TICKET_LAYOUT_PRESETS) ? window.LOG_TICKET_LAYOUT_PRESETS : [];
   var TEMPLATE_CONFIG = {
+    cassette: { documentName: "CASSETTE", resetName: "카세트", templateId: "cassette-album-v1", templateVersion: 1, sourceLabel: "ALBUM", sideLabels: { front: "앞면", back: "테이프", both: "합본" }, preview: { width: 720, height: 1120 }, export: { width: 2880, height: 4480 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7270, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: true }, autoPairTitle: false },
+    "lp-album": { documentName: "LP ALBUM", resetName: "LP 앨범", templateId: "lp-album-v1", templateVersion: 1, sourceLabel: "ALBUM", sideLabels: { front: "커버", back: "판", both: "합본" }, preview: { width: 720, height: 720 }, export: { width: 2880, height: 2880 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7269, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: true }, autoPairTitle: false },
     book: { documentName: "BOOK", resetName: "북", templateId: "light-novel-book-v1", templateVersion: 1, sourceLabel: "BOOK", sideLabels: { front: "표지", back: "펼침", both: "함께" }, preview: { width: 720, height: 1024 }, export: { width: 2880, height: 4096 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7268, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: true }, autoPairTitle: false },
     "cd-album": { documentName: "CD ALBUM", resetName: "CD 앨범", templateId: "cd-album-v1", templateVersion: 1, sourceLabel: "ALBUM", sideLabels: { front: "닫힘", back: "열림", both: "합본" }, preview: { width: 720, height: 650 }, export: { width: 2880, height: 2600 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7267, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: true }, autoPairTitle: false },
     "sticker-pack": { documentName: "STICKER PACK", resetName: "스티커팩", templateId: "sticker-pack-native-v1", templateVersion: 1, sourceLabel: "COLLECTION", sideLabels: { front: "팩", back: "낱개", both: "" }, preview: { width: 900, height: 1100 }, export: { width: 2700, height: 3300 }, silhouette: "rectangle", textureTone: "paper", textureSeed: 7266, features: { perforation: false, mainImageOpeningMask: false, differenceQuote: false, both: false }, autoPairTitle: false },
@@ -119,6 +125,8 @@
   }
   function templateSizeSet(template, documentState) {
     var source = documentState || state;
+    if (template === "cassette") return window.LOG_TICKET_CASSETTE_THEME.sizes(source);
+    if (template === "lp-album") return window.LOG_TICKET_LP_THEME.sizes(source);
     if (template === "book" && window.LOG_TICKET_BOOK_THEME) return window.LOG_TICKET_BOOK_THEME.sizes(source);
     if (template === "cd-album" && window.LOG_TICKET_CD_THEME) return window.LOG_TICKET_CD_THEME.sizes(source);
     if (template === "sticker-pack" && window.LOG_TICKET_STICKERS) return window.LOG_TICKET_STICKERS.sizes(source);
@@ -127,6 +135,8 @@
   }
   function templatePreviewSize(template, documentState) { return templateSizeSet(template, documentState).preview; }
   function templateCanvasSizeSet(template, documentState, both) {
+    if (template === "cassette") return window.LOG_TICKET_CASSETTE_THEME.canvasSizes(documentState || state, both);
+    if (template === "lp-album") return window.LOG_TICKET_LP_THEME.canvasSizes(documentState || state, both);
     if (template === "book" && window.LOG_TICKET_BOOK_THEME) return window.LOG_TICKET_BOOK_THEME.canvasSizes(documentState || state, both);
     if (template === "cd-album" && window.LOG_TICKET_CD_THEME) return window.LOG_TICKET_CD_THEME.canvasSizes(documentState || state, both);
     return templateSizeSet(template, documentState);
@@ -136,6 +146,11 @@
      geometry tuned to its own aspect ratio while sharing the same interaction
      and sequential, memory-bounded export path. */
   var TEMPLATE_BOTH_GEOMETRY = {
+    cassette: { front: { x:0, y:0, scale:1, rotation:0 }, back: { x:0, y:0, scale:1, rotation:0 } },
+    "lp-album": {
+      front: { x: .045, y: .04, scale: 1, rotation: 0 },
+      back: { x: .36, y: .24, scale: 1, rotation: 0 }
+    },
     book: {
       // Align the actual paper edges, accounting for each PNG's clear margin.
       front: { x: .022, y: .042, scale: .9, rotation: 0 },
@@ -167,6 +182,8 @@
     }
   };
   var TEMPLATE_BOTH_EXPORT_PROJECTION = {
+    cassette: { scale:1, offsetX:0, offsetY:0 },
+    "lp-album": { scale: 1, offsetX: 0, offsetY: 0 },
     book: { scale: 1, offsetX: 0, offsetY: 0 },
     "cd-album": { scale: 1, offsetX: 0, offsetY: 0 },
     train: { scale: .81, offsetX: .095, offsetY: .078 },
@@ -211,6 +228,12 @@
     };
   }
   function bothFaceRatio(template, side) {
+    if (template === "cassette") { var cf=window.LOG_TICKET_CASSETTE_THEME.sizes({side:side}).preview, cs=window.LOG_TICKET_CASSETTE_THEME.canvasSizes(null,true).preview; return {width:cf.width/cs.width,height:cf.height/cs.height}; }
+    if (template === "lp-album") {
+      var lpFace = window.LOG_TICKET_LP_THEME.sizes().preview;
+      var lpStage = window.LOG_TICKET_LP_THEME.canvasSizes(null, true).preview;
+      return { width: lpFace.width / lpStage.width, height: lpFace.height / lpStage.height };
+    }
     if (template === "book") {
       var bookFace = window.LOG_TICKET_BOOK_THEME.sizes({ side: side }).preview;
       var bookStage = window.LOG_TICKET_BOOK_THEME.canvasSizes(null, true).preview;
@@ -223,6 +246,7 @@
     return { width: face.width / stage.width, height: face.height / stage.height };
   }
   function bothVisualBounds(template, width, height) {
+    if (template === "cassette") return window.LOG_TICKET_CASSETTE_COMBINED.bounds(width,height);
     if (template === "cd-album" && window.LOG_TICKET_CD_COMBINED) return window.LOG_TICKET_CD_COMBINED.bounds(width, height);
     var bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
     ["front", "back"].forEach(function (side) {
@@ -282,14 +306,16 @@
     var size = templatePreviewSize(source.template, Object.assign({}, source, { side: side }));
     var points = [];
     (source.customLayers[side] || []).forEach(function (item) {
-      if (isLayerHidden(item.id, side, source) || item.opacity === 0) return;
+      if (isLayerHidden(item.id, side, source) || item.opacity === 0 || source.template === "cassette" && window.LOG_TICKET_CASSETTE_THEME.retiredLayer(item)) return;
       if (source.template === 'sticker-pack' && !source.stickerPack.editing) {
         var sticker = source.stickerPack.items.find(function (entry) { return entry.layers[side] === item.id; });
         if (sticker && !sticker.document.customLayers.front.length) return;
       }
       var box = [0, 0, 1, 1];
       if (item.type === 'image') {
-        var src = source.template === 'book' ? window.LOG_TICKET_BOOK_THEME.artSource(item)
+        var src = source.template === 'cassette' ? window.LOG_TICKET_CASSETTE_THEME.artSource(item)
+          : source.template === 'lp-album' ? window.LOG_TICKET_LP_THEME.artSource(item)
+          : source.template === 'book' ? window.LOG_TICKET_BOOK_THEME.artSource(item)
           : source.template === 'cd-album' ? window.LOG_TICKET_CD_THEME.artSource(item) : window.LOG_TICKET_STICKERS.artSource(item);
         box = attributionImageBounds(src);
         if (!box) return;
@@ -309,13 +335,15 @@
   }
   function attributionBasePosition(template, width, height, both, documentState, side) {
     var source = documentState || state;
-    if (source && ['book', 'cd-album', 'sticker-pack'].indexOf(template) >= 0) {
+    if (source && ['book', 'cd-album', 'sticker-pack', 'lp-album', 'cassette'].indexOf(template) >= 0) {
       var stage = both ? templateCanvasSizeSet(template, source, true).preview : templatePreviewSize(template, Object.assign({}, source, { side: side || source.side }));
       var points = [];
       (both ? ['front', 'back'] : [side || source.side]).forEach(function (faceSide) {
         var face = attributionFacePoints(source, faceSide);
         face.points.forEach(function (p) {
-          if (both && template === 'cd-album') {
+          if (both && template === 'cassette') {
+            var cassette = window.LOG_TICKET_CASSETTE_COMBINED; p=cassette.map(cassette.specs[faceSide].forward,p.x,p.y);
+          } else if (both && template === 'cd-album') {
             var cd = window.LOG_TICKET_CD_COMBINED, plane = faceSide === 'front' ? 'front' : p.x <= 585 ? 'left' : 'right';
             p = cd.map(cd.specs[plane].forward, p.x, p.y);
           } else if (both) {
@@ -327,6 +355,7 @@
           points.push(p);
         });
       });
+      if (both && template === 'cassette') window.LOG_TICKET_CASSETTE_COMBINED.depthPoints(source).forEach(function(p){points.push({x:p[0],y:p[1]});});
       if (both && template === 'cd-album') window.LOG_TICKET_CD_COMBINED.depthPoints(source).forEach(function (p) { points.push({ x:p[0], y:p[1] }); });
       if (points.length) return {
         x: (Math.min.apply(null, points.map(function(p){return p.x;})) + Math.max.apply(null, points.map(function(p){return p.x;}))) / 2 * width / stage.width,
@@ -614,6 +643,8 @@
     source: ["Seat Value", "TEXT"]
   };
   function templateLayerOrder(template) {
+    if (template === "cassette") return ["face-shadow", "attribution"];
+    if (template === "lp-album") return ["face-shadow", "attribution"];
     if (template === "book") return ["face-shadow", "attribution"];
     if (template === "cd-album") return ["face-shadow", "attribution"];
     if (template === "sticker-pack") return ["block-main", "attribution"];
@@ -1344,6 +1375,17 @@
     var next = clone(defaults);
     next.template = template;
     next.layerOrder = templateLayerOrder(template);
+    if (template === "cassette") {
+      window.LOG_TICKET_CASSETTE_THEME.create(next, normalizeCustomLayers, defaultBlock);
+      next.layerOrders=createSideLayerOrders(next.layerOrder,next);syncFlatLayerOrder(next);next.sideShadows=createSideShadows(null,next.shadows,next);return enforceProtectedAttribution(next);
+    }
+    if (template === "lp-album") {
+      window.LOG_TICKET_LP_THEME.create(next, normalizeCustomLayers, defaultBlock);
+      next.layerOrders = createSideLayerOrders(next.layerOrder, next);
+      syncFlatLayerOrder(next);
+      next.sideShadows = createSideShadows(null, next.shadows, next);
+      return enforceProtectedAttribution(next);
+    }
     if (template === "book") {
       window.LOG_TICKET_BOOK_THEME.create(next, normalizeCustomLayers, defaultBlock);
       next.layerOrders = createSideLayerOrders(next.layerOrder, next);
@@ -1601,7 +1643,7 @@
      template quietly lost its designed type sizes. */
   var MAX_FONT_SIZE_PT = 200;
   var MAX_FONT_SIZE_PX = ptToPx(MAX_FONT_SIZE_PT);
-  var CUSTOM_SHAPE_KINDS = ["rectangle", "ellipse", "triangle", "star", "heart", "arch", "summer-foam-behind", "summer-foam-over", "summer-foam-letter", "cd-disc"];
+  var CUSTOM_SHAPE_KINDS = ["rectangle", "ellipse", "triangle", "star", "heart", "arch", "summer-foam-behind", "summer-foam-over", "summer-foam-letter", "cd-disc", "lp-label", "cassette-label", "cassette-body"];
   var STAR_POINT_MIN = 3;
   var STAR_POINT_MAX = 20;
   var MAX_OBJECT_SIZE_PERCENT = 10000;
@@ -1792,11 +1834,14 @@
     var source = documentState || state;
     var definition = layerDefinition(key, documentState);
     if (!definition) return false;
+    if (source.template === "cassette" && window.LOG_TICKET_CASSETTE_THEME.retiredLayer(customLayerById(key, source))) return false;
     if (source.template === "train-spring" && side === "front" && ["stub-frame", "stub-divider", "handwritten-note", "kicker", "coupon-meta-rules"].indexOf(key) >= 0) return false;
     if (source.template === "train-spring" && side === "back" && ["frame", "main-frame", "back-image-frame", "record-divider-top", "record-divider-middle", "stub-frame", "stub-divider", "kicker", "coupon-meta-rules"].indexOf(key) >= 0) return false;
     if (isProtectedLayer(key)) return side === "front" || side === "back";
     if (Array.isArray(source.removedLayers) && hasLayerFlag(source.removedLayers, key, side, source)) return false;
     if (definition.group === "CUSTOM") return !definition.sides || definition.sides.indexOf(side) >= 0;
+    if (source.template === "cassette") return key === "face-shadow";
+    if (source.template === "lp-album") return key === "face-shadow";
     if (source.template === "book") return key === "face-shadow";
     if (source.template === "cd-album") return key === "face-shadow";
     if (source.template === "sticker-pack") return false;
@@ -2017,6 +2062,14 @@
       var computed = getComputedStyle(entry.face);
       var clipPath = explicitClipPath || entry.face.style.clipPath || computed.clipPath || "none";
       var webkitClipPath = entry.face.style.webkitClipPath || computed.webkitClipPath || clipPath;
+      // Material masks contain large embedded images. Reinstall only when the
+      // silhouette changes, not when an unrelated text/color input changes.
+      var shadowKey=[state.template,state.postcardViewMode,clipPath,webkitClipPath,computed.borderRadius,
+        state.hidden && state.hidden.join("|"),(state.customLayers[side]||[]).map(function(l){
+          return [l.id,l.x,l.y,l.w,l.h,l.rotation,l.skewX,l.opacity,l.imageData];
+        })];
+      if (entry.maskGeometryKey && equalJsonValue(entry.maskGeometryKey,shadowKey)) return;
+      entry.maskGeometryKey=shadowKey;
       entry.shape.style.clipPath = clipPath;
       entry.shape.style.webkitClipPath = webkitClipPath;
       entry.shape.style.borderRadius = computed.borderRadius;
@@ -2037,6 +2090,8 @@
           entry.shape.style.borderRadius = "3px";
         }
       }
+      if (state.template === "cassette") window.LOG_TICKET_CASSETTE_THEME.syncShadow(entry, state, side);
+      if (state.template === "lp-album") window.LOG_TICKET_LP_THEME.syncShadow(entry, state, side);
       if (state.template === "book") window.LOG_TICKET_BOOK_THEME.syncShadow(entry, state, side);
     });
   }
@@ -2141,6 +2196,10 @@
     }
     return trainBackOpeningMaskPromises[source];
   }
+  var cassetteEntry = $('[data-start-template="cassette"]');
+  if(cassetteEntry) { cassetteEntry.hidden=!isTemplateId("cassette"); if(cassetteEntry.hidden)cassetteEntry.style.display="none"; }
+  var lpEntry = $('[data-start-template="lp-album"]');
+  if (lpEntry) { lpEntry.hidden = !isTemplateId("lp-album"); if (lpEntry.hidden) lpEntry.style.display = "none"; }
   var bookEntry = $('[data-start-template="book"]');
   if (bookEntry) {
     bookEntry.hidden = !isTemplateId("book");
@@ -2185,12 +2244,28 @@
      re-assigning one costs tens of milliseconds for a large artwork, so the
      applied source is remembered per node and only written when it changes. */
   var appliedAlphaMaskSources = new WeakMap();
+  var maskResourceUrls = new Map();
+  function runtimeMaskUrl(source) {
+    // Chromium rejects very large CSS custom-property values. Keep document
+    // data embedded, but use short runtime URLs for photographic alpha masks.
+    if (!source || source.length < 131072 || source.indexOf("data:image/") !== 0) return source;
+    if (maskResourceUrls.has(source)) return maskResourceUrls.get(source);
+    var mime=source.slice(5,source.indexOf(";"));
+    var url=URL.createObjectURL(new Blob([dataUrlBytes(source)],{type:mime}));
+    maskResourceUrls.set(source,url);
+    if(maskResourceUrls.size>32){
+      var live=Array.prototype.map.call(document.querySelectorAll('[style*="blob:"]'),function(n){return n.style.cssText;}).join(" ");
+      maskResourceUrls.forEach(function(value,key){if(value!==url&&live.indexOf(value)<0){URL.revokeObjectURL(value);maskResourceUrls.delete(key);}});
+    }
+    return url;
+  }
+  window.LOG_TICKET_MASK_URL=runtimeMaskUrl;
   function setLayerAlphaMask(node, source) {
     if (!node) return;
     var next = source || "";
     if (appliedAlphaMaskSources.get(node) === next) return;
     appliedAlphaMaskSources.set(node, next);
-    node.style.setProperty("--image-alpha-mask", next ? 'url("' + next + '")' : "none");
+    node.style.setProperty("--image-alpha-mask", next ? 'url("' + runtimeMaskUrl(next) + '")' : "none");
   }
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
   function finiteNumber(value, fallback) {
@@ -2600,7 +2675,7 @@
               ? clamp(finiteNumber(item.w, 30), .01, MAX_OBJECT_SIZE_PERCENT)
               : clamp(finiteNumber(item.w, 34), boundsTrimmed ? .01 : structuredText ? .25 : 3, MAX_OBJECT_SIZE_PERCENT),
           h: item.type === "shape"
-            ? clamp(finiteNumber(item.h, 30), 3, MAX_OBJECT_SIZE_PERCENT)
+            ? clamp(finiteNumber(item.h, 30), /^custom-cassette-(front|back)-rule$/.test(id) ? .01 : 3, MAX_OBJECT_SIZE_PERCENT)
             : item.type === "image"
               ? clamp(finiteNumber(item.h, 30), .01, MAX_OBJECT_SIZE_PERCENT)
               : clamp(finiteNumber(item.h, 12), boundsTrimmed ? .01 : structuredText ? .25 : 3, MAX_OBJECT_SIZE_PERCENT),
@@ -2648,6 +2723,15 @@
           boxStyle: boxStyle
         });
         if (item.type === "image" && Number.isInteger(item.stickerArt) && item.stickerArt >= 0 && item.stickerArt < (window.STICKER_ART_CATALOG ? window.STICKER_ART_CATALOG.length : 36)) next[side][next[side].length - 1].stickerArt = item.stickerArt;
+        if (item.cassetteSurface === "spine" && side === "front") {
+          var spineLayer = next[side][next[side].length - 1];
+          spineLayer.cassetteSurface = "spine";
+          if (["original", "color", "image", "cover"].indexOf(item.cassetteSpineMode) >= 0) spineLayer.cassetteSpineMode = item.cassetteSpineMode;
+        }
+        if (shapeKind === "cassette-label") {
+          next[side][next[side].length - 1].cassetteLabelVersion = item.cassetteLabelVersion === 2 ? 2 : 1;
+          next[side][next[side].length - 1].cassetteLegacyCrop = item.cassetteLegacyCrop === true;
+        }
         if (item.type === "shape" && ["color", "image", "vellum"].indexOf(item.cdPaperMode) >= 0) next[side][next[side].length - 1].cdPaperMode = item.cdPaperMode;
       });
     });
@@ -3513,6 +3597,7 @@
     }
     delete next.effects;
     next.customLayers = normalizeCustomLayers(saved && saved.customLayers, legacyEffects);
+    if (template === "cassette") window.LOG_TICKET_CASSETTE_THEME.migrate(next, normalizeCustomLayers);
     next.layouts = {
       front: normalizeLayout(migrateLegacyLayout(saved && saved.layouts && saved.layouts.front, template, "front", migrateLegacyDesign), fallback.layouts.front),
       back: normalizeLayout(migrateLegacyLayout(saved && saved.layouts && saved.layouts.back, template, "back", migrateLegacyDesign), fallback.layouts.back)
@@ -4205,12 +4290,16 @@
       return new Promise(function (resolve, reject) {
         var transaction;
         var request;
+        var store;
         var removed = 0;
         var stale = false;
         var failure = null;
         try {
           transaction = db.transaction(IMAGE_ASSET_STORE, "readwrite");
-          request = transaction.objectStore(IMAGE_ASSET_STORE).openCursor();
+          store = transaction.objectStore(IMAGE_ASSET_STORE);
+          // Pruning only needs IDs. A value cursor decodes every embedded
+          // image again after each autosave, blocking editing unnecessarily.
+          request = store.openKeyCursor();
         } catch (error) {
           reject(imageAssetSaveError(error));
           return;
@@ -4225,7 +4314,7 @@
           }
           if (!activeIds || !activeIds[cursor.key]) {
             try {
-              cursor.delete();
+              store.delete(cursor.primaryKey);
               removed++;
             } catch (error) {
               failure = error;
@@ -5832,8 +5921,17 @@
     return [];
   }
   function traceShapePath(context, item, width, height) {
+    if (state.template === "cassette" && window.LOG_TICKET_CASSETTE_THEME.traceLabel(context,item,width,height)) return;
     if (state.template === "book" && window.LOG_TICKET_BOOK_THEME.tracePageImage(context, item, width, height)) return;
     context.beginPath();
+    if (item.shapeKind === "lp-label") {
+      context.ellipse(width / 2, height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+      context.closePath();
+      context.moveTo(width * .55, height / 2);
+      context.ellipse(width / 2, height / 2, width * .05, height * .05, 0, 0, Math.PI * 2, true);
+      context.closePath();
+      return;
+    }
     if (item.shapeKind === "cd-disc") {
       context.ellipse(width / 2, height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
       context.closePath();
@@ -6149,8 +6247,11 @@
     var cssWidth = Math.max(1, canvas.parentElement.clientWidth || 1);
     var cssHeight = Math.max(1, canvas.parentElement.clientHeight || 1);
     var foamImage = canvas.parentElement.querySelector("img.summer-foam-art-source");
+    var lpPaperMask = state.template === "lp-album" ? window.LOG_TICKET_LP_THEME.printMask(item, renderCustomLayers) : null;
+    var cassettePlasticReady = state.template === "cassette" ? window.LOG_TICKET_CASSETTE_THEME.plasticReady(item, renderCustomLayers) : null;
     var shapePaintKey = JSON.stringify([cssWidth, cssHeight, typeof renderScale === "number" ? renderScale : 0, window.devicePixelRatio || 1,
       state.template === "book" ? window.LOG_TICKET_BOOK_THEME.printKey(item, state) : "",
+      cassettePlasticReady, lpPaperMask && lpPaperMask.complete, lpPaperMask && lpPaperMask.naturalWidth,
       image && image.complete, image && image.naturalWidth, foamImage && foamImage.complete, foamImage && foamImage.naturalWidth,
       Object.assign({}, item, { x: 0, y: 0, rotation: 0, opacity: 100, imageData: "" })]);
     if (canvas.shapePaintKey === shapePaintKey && canvas.shapeImageSource === item.imageData) return;
@@ -6193,6 +6294,8 @@
     context.imageSmoothingQuality = "high";
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
+    // Never flash an unmasked rectangle while the physical paper is loading.
+    if (lpPaperMask && (!lpPaperMask.complete || !lpPaperMask.naturalWidth) || cassettePlasticReady === false) return;
     if (window.LOG_TICKET_SUMMER_THEME.kinds.indexOf(item.shapeKind) >= 0) {
       paintGeneratedSummerFoam(canvas, image, item, {
         width: contentWidth, height: contentHeight, x: offsetX, y: offsetY, scale: scale, stroke: shapeStroke
@@ -6255,17 +6358,29 @@
        had its inner half erased, so the outline keeps exactly the requested
        width and the silhouette matches a filled shape of the same size. */
     context.restore();
+    if (lpPaperMask) {
+      // Shared by live preview and PNG rendering: color and image fills use
+      // the photograph's actual alpha, rather than an approximate corner radius.
+      context.save();
+      context.globalCompositeOperation = "destination-in";
+      context.drawImage(lpPaperMask, offsetX, offsetY, contentWidth, contentHeight);
+      context.restore();
+    }
+    if (state.template === "cassette") window.LOG_TICKET_CASSETTE_THEME.finishPlastic(canvas, item, offsetX, offsetY, contentWidth, contentHeight);
   }
-  function renderCustomLayers(renderScale, skipPresentation) {
+  function renderCustomLayers(renderScale, skipPresentation, dirtyKeys) {
+    if (window.LOG_TICKET_CASSETTE_COMBINED && state.template !== "cassette") window.LOG_TICKET_CASSETTE_COMBINED.restore(ticket);
     if (window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.restore(ticket);
     ["front", "back"].forEach(function (side) {
       var face = side === "front" ? frontFace : backFace;
       var layers = state.customLayers && state.customLayers[side] ? state.customLayers[side] : [];
+      if (state.template === "cassette") layers = layers.filter(function(item){ return !window.LOG_TICKET_CASSETTE_THEME.retiredLayer(item); });
       var valid = layers.map(function (item) { return item.id; });
-      Array.prototype.slice.call(face.querySelectorAll(".custom-layer-object")).forEach(function (node) {
+      if (!dirtyKeys) Array.prototype.slice.call(face.querySelectorAll(".custom-layer-object")).forEach(function (node) {
         if (valid.indexOf(node.dataset.canvasLayer) < 0) node.remove();
       });
       layers.forEach(function (item) {
+        if (dirtyKeys && dirtyKeys.indexOf(item.id) < 0) return;
         if (state.template === "cd-album") item = window.LOG_TICKET_CD_THEME.renderPaper(item);
         var node = face.querySelector('[data-canvas-layer="' + item.id + '"]');
         if (!node) {
@@ -6276,9 +6391,9 @@
         }
         var richText = item.type === "text" && ((Array.isArray(item.styledRuns) && item.styledRuns.length) || (Array.isArray(item.styledShapes) && item.styledShapes.length));
         var customFontClass = item.type === "text" && FONT_FAMILY_MAP[item.font] ? " " + item.font : "";
-        node.className = "custom-layer-object custom-" + item.type + "-layer" + customFontClass + (richText ? " rich-text-clone" : "");
+        if (!dirtyKeys) node.className = "custom-layer-object custom-" + item.type + "-layer" + customFontClass + (richText ? " rich-text-clone" : "");
         // Material image-load/export refreshes must retain hidden pages/layers.
-        if ((state.template === "book" || state.template === "cd-album") && isLayerHidden(item.id, side)) node.classList.add("hidden-layer");
+        if ((state.template === "book" || state.template === "cd-album" || state.template === "lp-album" || state.template === "cassette") && isLayerHidden(item.id, side)) node.classList.add("hidden-layer");
         node.style.left = item.x + "%";
         node.style.top = item.y + "%";
         node.style.width = item.w + "%";
@@ -6362,11 +6477,13 @@
           }
           var customImageSource = state.template === "sticker-pack" ? window.LOG_TICKET_STICKERS.artSource(item) : item.imageData;
           if (state.template === "cd-album") customImageSource = window.LOG_TICKET_CD_THEME.artSource(item);
+          if (state.template === "cassette") customImageSource = window.LOG_TICKET_CASSETTE_THEME.artSource(item);
+          if (state.template === "lp-album") customImageSource = window.LOG_TICKET_LP_THEME.artSource(item);
           if (state.template === "book") customImageSource = window.LOG_TICKET_BOOK_THEME.artSource(item);
           if (customImageSource) {
-            if (image.src !== customImageSource) image.src = customImageSource;
+            if (image.assignedSource !== customImageSource) { image.assignedSource = customImageSource; image.src = customImageSource; }
           } else {
-            image.removeAttribute("src");
+            image.assignedSource = ""; image.removeAttribute("src");
           }
           var effect = visibleImageEffect(item);
           var customOutline = imageOutlineFilter(strokeFor(item.id, side));
@@ -6418,8 +6535,8 @@
             node.appendChild(placeholder);
           }
           if (item.imageData) {
-            if (shapeImage.src !== item.imageData) shapeImage.src = item.imageData;
-          } else shapeImage.removeAttribute("src");
+            if (shapeImage.assignedSource !== item.imageData) { shapeImage.assignedSource = item.imageData; shapeImage.src = item.imageData; }
+          } else { shapeImage.assignedSource = ""; shapeImage.removeAttribute("src"); }
           placeholder.hidden = item.fillMode !== "image" || Boolean(item.imageData);
           var foamArt = node.querySelector("img.summer-foam-art-source");
           var foamSource = window.LOG_TICKET_SUMMER_ART.source(item.shapeKind);
@@ -6439,6 +6556,7 @@
              face. Keeping the hidden face at preview resolution avoids a
              second multi-megapixel canvas during PNG generation. */
           paintCustomShape(canvas, shapeImage, item, side === state.side ? renderScale : undefined);
+          if (state.template === "cassette") window.LOG_TICKET_CASSETTE_THEME.mountHitTarget(node, item);
         }
         node.style.rotate = finiteNumber(item.rotation, 0) + "deg";
         node.style.transformOrigin = "center center";
@@ -6450,7 +6568,11 @@
        preview and html2canvas export keep the saved outline. */
     if (!skipPresentation) {
       applyLayerPresentation();
-      if (window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
+      if (perspectivePresentation(state)) perspectivePresentation(state).present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
+    } else if (dirtyKeys && (state.template === "cd-album" || state.template === "cassette") && perspectivePresentation(state)) {
+      // A connected CD insert is mirrored across two projected panes.
+      // Restore before finding its source, then refresh both visual copies.
+      perspectivePresentation(state).present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
     }
   }
 
@@ -6477,6 +6599,12 @@
   }
 
   function calculateResizedShapeCrop(config, imageW, imageH, frameW, frameH, renderPixelScale) {
+    if (config && config.shapeKind === "cassette-label" && config.cassetteLegacyCrop) {
+      var oldConfig = Object.assign({}, config, {cassetteLegacyCrop:false,w:config.w*1424/1301,h:config.h*840/550});
+      var oldW=frameW*1424/1301,oldH=frameH*840/550;
+      var crop=calculateResizedShapeCrop(oldConfig,imageW,imageH,oldW,oldH,renderPixelScale);
+      crop.x-=oldW*63/1424;crop.y-=oldH*71/840;return crop;
+    }
     var currentW = Math.max(3, finiteNumber(config && config.w, 30));
     var currentH = Math.max(3, finiteNumber(config && config.h, 30));
     var referenceW = frameW * Math.max(1, Math.max(3, finiteNumber(config && config.imageFrameW, currentW)) / currentW);
@@ -7116,6 +7244,7 @@
     var height = Math.max(1, liveFace.offsetHeight);
     var captureId = "clip-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
     var scratchTicket = ticket.cloneNode(true);
+    if (window.LOG_TICKET_CASSETTE_COMBINED) window.LOG_TICKET_CASSETTE_COMBINED.restore(scratchTicket);
     if (window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.restore(scratchTicket);
     scratchTicket.dataset.clippingCapture = captureId;
     scratchTicket.querySelectorAll("#selectionOverlay,.layer-clipping-preview").forEach(function (node) { node.remove(); });
@@ -8814,6 +8943,7 @@
        always remain immediately below the LAYER STYLE heading. */
     positionCustomLayerIdentityFields(custom);
     if (window.LOG_TICKET_CD_THEME) window.LOG_TICKET_CD_THEME.paperInspector(state, custom);
+    if (window.LOG_TICKET_CASSETTE_THEME) window.LOG_TICKET_CASSETTE_THEME.afterRender(state);
   }
 
   function updateTicketGeometry() {
@@ -8995,7 +9125,7 @@
     var previousPosition = { key: custom.id, x: custom.x, y: custom.y };
     var preview = templatePreviewSize(template);
     var basis = axis === "x" ? preview.width : preview.height;
-    custom[axis] = clamp(finiteNumber(value, 0) / Math.max(1, basis) * 100, -50, 100);
+    custom[axis] = clamp(finiteNumber(value, 0) / Math.max(1, basis) * 100, custom.cassetteSurface === "spine" ? -100000 : -50, custom.cassetteSurface === "spine" ? 100000 : 100);
     limitStickerPackMove([custom.id], [previousPosition]);
   }
 
@@ -9030,7 +9160,7 @@
   }
 
   function renderObjectTransformHandles() {
-    var cdCombined = window.LOG_TICKET_CD_COMBINED;
+    var cdCombined = perspectivePresentation(state);
     if (cdCombined) cdCombined.present(ticket, state, bindCanvasLayerNode, faceShadowExportEnabled);
     $$(".object-transform-active").forEach(function (node) { node.classList.remove("object-transform-active"); });
     $$(".selection-proxied").forEach(function (node) { node.classList.remove("selection-proxied"); });
@@ -9069,6 +9199,7 @@
       copyTransformSpace(node, proxy);
 
       var custom = customLayerById(key);
+      if (state.template === "cassette") window.LOG_TICKET_CASSETTE_THEME.mountHitTarget(proxy, custom);
       var placement = custom ? null : placementFor(state.side, key);
       var handleScaleX = custom && custom.type === "text" ? finiteNumber(custom.scaleX, 1) : custom ? 1 : finiteNumber(placement.scaleX, 1);
       var handleScaleY = custom && custom.type === "text" ? finiteNumber(custom.scaleY, 1) : custom ? 1 : finiteNumber(placement.scaleY, 1);
@@ -9376,12 +9507,28 @@
     preview.classList.toggle("canvas-selected", isProtectedLayer(state.selectedLayer));
   }
 
-  var editorRenderFrame = 0, blockImageRenderFrame = 0;
+  var editorRenderFrame = 0, blockImageRenderFrame = 0, visualPreviewFrame = 0, visualPreviewKeys = [];
+  // Input events only redraw the affected artwork. Commit does the full UI,
+  // history, clipping and persistence pass once, at full export quality.
+  function requestVisualPreview(key) {
+    var id=typeof key === "string" ? key : state.selectedLayer;
+    if(visualPreviewKeys.indexOf(id)<0)visualPreviewKeys.push(id);
+    if(visualPreviewFrame)return;
+    visualPreviewFrame=requestAnimationFrame(function(){
+      visualPreviewFrame=0;var keys=visualPreviewKeys;visualPreviewKeys=[];
+      if((state.clipping||[]).length){render();return;}
+      var custom=keys.filter(function(id){return !!customLayerById(id);});
+      if(custom.length)renderCustomLayers(Math.min(3,Math.max(1,(state.viewZoom||1)*(window.devicePixelRatio||1))),true,custom);
+      else renderBlockImages();
+      renderInspector();syncColorCodeInputs();
+    });
+  }
   function requestEditorRender() {
     if (editorRenderFrame) return;
     editorRenderFrame = requestAnimationFrame(function () { editorRenderFrame = 0; render(); });
   }
   function render() {
+    if (visualPreviewFrame) { cancelAnimationFrame(visualPreviewFrame); visualPreviewFrame=0;visualPreviewKeys=[]; }
     if (editorRenderFrame) { cancelAnimationFrame(editorRenderFrame); editorRenderFrame = 0; }
     syncWinterCoupon();
     enforceProtectedAttribution(state);
@@ -9692,9 +9839,9 @@
     ottAspectControl.hidden = state.template !== "ott";
     setInputValue("#ottAspectSelect", ottAspectId(state));
     var allPngCaption = $("#allPngBtn span");
-    if (allPngCaption) allPngCaption.textContent = state.template === "book" ? "표지 · 펼침 · 함께" : state.template === "cd-album" ? "닫힘 · 열림 · 합본" : templateSupportsBoth(state) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸";
+    if (allPngCaption) allPngCaption.textContent = state.template === "cassette" ? "앞면 · 테이프 · 합본" : state.template === "lp-album" ? "커버 · 판 · 합본" : state.template === "book" ? "표지 · 펼침 · 함께" : state.template === "cd-album" ? "닫힘 · 열림 · 합본" : templateSupportsBoth(state) ? "FRONT · BACK · BOTH" : "영상 재생 · 정보칸";
     var allPngHelp = $("#allPngHelp");
-    if (allPngHelp) allPngHelp.innerHTML = state.template === "book"
+    if (allPngHelp) allPngHelp.innerHTML = state.template === "cassette" ? "<strong>전체 이미지</strong> 앞면 · 테이프 · 합본 세 장을 ZIP 한 개로 저장" : state.template === "lp-album" ? "<strong>전체 이미지</strong> 커버 · 판 · 합본 세 장을 ZIP 한 개로 저장" : state.template === "book"
       ? "<strong>전체 이미지</strong> 표지 · 펼침 · 함께 세 장을 ZIP 한 개로 저장"
       : state.template === "cd-album"
       ? "<strong>전체 이미지</strong> 닫힘 · 열림 · 합본 세 장을 ZIP 한 개로 저장"
@@ -9705,8 +9852,8 @@
 
     $(".side-switch").hidden = false;
     var motionTab = $('[data-tab="motion"]');
-    if (motionTab) motionTab.hidden = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book";
-    if ((bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book") && motionTab && motionTab.classList.contains("active")) {
+    if (motionTab) motionTab.hidden = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book" || state.template === "lp-album" || state.template === "cassette";
+    if ((bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book" || state.template === "lp-album" || state.template === "cassette") && motionTab && motionTab.classList.contains("active")) {
       var propertiesTab = $('[data-tab="properties"]');
       if (propertiesTab) propertiesTab.click();
     }
@@ -9728,8 +9875,8 @@
     $$("[data-motion]").forEach(function (button) { button.classList.toggle("selected", button.dataset.motion === state.motion); });
     $("#undoBtn").disabled = history.length === 0 || Boolean(flipPhase);
     $("#redoBtn").disabled = future.length === 0 || Boolean(flipPhase);
-    $("#playBtn").hidden = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book";
-    $("#playBtn").disabled = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book" || Boolean(flipPhase);
+    $("#playBtn").hidden = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book" || state.template === "lp-album" || state.template === "cassette";
+    $("#playBtn").disabled = bothStatic || postcardStatic || state.template === "cd-album" || state.template === "book" || state.template === "lp-album" || state.template === "cassette" || Boolean(flipPhase);
 
     renderCustomLayers(undefined, true);
     buildLayerList();
@@ -9738,6 +9885,8 @@
     renderInspector();
     paintTrainPerforations();
     syncColorCodeInputs();
+    if (window.LOG_TICKET_LP_THEME) window.LOG_TICKET_LP_THEME.afterRender(state);
+
     if (window.LOG_TICKET_STICKERS) window.LOG_TICKET_STICKERS.afterRender(state);
     if (window.LOG_TICKET_CD_THEME) window.LOG_TICKET_CD_THEME.afterRender(state);
     if (window.LOG_TICKET_BOOK_THEME) window.LOG_TICKET_BOOK_THEME.afterRender(state, function (layout) {
@@ -9927,6 +10076,8 @@
       var value = parser ? parser(node.value) : node.value;
       apply(value);
       if (preview) preview();
+      else if (node.closest('[data-inspector="image-main image-stub custom-image shape-image-effects"]') ||
+        ["#customTextColor", "#winterInkColor"].indexOf(selector) >= 0 || /^#customShape(?:Zoom|Pan|FillColor)/.test(selector)) requestVisualPreview();
       else requestEditorRender();
     });
     node.addEventListener("change", function () {
@@ -9956,7 +10107,7 @@
   function applyTemplate(template) {
     if (!isTemplateId(template)) return;
     if (state.template === "sticker-pack") window.LOG_TICKET_STICKERS.flush(state);
-    if (["sticker-pack", "cd-album", "book"].indexOf(template) >= 0 || ["#sticker-pack", "#cd-album", "#book"].indexOf(location.hash) >= 0) window.history.replaceState(null, "", location.pathname + location.search + (["sticker-pack", "cd-album", "book"].indexOf(template) >= 0 ? "#" + template : ""));
+    if (["sticker-pack", "cd-album", "book", "lp-album", "cassette"].indexOf(template) >= 0 || ["#sticker-pack", "#cd-album", "#book", "#lp-album", "#cassette"].indexOf(location.hash) >= 0) window.history.replaceState(null, "", location.pathname + location.search + (["sticker-pack", "cd-album", "book", "lp-album", "cassette"].indexOf(template) >= 0 ? "#" + template : ""));
     templateDocuments[state.template] = clone(state);
     var currentUiTheme = state.uiTheme;
     var currentZoom = state.viewZoom;
@@ -10201,7 +10352,7 @@
       state.selectedLayer = "";
       trackedTextSelection = null;
       render();
-      if (state.template === "cd-album" || state.template === "book") requestAnimationFrame(fitPreview);
+      if (state.template === "cd-album" || state.template === "book" || state.template === "lp-album" || state.template === "cassette") requestAnimationFrame(fitPreview);
     });
   });
   $$('[data-postcard-top]').forEach(function (button) {
@@ -10602,8 +10753,8 @@
     layer.id = nextCustomLayerId();
     layer.side = state.side;
     layer.name = String(layer.name || (layer.type === "image" ? "사용자 이미지" : layer.type === "shape" ? "사용자 도형" : "사용자 텍스트")) + (labelSuffix || " 복사본");
-    layer.x = clamp(finiteNumber(layer.x, 12) + 2, -50, 100);
-    layer.y = clamp(finiteNumber(layer.y, 12) + 2, -50, 100);
+    layer.x = clamp(finiteNumber(layer.x, 12) + 2, layer.cassetteSurface === "spine" ? -100000 : -50, layer.cassetteSurface === "spine" ? 100000 : 100);
+    layer.y = clamp(finiteNumber(layer.y, 12) + 2, layer.cassetteSurface === "spine" ? -100000 : -50, layer.cassetteSurface === "spine" ? 100000 : 100);
     if (payload.presentation && payload.presentation.stroke) layer.stroke = normalizeStroke(payload.presentation.stroke);
     addCustomLayer(layer, payload.presentation && payload.presentation.shadow);
     if (state.template === "sticker-pack" && payload.stickerContent) window.LOG_TICKET_STICKERS.pasteContent(state, payload.stickerContent, layer);
@@ -11212,6 +11363,7 @@
     var layer = activeCustomLayer();
     if (!isCustomShapeLayer(layer) || CUSTOM_SHAPE_KINDS.indexOf(value) < 0) return;
     layer.shapeKind = value;
+    if (value === "cassette-label") { layer.cassetteLabelVersion=2; delete layer.cassetteLegacyCrop; }
     layer.starPoints = normalizeStarPoints(layer.starPoints);
     layer.cornerRadii = Array(shapeCornerCount(value, layer.starPoints)).fill(layer.cornerRadius || 0);
   });
@@ -11229,14 +11381,16 @@
       var layer = activeCustomLayer();
       if (isCustomShapeLayer(layer)) {
         if (!paperMode || !window.LOG_TICKET_CD_THEME.setPaperMode(layer, fillMode)) layer.fillMode = fillMode;
-        if (fillMode === "image") { layer.imageFrameW = layer.w; layer.imageFrameH = layer.h; }
+        if (layer.cassetteSpineMode) layer.cassetteSpineMode = fillMode === "image" ? "image" : "color";
+        if (fillMode === "image") { delete layer.cassetteLegacyCrop; layer.imageFrameW = layer.w; layer.imageFrameH = layer.h; }
       }
     });
   });
-  bindInput("#customShapeFillColor", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) layer.fillColor = value; });
+  bindInput("#customShapeFillColor", function (value) { var layer = activeCustomLayer(); if (isCustomShapeLayer(layer)) { layer.fillColor = value; if (layer.cassetteSpineMode) layer.cassetteSpineMode = "color"; } });
   bindInput("#customShapeImageFit", function (value) {
     var layer = activeCustomLayer();
     if (isCustomShapeLayer(layer)) {
+      delete layer.cassetteLegacyCrop;
       layer.fit = value === "contain" ? "contain" : "cover";
       layer.imageFrameW = layer.w;
       layer.imageFrameH = layer.h;
@@ -11457,6 +11611,7 @@
         layer.imageAssetStored = true;
         layer.imageName = file.name;
         layer.imageType = file.type;
+        delete layer.cassetteLegacyCrop;
         layer.fillMode = "image";
         if (state.template === "cd-album" && window.LOG_TICKET_CD_THEME.isPaper(layer)) layer.cdPaperMode = "image";
         layer.imageFrameW = layer.w;
@@ -11605,14 +11760,14 @@
 
   function mutateActiveEffect(apply) {
     var effect = activeEffect();
-    if (effect) apply(effect);
+    if (effect) { apply(effect); effect.enabled = true; }
   }
-  function mutateFilmEffect(apply) { if(isFilmSelection())mutateActiveEffect(apply); }
+  function mutateFilmEffect(apply) { if(isFilmSelection())mutateActiveEffect(function(effect){apply(effect);effect.filmEnabled=true;if(effect.winterFilm)effect.winterFilm.enabled=true;}); }
   function renderBlurPreview() {
     // Native photo blur only changes its CSS filter. Rebuilding the complete
     // ticket and inspector for every input stalls the native slider drag.
     // Keep the ordinary renderer for raster shapes and layer-clipped images.
-    if (!selectedImageLayer() || (state.clipping || []).length) { render(); return; }
+    if (!selectedImageLayer() || (state.clipping || []).length) { requestVisualPreview(); return; }
     var block = activeBlock();
     var effect = activeEffect();
     if (!block || !effect) return;
@@ -11665,7 +11820,7 @@
       if (!Number.isFinite(node.valueAsNumber)) return;
       apply(clamp(node.valueAsNumber, min, max));
       if (preview) preview();
-      else render();
+      else requestVisualPreview();
     });
     node.addEventListener("change", function () {
       if (Number.isFinite(node.valueAsNumber)) node.value = clamp(node.valueAsNumber, min, max);
@@ -11673,8 +11828,7 @@
     });
     node.addEventListener("blur", function () {
       if (Number.isFinite(node.valueAsNumber)) node.value = clamp(node.valueAsNumber, min, max);
-      finishEdit();
-      render();
+      if (editSnapshot || visualPreviewFrame) finishEdit();
     });
     node.addEventListener("keydown", function (event) { if (event.key === "Enter") node.blur(); });
   }
@@ -11973,7 +12127,7 @@
     faceSpace.style.width = context.faceW + "px";
     faceSpace.style.height = context.faceH + "px";
     copyTransformSpace(face, faceSpace);
-    if (activeDrag.cdPlane && window.LOG_TICKET_CD_COMBINED) window.LOG_TICKET_CD_COMBINED.stylePlane(faceSpace, activeDrag.cdPlane);
+    if (activeDrag.cdPlane && perspectivePresentation(state)) perspectivePresentation(state).stylePlane(faceSpace, activeDrag.cdPlane);
     if (activeSnapGuides.x != null) {
       var vertical = document.createElement("i");
       vertical.className = "snap-guide-line snap-guide-line-x";
@@ -12363,6 +12517,12 @@
   bindInput("#durationRange", function (value) { state.duration = value; }, Number);
 
   function centerStage() {
+    if (state.template === "cassette" && state.postcardViewMode === "both") {
+      var box=ticket.getBoundingClientRect(),viewport=stage.getBoundingClientRect();
+      stage.scrollLeft+=box.left+box.width/2-viewport.left-stage.clientWidth/2;
+      stage.scrollTop+=box.top+box.height/2-viewport.top-stage.clientHeight/2;
+      return;
+    }
     stage.scrollLeft = Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2);
     stage.scrollTop = Math.max(0, (stage.scrollHeight - stage.clientHeight) / 2);
   }
@@ -12393,7 +12553,12 @@
     var rotatedWidth = Math.abs(baseWidth * Math.cos(radians)) + Math.abs(baseHeight * Math.sin(radians));
     var rotatedHeight = Math.abs(baseWidth * Math.sin(radians)) + Math.abs(baseHeight * Math.cos(radians));
     var horizontalGap = window.innerWidth <= 900 ? 48 : 80;
-    var fit = Math.min((stage.clientWidth - horizontalGap) / rotatedWidth, (stage.clientHeight - 128) / rotatedHeight);
+    // Existing scrollbars disappear after fitting. Measure the stable inner
+    // box so repeated fits (or fitting after a large zoom) yield one scale.
+    var stageStyle=getComputedStyle(stage);
+    var availableWidth=stage.offsetWidth-parseFloat(stageStyle.borderLeftWidth||0)-parseFloat(stageStyle.borderRightWidth||0);
+    var availableHeight=stage.offsetHeight-parseFloat(stageStyle.borderTopWidth||0)-parseFloat(stageStyle.borderBottomWidth||0);
+    var fit = Math.min((availableWidth - horizontalGap) / rotatedWidth, (availableHeight - 128) / rotatedHeight);
     setViewZoom(clamp(fit, .1, 8), true);
   }
   function setViewRotation(value) {
@@ -12598,7 +12763,7 @@
       ? (target.dataset.selectionSide === "back" ? backFace : frontFace)
       : target.closest(".ticket-face");
     var targetSide = selectionLayer ? target.dataset.selectionSide : (targetFace === backFace ? "back" : "front");
-    var cdCombined = window.LOG_TICKET_CD_COMBINED;
+    var cdCombined = perspectivePresentation(state);
     var cdDragPlane = cdCombined && cdCombined.enabled(state) ? cdCombined.planeFor(target, targetSide) : "";
     if (selectionLayer) {
       target = targetFace.querySelector('[data-canvas-layer="' + selectionLayer + '"]');
@@ -12906,7 +13071,7 @@
     var dx = (screenDx * cos + screenDy * sin) / Math.max(.1, state.viewZoom);
     var dy = (-screenDx * sin + screenDy * cos) / Math.max(.1, state.viewZoom);
     if (drag.cdPlane) {
-      var cdPoint = window.LOG_TICKET_CD_COMBINED.localPointer(event, ticket, state, drag.cdPlane);
+      var cdPoint = perspectivePresentation(state).localPointer(event, ticket, state, drag.cdPlane);
       dx = cdPoint.x - drag.cdStart.x; dy = cdPoint.y - drag.cdStart.y;
     }
     if (drag.faceRotation || drag.faceScale && drag.faceScale !== 1) {
@@ -13110,8 +13275,8 @@
     } else if (drag.mode === "move-custom") {
       var custom = customLayerById(drag.layer);
       if (custom) {
-        custom.x = clamp(constrainedMoveMetric(drag.customX, constrainedDx, drag.ticketW, event, drag.axisLock, "x", smartMove), -50, 100);
-        custom.y = clamp(constrainedMoveMetric(drag.customY, constrainedDy, drag.ticketH, event, drag.axisLock, "y", smartMove), -50, 100);
+        custom.x = clamp(constrainedMoveMetric(drag.customX, constrainedDx, drag.ticketW, event, drag.axisLock, "x", smartMove), custom.cassetteSurface === "spine" ? -100000 : -50, custom.cassetteSurface === "spine" ? 100000 : 100);
+        custom.y = clamp(constrainedMoveMetric(drag.customY, constrainedDy, drag.ticketH, event, drag.axisLock, "y", smartMove), custom.cassetteSurface === "spine" ? -100000 : -50, custom.cassetteSurface === "spine" ? 100000 : 100);
       }
     } else if (drag.mode === "pan-image") {
       var block = activeBlock();
@@ -14109,12 +14274,121 @@
     });
   }
 
-  function waitForEditorPaint() {
+  function waitForEditorPaint(frameCount) {
     return new Promise(function (resolve) {
-      requestAnimationFrame(function () { requestAnimationFrame(resolve); });
+      // Export layout is read synchronously. It must also finish in background
+      // tabs where the browser stops delivering animation frames.
+      if (cassetteExportSession) { setTimeout(resolve, 16); return; }
+      if (frameCount === 1) requestAnimationFrame(resolve);
+      else requestAnimationFrame(function () { requestAnimationFrame(resolve); });
     });
   }
+
+  async function freezeCassetteExportPreview() {
+    var shell = document.querySelector(".app-shell");
+    var host = document.createElement("div");
+    host.setAttribute("data-html2canvas-ignore", "true");
+    host.setAttribute("aria-hidden", "true");
+    host.style.cssText = "position:fixed;inset:0;z-index:9990;pointer-events:none;overflow:hidden;visibility:hidden;";
+    var root = host.attachShadow({ mode: "closed" });
+    var body = document.createElement("body");
+    body.className = document.body.className;
+    body.style.cssText = "margin:0;width:100%;height:100%;overflow:hidden;";
+    var preview = shell.cloneNode(true);
+    copyClippingCanvasPixels(shell, preview);
+    body.appendChild(preview);
+    var originals = [shell].concat(Array.from(shell.querySelectorAll("*")));
+    var copies = [preview].concat(Array.from(preview.querySelectorAll("*")));
+    originals.forEach(function (source, index) {
+      var copy = copies[index];
+      if (!copy) return;
+      if ("value" in source && "value" in copy) copy.value = source.value;
+      if ("checked" in source && "checked" in copy) copy.checked = source.checked;
+    });
+    var ready = Array.from(document.querySelectorAll('head link[rel="stylesheet"], head style')).map(function (source) {
+      var style = source.cloneNode(true);
+      if (style.tagName !== "LINK") { root.appendChild(style); return Promise.resolve(); }
+      style.href = source.href;
+      return new Promise(function (resolve) {
+        var timer = setTimeout(resolve, 1000);
+        style.onload = style.onerror = function () { clearTimeout(timer); resolve(); };
+        root.appendChild(style);
+      });
+    });
+    root.appendChild(body);
+    document.body.appendChild(host);
+    await Promise.all(ready);
+    originals.forEach(function (source, index) {
+      if (copies[index]) { copies[index].scrollTop = source.scrollTop; copies[index].scrollLeft = source.scrollLeft; }
+    });
+    body.scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    host.style.visibility = "visible";
+    return function () {
+      host.remove();
+      preview.querySelectorAll("canvas").forEach(function (canvas) { canvas.width = canvas.height = 1; });
+    };
+  }
+
+  function copyExportCanvas(source) {
+    var copy = document.createElement("canvas");
+    copy.width = source.width; copy.height = source.height;
+    copy.getContext("2d", { alpha: true }).drawImage(source, 0, 0);
+    if (source.ticketContentRect) copy.ticketContentRect = Object.assign({}, source.ticketContentRect);
+    return copy;
+  }
+
+  async function cassetteExportFace() {
+    var cache = cassetteExportSession && cassetteExportSession.faces;
+    var side = state.side;
+    if (cache && cache[side]) return copyExportCanvas(cache[side]);
+    var canvas = await drawTicketFromPreview();
+    if (cache) cache[side] = copyExportCanvas(canvas);
+    return canvas;
+  }
+
+  // Reuse the already loaded renderer and decoded assets. A read-only visual
+  // copy shields the editor while an in-memory document copy is rendered.
+  // No second app, cross-document messages, or PNG decode/re-encode roundtrip.
+  async function renderCassetteExport(allViews) {
+    var restorePreview = await freezeCassetteExportPreview();
+    var original = state, savedSuspend = suspendAutoSave;
+    var savedSelection = multiSelectedLayerKeys.slice(), savedSide = multiSelectionSide;
+    var savedSelectionState = multiSelectionStateRef, savedTextSelection = trackedTextSelection;
+    var savedExportSide = postcardExportSide;
+    var session = { faces: allViews ? {} : null };
+    clearTimeout(saveTimer);
+    suspendAutoSave = true;
+    cassetteExportSession = session;
+    try {
+      state = clone(original);
+      state.viewZoom = 1; state.viewRotation = 0; state.selectedLayer = "";
+      multiSelectedLayerKeys = []; trackedTextSelection = null;
+      render();
+      await waitForEditorPaint();
+      return allViews ? await createAllViewImageArchive() : await drawVisibleTicketFromPreview();
+    } finally {
+      Object.keys(session.faces || {}).forEach(function (side) { session.faces[side].width = session.faces[side].height = 1; });
+      state = original;
+      multiSelectedLayerKeys = savedSelection; multiSelectionSide = savedSide;
+      multiSelectionStateRef = savedSelectionState; trackedTextSelection = savedTextSelection;
+      postcardExportSide = savedExportSide;
+      try {
+        // Rebuild depth canvases instead of keeping stale exported rasters.
+        window.LOG_TICKET_CASSETTE_COMBINED.restore(ticket);
+        render();
+        await waitForPreviewImages();
+        await waitForEditorPaint();
+      } finally {
+        cassetteExportSession = null;
+        suspendAutoSave = savedSuspend;
+        restorePreview();
+        if (!savedSuspend) scheduleSave();
+      }
+    }
+  }
+
   async function createAllViewImageArchive() {
+    if (state.template === "cassette" && !cassetteExportSession) return renderCassetteExport(true);
     var exportStateRef = state;
     var exportTemplate = state.template;
     var savedSide = state.side;
@@ -14157,7 +14431,7 @@
         blob: new Blob([makeZip(files)], { type: "application/zip" }),
         name: stem + "-all-images.zip",
         count: exportedImageCount,
-        label: exportTemplate === "book" ? "표지 · 펼침 · 함께" : exportTemplate === "cd-album" ? "닫힘 · 열림 · 합본" : templateSupportsBoth(exportTemplate) ? "FRONT · BACK · BOTH" : exportTemplate === "sticker-pack" ? "팩 · 낱개 배치" : "영상 재생 · 정보칸"
+        label: exportTemplate === "cassette" ? "앞면 · 테이프 · 합본" : exportTemplate === "lp-album" ? "커버 · 판 · 합본" : exportTemplate === "book" ? "표지 · 펼침 · 함께" : exportTemplate === "cd-album" ? "닫힘 · 열림 · 합본" : templateSupportsBoth(exportTemplate) ? "FRONT · BACK · BOTH" : exportTemplate === "sticker-pack" ? "팩 · 낱개 배치" : "영상 재생 · 정보칸"
       };
     } finally {
       if (canvas) canvas.width = canvas.height = 1;
@@ -14779,6 +15053,16 @@
     var node = face.querySelector('[data-canvas-layer="' + item.id + '"]');
     var image = node && node.querySelector("img.custom-image-source");
     if (!node || !image || !image.complete || !image.naturalWidth) return null;
+    // Neutral cassette materials already contain their cutout and texture.
+    // Re-encoding each full-size material as PNG adds no effect and repeatedly
+    // processes millions of pixels. Keep the same stretch geometry and source.
+    if (state.template === "cassette" && !imageEffectNeedsRasterBake(item.effect, shadowFor(item.id, side), strokeFor(item.id, side))) {
+      return {
+        selector: '[data-canvas-layer="' + item.id + '"] img.custom-image-source',
+        dataUrl: image.currentSrc || image.src, outsetCss: 0,
+        contentWidthCss: node.clientWidth, contentHeightCss: node.clientHeight
+      };
+    }
     var stickerSource = state.template === "sticker-pack" ? window.LOG_TICKET_STICKERS.rasterSource(item, node.clientWidth * exportScale, node.clientHeight * exportScale) : null;
     var baked = bakeStretchedCustomImage(stickerSource || image, item, node.clientWidth, node.clientHeight, exportScale, shadowFor(item.id, side), strokeFor(item.id, side));
     if (stickerSource && stickerSource.tagName === "CANVAS") stickerSource.width = stickerSource.height = 1;
@@ -15592,6 +15876,17 @@
       onclone: async function (clonedDocument) {
         var clonedTicket = clonedDocument.getElementById("ticket");
         if (!clonedTicket) return;
+        // The native face must not inherit the editor viewport's crop or pan.
+        if (state.template === "cassette") {
+          clonedDocument.body.appendChild(clonedTicket);
+          clonedDocument.documentElement.style.setProperty("overflow", "visible", "important");
+          clonedDocument.body.style.setProperty("overflow", "visible", "important");
+          clonedTicket.style.setProperty("position", "absolute", "important");
+          clonedTicket.style.setProperty("inset", "0 auto auto 0", "important");
+          clonedTicket.style.setProperty("margin", "0", "important");
+          clonedTicket.style.setProperty("transform", "none", "important");
+          clonedTicket.style.setProperty("zoom", "1", "important");
+        }
         Array.prototype.forEach.call(clonedTicket.querySelectorAll('[data-canvas-layer="attribution"]'), function (node) {
           node.style.setProperty("display", "none", "important");
         });
@@ -15801,7 +16096,7 @@
     await waitForPreviewImages();
     renderBlockImages();
     paintTrainPerforations();
-    await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+    await waitForEditorPaint();
 
     var targetSize = templateExportSize(state.template);
     var targetWidth = targetSize.width;
@@ -15815,13 +16110,13 @@
     ticket.style.zoom = "1";
     ticket.style.filter = "none";
     try {
-      await new Promise(function (resolve) { requestAnimationFrame(resolve); });
+      await waitForEditorPaint(1);
       paintTrainPerforations();
       var exportGeometry = captureExportGeometry();
       var exportLayerSnapshot = captureExportLayerSnapshot();
       var scale = targetWidth / Math.max(1, ticket.offsetWidth);
       renderCustomLayers(scale);
-      await new Promise(function (resolve) { requestAnimationFrame(resolve); });
+      await waitForEditorPaint(1);
       var bakedImages = await prepareExportImageBakes(scale);
       liveEffectSuppression = suppressLiveImageEffectPseudos(bakedImages);
       await refreshLayerClippingPreviews(scale, bakedImages);
@@ -15938,6 +16233,7 @@
   }
 
   function drawCompositeFace(context, faceCanvas, template, side, onTop, outputWidth, outputHeight, shadowEnabled) {
+    if (template === "cassette") { window.LOG_TICKET_CASSETTE_COMBINED.paintFace(context,faceCanvas,side,outputWidth,outputHeight,shadowEnabled,state); return; }
     if (template === "cd-album" && window.LOG_TICKET_CD_COMBINED) {
       window.LOG_TICKET_CD_COMBINED.paintFace(context, faceCanvas, side, outputWidth, outputHeight, shadowEnabled, state);
       return;
@@ -15981,14 +16277,17 @@
     if (cdShadowCanvas) cdShadowCanvas.width = cdShadowCanvas.height = 1;
   }
   async function drawVisibleTicketFromPreview() {
-    if (['book', 'cd-album', 'sticker-pack'].indexOf(state.template) >= 0) {
+    if (state.template === "cassette" && !cassetteExportSession) return renderCassetteExport(false);
+    if (['book', 'cd-album', 'sticker-pack', 'lp-album', 'cassette'].indexOf(state.template) >= 0) {
       // Prime both faces before sequential export changes the active side.
       attributionBasePosition(state.template, 1, 1, isBothView(state), state, state.side);
       await Promise.all(Array.from(attributionAlphaCache.values()).map(function(entry){return entry.ready;}));
     }
+    if (state.template === 'cassette') await window.LOG_TICKET_CASSETTE_THEME.ready();
+    if (state.template === 'cassette' && isBothView(state)) await window.LOG_TICKET_CASSETTE_COMBINED.ready();
     if (state.template === 'cd-album' && isBothView(state)) await window.LOG_TICKET_CD_COMBINED.ready();
     if (!isBothView(state)) {
-      var singleFaceCanvas = await drawTicketFromPreview();
+      var singleFaceCanvas = state.template === "cassette" ? await cassetteExportFace() : await drawTicketFromPreview();
       return addMandatoryAttributionPadding(addSingleFaceExportShadow(singleFaceCanvas, state.side, state), state.side, state, false);
     }
     var exportStateRef = state;
@@ -16025,8 +16324,8 @@
         state.side = side;
         state.selectedLayer = "";
         render();
-        await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
-        faceCanvas = await drawTicketFromPreview();
+        await waitForEditorPaint();
+        faceCanvas = state.template === "cassette" ? await cassetteExportFace() : await drawTicketFromPreview();
         drawCompositeFace(context, faceCanvas, exportTemplate, side, side === exportTopSide, size.width, size.height, faceShadowExportEnabled(side, exportStateRef));
         faceCanvas.width = faceCanvas.height = 1;
         faceCanvas = null;
@@ -16136,6 +16435,8 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { render(); });
   if (location.hash === "#sticker-pack") { applyTemplate("sticker-pack"); $("#templateEntry").classList.add("hidden"); }
   if (location.hash === "#cd-album") { applyTemplate("cd-album"); $("#templateEntry").classList.add("hidden"); }
+  if (location.hash === "#cassette" && isTemplateId("cassette")) { applyTemplate("cassette"); $("#templateEntry").classList.add("hidden"); }
+  if (location.hash === "#lp-album" && isTemplateId("lp-album")) { applyTemplate("lp-album"); $("#templateEntry").classList.add("hidden"); }
   if (location.hash === "#book" && isTemplateId("book")) { applyTemplate("book"); $("#templateEntry").classList.add("hidden"); }
   render();
   requestAnimationFrame(fitPreview);
