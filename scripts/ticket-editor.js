@@ -125,6 +125,7 @@
   }
   function templateSizeSet(template, documentState) {
     var source = documentState || state;
+    if (template === "train-autumn" && source && source.autumnEditorialVersion === 1) return { preview: { width: 960, height: 360 }, export: { width: 3200, height: 1200 } };
     if (template === "cassette") return window.LOG_TICKET_CASSETTE_THEME.sizes(source);
     if (template === "lp-album") return window.LOG_TICKET_LP_THEME.sizes(source);
     if (template === "book" && window.LOG_TICKET_BOOK_THEME) return window.LOG_TICKET_BOOK_THEME.sizes(source);
@@ -3460,6 +3461,7 @@
     var migrateTrainHandwriting = template === "train" && (!saved || savedTrainHandwritingVersion < TRAIN_HANDWRITING_VERSION);
     var migratePolaroidReverse = template === "polaroid" && (!saved || savedPolaroidReverseVersion < POLAROID_REVERSE_VERSION);
     var next = Object.assign({}, fallback, saved && typeof saved === "object" ? saved : {});
+    if (template === "train-autumn") next.autumnEditorialVersion = saved ? Number(saved.autumnEditorialVersion) || 0 : fallback.autumnEditorialVersion;
     var seedStockCinemaPairTitle = template === "cinema" && saved && savedCinemaPairTitleVersion < CINEMA_PAIR_TITLE_VERSION
       && saved.title === "" && saved.botName === "HAEON" && saved.personaName === "MIRA";
     if (seedStockCinemaPairTitle) next.title = fallback.title;
@@ -9564,6 +9566,7 @@
       : layerAvailableOnSide("texture", state.side) && !isLayerHidden("texture", state.side));
     var familyClass = templateFamilyId(state) !== state.template ? " " + templateFamilyId(state) : "";
     ticket.className = "ticket " + state.template + familyClass + " " + state.theme + " quote-effect-" + nativeTextColorMode("quote", "front") + (showBackClass ? " is-back" : "") + postcardViewClass + (textureVisible ? " texture-on" : "") + (state.freeform ? " freeform-mode" : "") + (flipPhase ? " " + flipPhase : "") + (animateFade ? " play-fade" : "");
+    ticket.classList.toggle("autumn-editorial", state.template === "train-autumn" && state.autumnEditorialVersion === 1);
     ticket.classList.toggle("ott-subtitle-bg", state.template === "ott" && Boolean(state.ottSubtitleBackgroundEnabled));
     ticket.style.setProperty("--ott-progress", ottProgressValue(state) + "%");
     ticket.style.setProperty("--ott-subtitle-background", hexToRgba(validHexColor(state.ottSubtitleBackgroundColor, "#000000"), ottSubtitleBackgroundOpacity(state)));
@@ -13523,6 +13526,7 @@
       winterSnowLayoutVersion: state.winterSnowLayoutVersion,
       winterTypographyVersion: state.winterTypographyVersion,
       autumnTypographyRollbackVersion: state.autumnTypographyRollbackVersion,
+      autumnEditorialVersion: state.template === "train-autumn" ? state.autumnEditorialVersion : undefined,
       seasonDisplayFontVersion: state.seasonDisplayFontVersion,
       winterOpticalLayoutVersion: state.winterOpticalLayoutVersion,
       winterBackHeaderVersion: state.winterBackHeaderVersion,
@@ -13547,7 +13551,7 @@
         front: { text: { kicker: state.kicker, title: resolvedFrontTitle(), subtitle: state.subtitle, botLabel: state.botLabel, botName: state.botName, personaLabel: state.personaLabel, personaName: state.personaName, dateLabel: state.dateLabel, date: state.date, routeFrom: state.routeFrom, routeTo: state.routeTo, routeIndex: state.routeIndex, sealText: state.sealText, coachLabel: state.coachLabel, coachNumber: state.coachNumber, stubTopline: state.stubTopline, admitText: state.admitText, stubTitle: state.stubTitle, platformText: state.platformText, validationText: state.validationText, barcode: state.barcode, quote: state.quote, speaker: state.speaker, handwrittenNote: state.handwrittenNote, ottPlayMark: state.ottPlayMark, ottTimeCurrent: state.ottTimeCurrent, ottTimeTotal: state.ottTimeTotal, ottTag: state.ottTag, ottProgress: ottProgressValue(state), sourceLabel: state.sourceLabel, source: state.source, serialLabel: state.serialLabel, serial: state.serial, serialCopyLabel: state.serialCopyLabel, serialCopy: state.serial }, blocks: { main: serializedBlock("frontMain", assetPaths), stub: serializedBlock("frontStub", assetPaths) }, customLayers: serializedCustomLayers("front", assetPaths), layout: clone(state.layouts.front), placements: serializedPlacements("front") },
         back: { text: { kicker: isTrainTemplate(state) ? state.kicker : state.backKicker, heading: isTrainTemplate(state) ? resolvedFrontTitle() : state.backHeading, subtitle: state.subtitle, botLabel: state.botLabel, botName: state.botName, personaLabel: state.personaLabel, personaName: state.personaName, dateLabel: state.dateLabel, date: state.date, postcardCardTitle: state.postcardCardTitle, postcardCardSubtitle: state.postcardCardSubtitle, postcardModelLabel: state.postcardModelLabel, postcardModel: state.postcardModel, postcardPromptLabel: state.postcardPromptLabel, postcardPrompt: state.postcardPrompt, postcardWritingLines: [state.postcardWriting1, state.postcardWriting2, state.postcardWriting3, state.postcardWriting4], routeFrom: state.backRouteFrom, routeTo: state.backRouteTo, copyLabel: state.backCopyLabel, title: state.backTitle, body: state.backBody, backNoteLabel: state.backNoteLabel, note: state.backNote, sourceLabel: state.sourceLabel, source: state.source, coachLabel: state.coachLabel, coachNumber: state.coachNumber, stubTopline: state.stubTopline, admitText: state.admitText, stubTitle: state.stubTitle, platformText: state.platformText, barcode: isTrainTemplate(state) ? state.barcode : state.backBarcode, serialLabel: state.serialLabel, serial: state.serial, serialCopyLabel: state.serialCopyLabel, serialCopy: state.serial, ratingLabel: state.ratingLabel, ratingMark: state.ratingMark, ratingScore: state.ratingScore, cinemaEtcLabel: state.cinemaEtcLabel }, record: cinemaRecordPayload(), blocks: backBlocks, customLayers: serializedCustomLayers("back", assetPaths), layout: clone(state.layouts.back), placements: serializedPlacements("back") }
       },
-      style: { quoteColor: state.quoteColor, quoteEffect: state.quoteEffect, accentColor: state.accent, mutedColor: state.muted, font: state.font, layerStyles: serializedFaceStyleStore(state.layerStyles), inlineTextVersion: INLINE_TEXT_STYLE_VERSION, inlineTextStyles: serializedFaceStyleStore(state.inlineTextStyles), textTypingStyles: serializedFaceStyleStore(state.textTypingStyles), ottAspect: state.template === "ott" ? ottAspectId(state) : null, ottSubtitleBackground: state.template === "ott" ? { enabled: Boolean(state.ottSubtitleBackgroundEnabled), color: validHexColor(state.ottSubtitleBackgroundColor, "#000000"), opacity: ottSubtitleBackgroundOpacity(state) } : null, material: state.texture && state.template !== "cinema" ? { id: "paper-fiber-v2", version: 2, asset: "template://textures/ticket-paper-fiber-v2.png", strength: state.textureStrength } : null },
+      style: { quoteColor: state.quoteColor, quoteEffect: state.quoteEffect, accentColor: state.accent, mutedColor: state.muted, font: state.font, layerStyles: serializedFaceStyleStore(state.layerStyles), inlineTextVersion: INLINE_TEXT_STYLE_VERSION, inlineTextStyles: serializedFaceStyleStore(state.inlineTextStyles), textTypingStyles: serializedFaceStyleStore(state.textTypingStyles), ottAspect: state.template === "ott" ? ottAspectId(state) : null, ottSubtitleBackground: state.template === "ott" ? { enabled: Boolean(state.ottSubtitleBackgroundEnabled), color: validHexColor(state.ottSubtitleBackgroundColor, "#000000"), opacity: ottSubtitleBackgroundOpacity(state) } : null, material: state.texture && state.template !== "cinema" ? (state.template === "train-autumn" && state.autumnEditorialVersion === 1 ? { id: "autumn-scanned-paper-v1", version: 1, asset: "template://textures/autumn-scanned-paper-v1.jpg", strength: state.textureStrength } : { id: "paper-fiber-v2", version: 2, asset: "template://textures/ticket-paper-fiber-v2.png", strength: state.textureStrength }) : null },
       effects: { mode: "per-image", version: 1 },
       layers: {
         order: clone(layerOrderFor(state.side, state).filter(function (key) { return key !== "route-copy" && key !== "route-index"; })),
@@ -13852,6 +13856,7 @@
     documentState.winterSnowLayoutVersion = Number(payload.winterSnowLayoutVersion) || 0;
     documentState.winterTypographyVersion = Number(payload.winterTypographyVersion) || 0;
     documentState.autumnTypographyRollbackVersion = Number(payload.autumnTypographyRollbackVersion) || 0;
+    documentState.autumnEditorialVersion = Number(payload.autumnEditorialVersion) || 0;
     documentState.seasonDisplayFontVersion = Number(payload.seasonDisplayFontVersion) || 0;
     documentState.winterOpticalLayoutVersion = Number(payload.winterOpticalLayoutVersion) || 0;
     documentState.winterBackHeaderVersion = Number(payload.winterBackHeaderVersion) || 0;
@@ -15244,6 +15249,7 @@
       });
     });
     applyExportVerticalTextFallback(clonedTicket);
+    applyExportCinemaTitleClipFallback(clonedTicket);
     applyExportTextShadowFallback(clonedTicket, exportScale, compositedLayerKeys);
   }
 
@@ -15332,6 +15338,28 @@
       if (String(view.getComputedStyle(node).writingMode || "").indexOf("vertical") !== 0) return;
       splitExportTextIntoGlyphs(node);
     });
+  }
+
+  function applyExportCinemaTitleClipFallback(clonedTicket) {
+    if (!clonedTicket.classList.contains("cinema")) return;
+    var node = clonedTicket.querySelector('[data-canvas-layer="title"]');
+    var view = clonedTicket.ownerDocument && clonedTicket.ownerDocument.defaultView;
+    if (!node || !view) return;
+    var computed = view.getComputedStyle(node);
+    if (computed.overflow !== "hidden" || computed.display === "none") return;
+    var width = computed.width, height = computed.height;
+    /* html2canvas clips the transformed pair title in the wrong coordinate space.
+       Keep the transform on the layer and clipping on an untransformed child.
+       Preserve the text box size and intentional clipping. The live editor and
+       saved document are untouched; this is only the disposable export clone. */
+    var clip = node.ownerDocument.createElement("div");
+    clip.className = "export-text-clip";
+    clip.style.cssText = "position:absolute!important;inset:0!important;width:100%!important;height:100%!important;overflow:hidden!important;writing-mode:inherit!important;";
+    node.style.setProperty("width", width, "important");
+    node.style.setProperty("height", height, "important");
+    while (node.firstChild) clip.appendChild(node.firstChild);
+    node.appendChild(clip);
+    node.style.setProperty("overflow", "visible", "important");
   }
 
   function applyExportTextShadowFallback(clonedTicket, exportScale, skipLayerKeys) {
@@ -15544,8 +15572,9 @@
       bakeTextureLast: textureEnabled && shouldBakeExportTextureLast(),
       textureOpacity: textureComputed ? clamp(parseFloat(textureComputed.opacity), 0, 1) : 0,
       textureBlendMode: textureComputed ? String(textureComputed.mixBlendMode || "multiply") : "multiply",
-      textureTileWidth: textureComputed ? finiteNumber(parseFloat(textureComputed.backgroundSize), 720) : 720,
-      textureTileHeight: textureComputed ? finiteNumber(parseFloat(textureComputed.backgroundSize.split(/\s+/)[1]), 720) : 720,
+      textureSource: state.template === "train-autumn" && state.autumnEditorialVersion === 1 ? window.LOG_TICKET_AUTUMN_EDITORIAL_ASSETS.paper : null,
+      textureTileWidth: state.template === "train-autumn" && state.autumnEditorialVersion === 1 ? ticket.offsetWidth : textureComputed ? finiteNumber(parseFloat(textureComputed.backgroundSize), 720) : 720,
+      textureTileHeight: state.template === "train-autumn" && state.autumnEditorialVersion === 1 ? ticket.offsetHeight : textureComputed ? finiteNumber(parseFloat(textureComputed.backgroundSize.split(/\s+/)[1]), 720) : 720,
       textureFilter: textureComputed ? String(textureComputed.filter || "none") : "none",
       previewWidth: ticket.offsetWidth,
       previewHeight: ticket.offsetHeight
@@ -15978,7 +16007,7 @@
 
   async function drawExportPaperTexture(output, layerSnapshot) {
     if (!layerSnapshot || !layerSnapshot.bakeTextureLast || layerSnapshot.textureOpacity <= 0) return output;
-    var image = await loadExportPaperTextureImage();
+    var image = layerSnapshot.textureSource ? await loadDataImage(layerSnapshot.textureSource) : await loadExportPaperTextureImage();
     var tile = image || makeExportPaperTextureFallbackTile();
     var textureCanvas = document.createElement("canvas");
     textureCanvas.width = output.width;

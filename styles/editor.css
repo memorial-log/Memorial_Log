@@ -2054,7 +2054,7 @@ input[type="range"] { height: 4px; padding: 0; accent-color: #333; }
   width: auto;
   height: 28px;
 }
-.metadata-layer span { min-width: 0; border-top: 1px solid var(--ticket-accent-42); padding-top: 4px; }
+.metadata-layer > span { min-width: 0; border-top: 1px solid var(--ticket-accent-42); padding-top: 4px; }
 .metadata-layer small,
 .metadata-layer b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .metadata-layer small { color: var(--ticket-accent); font: 700 5px var(--mono); letter-spacing: .14em; }
@@ -4202,7 +4202,7 @@ body.exporting-ticket .image-placeholder { display: none !important; }
   gap: 10px;
   width: auto;
 }
-.cinema .ticket-back .back-metadata span { padding-top: 5px; }
+.cinema .ticket-back .back-metadata > span { padding-top: 5px; }
 .cinema .ticket-back .back-metadata small { font-size: 7px; }
 .cinema .ticket-back .back-metadata b { font-size: 9px; }
 .cinema .ticket-back .back-route-copy {
@@ -4403,7 +4403,7 @@ body.exporting-ticket .image-placeholder { display: none !important; }
   height: 30px;
 }
 .cinema .ticket-front .metadata-layer span,
-.cinema .ticket-back .back-metadata span { padding-top: 5px; text-align: left; }
+.cinema .ticket-back .back-metadata > span { padding-top: 5px; text-align: left; }
 .cinema .ticket-front .metadata-layer small,
 .cinema .ticket-back .back-metadata small { font-size: 7px; letter-spacing: .11em; }
 .cinema .ticket-front .metadata-layer b,
@@ -4903,7 +4903,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
   width: auto;
   height: 34px;
 }
-.cinema .ticket-back .back-metadata span { padding-top: 5px; border-top: 1px solid var(--ticket-accent-42); text-align: left; }
+.cinema .ticket-back .back-metadata > span { padding-top: 5px; border-top: 1px solid var(--ticket-accent-42); text-align: left; }
 .cinema .ticket-back .back-metadata small { color: var(--ticket-muted); font-size: 6px; }
 .cinema .ticket-back .back-metadata b { margin-top: 3px; color: var(--ticket-quote); font-size: 8px; }
 .cinema .ticket-back .back-copy-label { top: 53.5%; left: 8%; color: var(--ticket-muted); font-size: 7px; }
@@ -6094,7 +6094,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
   width: auto;
   height: 52px;
 }
-.cinema .ticket-back .back-metadata span {
+.cinema .ticket-back .back-metadata > span {
   padding-top: 7px;
   border-top: 1px solid var(--ticket-accent-42);
   text-align: left;
@@ -7089,7 +7089,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
   width: auto;
   height: auto;
 }
-.cinema .ticket-back .back-metadata span {
+.cinema .ticket-back .back-metadata > span {
   display: grid;
   grid-template-columns: 34% 66%;
   align-items: baseline;
@@ -7097,7 +7097,7 @@ body.ui-dark .layer-select i { background: #2b3035; }
   border-top: 1px solid var(--ticket-accent-42);
   text-align: left;
 }
-.cinema .ticket-back .back-metadata span:last-child { border-bottom: 1px solid var(--ticket-accent-42); }
+.cinema .ticket-back .back-metadata > span:last-child { border-bottom: 1px solid var(--ticket-accent-42); }
 .cinema .ticket-back .back-metadata small {
   color: var(--ticket-muted);
   font: 600 6px/1 var(--mono);
@@ -16416,3 +16416,21 @@ body[data-template="sticker-pack"]:not(.sticker-editing-active) .layer-create-co
 #ticket.cassette .cassette-label-hit-target path { pointer-events:fill!important; }
 #ticket.cassette [data-canvas-layer="custom-cassette-back-body-color"],#ticket.cassette [data-canvas-layer="custom-cassette-back-body-color"] * { pointer-events:none!important; }
 
+
+/* Autumn editorial v1: only this edition uses the sourced paper scan. */
+#ticket.train-autumn.autumn-editorial .paper-texture {
+  inset:0 !important;
+  background-image:var(--log-ticket-autumn-paper) !important;
+  background-size:100% 100% !important;
+  background-repeat:no-repeat !important;
+  filter:none !important;
+  mix-blend-mode:multiply !important;
+  opacity:var(--texture-strength) !important;
+}
+#ticket.train-autumn.autumn-editorial .route-art-layer .perforation {
+  top:13px;bottom:13px;height:auto;width:1px;
+  background:var(--ticket-accent);opacity:.8;
+}
+#ticket.train-autumn.autumn-editorial .custom-shape-placeholder {
+  color:var(--ticket-accent);font-size:8px;letter-spacing:1.4px;opacity:.45;
+}

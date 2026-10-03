@@ -1,0 +1,23 @@
+AUTUMN EDITORIAL — DESIGN RESOURCE CREDITS
+Revised 2026-10-02. No AI image generation was used for these illustrations or paper texture.
+
+1. Oak Leaf and Acorn Vintage — Karen Arnold / Public Domain Pictures
+   https://www.publicdomainpictures.net/en/view-image.php?image=300364&picture=oak-leaf-and-acorn-vintage
+   CC0 / Public Domain. Free for personal and commercial projects and modification.
+   Used the site's free standard-resolution JPEG (1189 x 1919).
+   Adaptation: isolated the source leaf and acorn, removed white paper, converted
+   to warm brown tones, rotated/resized and overlapped into a close-up arrangement.
+   No AI generation or drawn replacement botanical forms.
+
+2. Paper Fibers — Heliodor Jalba, Subtle Patterns / Transparent Textures
+   https://www.transparenttextures.com/paper-fibers.html
+   https://www.toptal.com/designers/subtlepatterns/
+   CC BY 3.0: https://creativecommons.org/licenses/by/3.0/
+   Transparent Textures author's license statement:
+   https://news.ycombinator.com/item?id=41515968
+   Adaptation: repeated onto a white texture sheet, JPEG compressed, blended over
+   the light brown ticket paper at adjustable opacity.
+
+Prepared design assets are embedded in data/editor-bundle-1.js.
+The earlier flower arrangement has been replaced with oak leaves and acorns.
+Unrelated historic template assets and user-saved document contents are preserved.
